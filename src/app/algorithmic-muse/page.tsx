@@ -1,0 +1,157 @@
+"use client";
+
+import { useState } from "react";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Lightbulb, Loader2, Sparkles } from "lucide-react";
+import { generateMusePrompt, type GenerateMusePromptInput, type GenerateMusePromptOutput } from "@/ai/flows/algorithmic-muse-prompt";
+
+const formSchema = z.object({
+  artistCreativeHistory: z.string().min(50, "Please provide a detailed creative history (min 50 characters)."),
+  currentMood: z.string().min(3, "Describe your current mood (min 3 characters)."),
+  desiredPromptType: z.enum(["visual", "textual"]),
+});
+
+type MuseFormValues = z.infer<typeof formSchema>;
+
+export default function AlgorithmicMusePage() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [generatedPrompt, setGeneratedPrompt] = useState<GenerateMusePromptOutput | null>(null);
+  const { toast } = useToast();
+
+  const form = useForm<MuseFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      artistCreativeHistory: "",
+      currentMood: "",
+      desiredPromptType: "visual",
+    },
+  });
+
+  const onSubmit: SubmitHandler<MuseFormValues> = async (data) => {
+    setIsLoading(true);
+    setGeneratedPrompt(null);
+    try {
+      const result = await generateMusePrompt(data);
+      setGeneratedPrompt(result);
+      toast({
+        title: "Prompt Generated!",
+        description: "Your algorithmic muse has delivered inspiration.",
+      });
+    } catch (error) {
+      console.error("Error generating muse prompt:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate prompt. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8 max-w-2xl mx-auto">
+      <Card className="shadow-lg">
+        <CardHeader className="text-center">
+          <Lightbulb className="mx-auto h-12 w-12 text-primary mb-2" />
+          <CardTitle className="text-3xl">Algorithmic Muse</CardTitle>
+          <CardDescription>Let AI spark your creativity. Provide some context, and the muse will suggest a unique prompt tailored to you.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="artistCreativeHistory"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Your Creative History</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe your past artworks, sketches, projects, themes you explore, techniques you use, etc."
+                        rows={5}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>The more detail, the better the prompt!</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="currentMood"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Mood/State of Mind</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g., contemplative, energetic, stuck, curious, melancholic"
+                        rows={2}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="desiredPromptType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Desired Prompt Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select prompt type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="visual">Visual Prompt</SelectItem>
+                        <SelectItem value="textual">Textual Prompt</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Conjuring Inspiration...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Prompt
+                  </>
+                )}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      {generatedPrompt && (
+        <Card className="mt-8 bg-accent/20 border-accent shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl text-accent-foreground">Your Muse's Suggestion ✨</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-lg whitespace-pre-wrap">{generatedPrompt.prompt}</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
