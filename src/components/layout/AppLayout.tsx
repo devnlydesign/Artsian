@@ -5,7 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitFork, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart
+  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitFork, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -47,6 +47,7 @@ const artisanToolsNavItems = [
   { href: "/algorithmic-muse", label: "Idea Sparker", icon: Lightbulb, tooltip: "Get Creative Prompts" },
   { href: "/genesis-trails", label: "Project Stories", icon: GitFork, tooltip: "Project Timelines" },
   { href: "/process-symphony", label: "Creative Soundtracks", icon: Music, tooltip: "AI Generated Audio" },
+  { href: "/personal-assistant", label: "AI Assistant", icon: Bot, tooltip: "Personalize Your App" },
   { href: "/biomes", label: "Private Spaces", icon: ShieldCheck, tooltip: "Private Communities" },
   { href: "/insights", label: "My Impact", icon: BarChartBig, tooltip: "Audience Engagement" },
   { href: "/amplify-flux", label: "Boost My Art", icon: Zap, tooltip: "Promote Your Work" },
@@ -195,5 +196,3 @@ function UserMenu() {
     </DropdownMenu>
   );
 }
-
-    
