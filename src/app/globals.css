@@ -47,40 +47,47 @@ body {
   }
 
   .dark {
-    --background: 282 30% 10%; /* Dark Violet background */
-    --foreground: 278 50% 90%; /* Light Violet text */
-    --card: 282 30% 12%;
-    --card-foreground: 278 50% 90%;
-    --popover: 282 30% 12%;
-    --popover-foreground: 278 50% 90%;
-    --primary: 282 100% 60%; /* Lighter Vibrant Violet */
-    --primary-foreground: 282 20% 10%; /* Darker text for contrast */
-    --secondary: 282 30% 20%;
-    --secondary-foreground: 278 50% 90%;
-    --muted: 282 30% 18%;
-    --muted-foreground: 278 40% 60%;
-    --accent: 322 79% 60%; /* Lighter Rich Magenta */
-    --accent-foreground: 322 20% 10%; /* Darker text for contrast */
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 282 25% 25%;
-    --input: 282 25% 22%;
-    --ring: 282 100% 60%; /* Lighter primary for rings */
-    --chart-1: 282 100% 60%;
-    --chart-2: 322 79% 60%;
-    --chart-3: 278 50% 50%;
-    --chart-4: 282 80% 60%;
-    --chart-5: 322 60% 60%;
+    --background: 220 20% 7%; /* Very Dark Blue-Charcoal */
+    --foreground: 220 15% 88%; /* Light Cool Gray */
+    --card: 220 20% 10%; /* Slightly Lighter Dark Blue-Charcoal */
+    --card-foreground: 220 15% 88%; /* Light Cool Gray */
+    --popover: 220 20% 9%; /* Dark Popover */
+    --popover-foreground: 220 15% 88%; /* Light Cool Gray */
+    
+    --primary: 200 100% 50%;   /* Vibrant Cyan/Teal - for gradients */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+    
+    --secondary: 220 15% 20%; /* Darker Cool Gray */
+    --secondary-foreground: 220 10% 80%; /* Lighter Cool Gray for text on secondary */
+    
+    --muted: 220 15% 15%; /* Muted Dark Blue-Gray */
+    --muted-foreground: 220 10% 65%; /* Medium Cool Gray for muted text */
+    
+    --accent: 280 80% 60%;    /* Vibrant Purple - for gradients */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+    
+    --destructive: 0 70% 50%; /* Darker Red */
+    --destructive-foreground: 0 0% 95%; /* Light text on destructive */
+    
+    --border: 220 15% 18%; /* Subtle Border */
+    --input: 220 15% 16%; /* Input Background */
+    --ring: 200 100% 55%; /* Ring color (Primary) */
 
+    --chart-1: 200 100% 60%; /* Lighter Primary */
+    --chart-2: 280 80% 70%; /* Lighter Accent */
+    --chart-3: 220 70% 65%; /* A complementary blue */
+    --chart-4: 180 90% 55%; /* A bright teal */
+    --chart-5: 300 75% 60%; /* A magenta/pinkish purple */
+    
     /* Sidebar specific variables for dark mode */
-    --sidebar-background: 282 25% 8%; /* Even darker violet */
-    --sidebar-foreground: 278 40% 75%; /* Lighter text */
-    --sidebar-accent: 282 20% 18%; /* Hover background */
-    --sidebar-accent-foreground: 0 0% 95%; /* Text on hover */
-    --sidebar-border: 282 15% 18%; /* Border */
-    --sidebar-primary: 322 79% 65%; /* Active/Primary element */
-    --sidebar-primary-foreground: 0 0% 100%; /* Text on active/primary */
-    --sidebar-ring: 322 79% 65%; /* Focus ring */
+    --sidebar-background: 220 25% 5%; /* Even Darker Blue-Charcoal */
+    --sidebar-foreground: 220 15% 78%; /* Slightly Softer Light Cool Gray */
+    --sidebar-primary: 200 100% 55%; /* Primary for sidebar active elements */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 12%; /* Hover background for sidebar items */
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 20% 8%;
+    --sidebar-ring: 200 100% 55%;
   }
 }
 
@@ -106,15 +113,16 @@ body {
     animation: loading-bar 1.8s ease-out forwards; /* Adjusted duration to match timeout slightly */
   }
 
+  /* Updated gradient for flowing effect */
   .bg-gradient-primary-accent {
     background-image: linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%);
-    background-size: 200% auto;
-    background-position: 0% 0%;
-    transition: background-position 0.4s ease-in-out, box-shadow 0.3s ease-in-out;
+    background-size: 200% auto; /* Crucial for the animation */
+    background-position: 0% 0%; /* Initial position */
+    transition: background-position 0.4s ease-in-out, box-shadow 0.3s ease-in-out, filter 0.3s ease-in-out;
   }
   .bg-gradient-primary-accent:hover {
     background-position: 100% 0%; /* Shifts the gradient on hover */
-    /* hover:brightness-110 is handled by button variant */
+    filter: brightness(1.15); /* Slightly brighten on hover */
   }
 
   .text-gradient-primary-accent {
@@ -130,7 +138,8 @@ body {
     @apply transition-all duration-300 ease-in-out;
   }
   .card-interactive-hover:hover {
-    @apply shadow-xl transform -translate-y-0.5; /* Existing shadow-xl is good, added slight translate */
-    box-shadow: 0 10px 15px -3px hsl(var(--primary) / 0.15), 0 4px 6px -4px hsl(var(--primary) / 0.15); /* Tinted shadow */
+    @apply shadow-xl transform -translate-y-0.5;
+    /* Tinted shadow with primary color */
+    box-shadow: 0 10px 15px -3px hsl(var(--primary) / 0.2), 0 4px 6px -4px hsl(var(--primary) / 0.2);
   }
 }
