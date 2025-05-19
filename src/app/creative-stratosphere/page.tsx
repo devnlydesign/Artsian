@@ -1,5 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Globe, Search, TrendingUp } from "lucide-react";
 import Image from "next/image";
 
@@ -64,7 +66,3 @@ export default function CreativeStratospherePage() {
     </div>
   );
 }
-
-// Dummy Input component to avoid unused import error if it's not used elsewhere.
-// In a real app, ensure all components are used or remove them.
-const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />;
