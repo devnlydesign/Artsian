@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, BarChart2, Palette, Sparkles, Smile } from "lucide-react";
@@ -15,7 +16,7 @@ export default function FluxSignaturePage() {
       { date: "2024-05-20", change: "Exploration of generative art techniques" },
     ],
     visualRepresentation: "https://placehold.co/800x400.png",
-    dominantColors: ["#9400D3", "#C71585", "#FF69B4", "#4B0082"],
+    dominantColors: ["#9400D3", "#C71585", "#FF69B4", "#4B0082"], // Purple, Magenta, Pink, Indigo
   };
 
   return (
@@ -25,19 +26,19 @@ export default function FluxSignaturePage() {
           <div className="flex items-center gap-4">
             <Sparkles className="h-12 w-12" />
             <div>
-              <CardTitle className="text-4xl">Your Flux Signature</CardTitle>
-              <CardDescription className="text-primary-foreground/80 text-lg">A dynamic representation of your unique artistic essence.</CardDescription>
+              <CardTitle className="text-4xl">Your Artistic Style</CardTitle>
+              <CardDescription className="text-primary-foreground/80 text-lg">A dynamic look at your unique creative fingerprint.</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Current State</h3>
+              <h3 className="text-2xl font-semibold mb-4">Current Vibe</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Palette className="h-6 w-6 text-primary" />
-                  <span className="font-medium">Style:</span>
+                  <span className="font-medium">Main Styles:</span>
                   <span>{fluxSignature.style}</span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -63,10 +64,10 @@ export default function FluxSignaturePage() {
             <div className="relative aspect-video rounded-lg overflow-hidden shadow-lg">
                <Image 
                 src={fluxSignature.visualRepresentation} 
-                alt="Flux Signature Visual Representation" 
+                alt="Visual Representation of Artistic Style" 
                 layout="fill"
                 objectFit="cover"
-                data-ai-hint="abstract generative" 
+                data-ai-hint="abstract generative art" 
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <p className="absolute bottom-4 left-4 text-white text-lg font-semibold">Visual Essence</p>
@@ -79,9 +80,9 @@ export default function FluxSignaturePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart2 className="h-6 w-6 text-primary" />
-            Signature Evolution
+            Style Evolution
           </CardTitle>
-          <CardDescription>Track how your signature has changed over time.</CardDescription>
+          <CardDescription>Track how your artistic style has changed over time.</CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="space-y-4">
@@ -98,3 +99,5 @@ export default function FluxSignaturePage() {
     </div>
   );
 }
+
+    

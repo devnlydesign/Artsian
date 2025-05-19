@@ -5,7 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitFork, Music, Globe, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart
+  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitFork, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -28,31 +28,31 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAppState } from '@/context/AppStateContext';
+import { MobileBottomNav } from './MobileBottomNav';
 
 const mainNavItems = [
   { href: "/", label: "Home", icon: Home, tooltip: "Home Feed" },
   { href: "/search", label: "Search", icon: Search, tooltip: "Search Content" },
-  { href: "/creative-stratosphere", label: "Explore", icon: Compass, tooltip: "Explore Network" },
+  { href: "/creative-stratosphere", label: "Discover", icon: Compass, tooltip: "Discover Art & Creators" },
   { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Reels" },
   { href: "/messages", label: "Messages", icon: MessagesSquare, tooltip: "Direct Messages" },
   { href: "/notifications", label: "Notifications", icon: Heart, tooltip: "Your Notifications" },
   { href: "/create", label: "Create", icon: PlusSquare, tooltip: "Create New Content" },
+  { href: "/profile", label: "Profile", icon: UserCircle, tooltip: "Your Profile" },
 ];
 
 const artisanToolsNavItems = [
-  { href: "/flux-signature", label: "Flux Signature", icon: Sparkles, tooltip: "My Flux Signature" },
-  { href: "/crystalline-blooms", label: "Crystalline Blooms", icon: Gem, tooltip: "View Crystalline Blooms" },
-  { href: "/algorithmic-muse", label: "Algorithmic Muse", icon: Lightbulb, tooltip: "Get Creative Prompts" },
-  { href: "/genesis-trails", label: "Genesis Trails", icon: GitFork, tooltip: "Project Timelines" },
-  { href: "/process-symphony", label: "Process Symphony", icon: Music, tooltip: "AI Generated Audio" },
-  { href: "/biomes", label: "My Biomes", icon: ShieldCheck, tooltip: "Private Communities" },
-  { href: "/insights", label: "Insights", icon: BarChartBig, tooltip: "Energy Flow Patterns" },
-  { href: "/amplify-flux", label: "Amplify Flux", icon: Zap, tooltip: "Promote Your Work" },
-  { href: "/scheduling", label: "Scheduling", icon: CalendarClock, tooltip: "Content Scheduling" },
+  { href: "/flux-signature", label: "My Artistic Style", icon: Sparkles, tooltip: "My Artistic Style" },
+  { href: "/crystalline-blooms", label: "My Artworks", icon: Gem, tooltip: "View My Artworks" },
+  { href: "/algorithmic-muse", label: "Idea Sparker", icon: Lightbulb, tooltip: "Get Creative Prompts" },
+  { href: "/genesis-trails", label: "Project Stories", icon: GitFork, tooltip: "Project Timelines" },
+  { href: "/process-symphony", label: "Creative Soundtracks", icon: Music, tooltip: "AI Generated Audio" },
+  { href: "/biomes", label: "Private Spaces", icon: ShieldCheck, tooltip: "Private Communities" },
+  { href: "/insights", label: "My Impact", icon: BarChartBig, tooltip: "Audience Engagement" },
+  { href: "/amplify-flux", label: "Boost My Art", icon: Zap, tooltip: "Promote Your Work" },
+  { href: "/scheduling", label: "Content Planner", icon: CalendarClock, tooltip: "Content Scheduling" },
   { href: "/shop", label: "Shop", icon: ShoppingCart, tooltip: "Artist Merchandise" },
 ];
-
-const userProfileNavItem = { href: "/profile", label: "Profile", icon: UserCircle, tooltip: "Your Profile" };
 
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -65,14 +65,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
   
   const getPageTitle = () => {
-    const allNavItems = [...mainNavItems, ...artisanToolsNavItems, userProfileNavItem];
+    const allNavItems = [...mainNavItems, ...artisanToolsNavItems];
     const currentItem = allNavItems.find(item => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)));
     return currentItem?.label || "Artisan";
   }
 
   return (
     <SidebarProvider defaultOpen={!isMobile} collapsible={isMobile ? "offcanvas" : "icon"}>
-      <Sidebar variant="sidebar" side="left" className="border-r border-sidebar-border">
+      <Sidebar variant="sidebar" side="left" className="border-r border-sidebar-border hidden md:flex"> {/* Hide sidebar on mobile, bottom nav will show */}
         <SidebarHeader className="p-4">
           <Link href="/" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
             <ArtisanLogo className="h-8 w-8 text-sidebar-primary block group-data-[collapsible=expanded]:hidden" />
@@ -96,19 +96,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </Link>
                 </SidebarMenuItem>
               ))}
-               {/* Profile link as main nav item */}
-               <SidebarMenuItem key={userProfileNavItem.href}>
-                  <Link href={userProfileNavItem.href} legacyBehavior passHref>
-                    <SidebarMenuButton
-                      isActive={pathname === userProfileNavItem.href || pathname.startsWith(userProfileNavItem.href)}
-                      className="justify-start"
-                      tooltip={userProfileNavItem.tooltip}
-                    >
-                      <userProfileNavItem.icon className="h-6 w-6" />
-                      <span className="group-data-[collapsible=icon]:hidden text-base">{userProfileNavItem.label}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
             </SidebarMenu>
             <SidebarSeparator className="my-4" />
              <SidebarMenu className="px-2">
@@ -154,16 +141,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-md px-6">
             <div className="flex items-center gap-4">
-              {isMobile && <SidebarTrigger />}
-              <h1 className="text-xl font-semibold text-gradient-primary-accent">
+              {isMobile && <SidebarTrigger />} {/* Hamburger for off-canvas sidebar on mobile */}
+               <Link href="/" className="flex items-center gap-2 md:hidden"> {/* Mobile only logo/title */}
+                 <ArtisanLogo className="h-7 w-7 text-primary" />
+                 <span className="font-semibold text-xl text-gradient-primary-accent">Artisan</span>
+               </Link>
+               <h1 className="text-xl font-semibold text-gradient-primary-accent hidden md:block"> {/* Desktop Page Title */}
                 {getPageTitle()}
               </h1>
             </div>
             <UserMenu />
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6"> {/* Add padding-bottom for mobile nav */}
             {children}
         </main>
+        {isMobile && <MobileBottomNav />}
       </SidebarInset>
     </SidebarProvider>
   );
@@ -203,3 +195,5 @@ function UserMenu() {
     </DropdownMenu>
   );
 }
+
+    

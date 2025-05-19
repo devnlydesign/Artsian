@@ -51,7 +51,7 @@ const placeholderPosts: Post[] = [
     id: "3",
     author: { name: "AI Muse", username: "aimuseofficial", avatarUrl: "https://placehold.co/40x40.png", dataAiHintAvatar: "robot face icon" },
     imageUrl: "https://placehold.co/600x400.png",
-    caption: "Generated this piece using my Algorithmic Muse tool! Prompt: 'A forest made of crystal'. Try it yourself on ARTISAN! #aiart #algorithmicmuse #artisanplatform",
+    caption: "Generated this piece using my AI Idea Sparker! Prompt: 'A forest made of crystal'. Try it yourself on ARTISAN! #aiart #ideasparker #artisanplatform",
     likes: 2345,
     comments: 150,
     timestamp: "3 days ago",
@@ -67,6 +67,8 @@ const stories = [
     { id: "s5", name: "Kai G.", avatar: "https://placehold.co/64x64.png", dataAiHint: "male tech avatar" },
     { id: "s6", name: "ArtFeed", avatar: "https://placehold.co/64x64.png", dataAiHint: "art gallery icon" },
     { id: "s7", name: "InspoHub", avatar: "https://placehold.co/64x64.png", dataAiHint: "idea lightbulb icon" },
+    { id: "s8", name: "StudioMax", avatar: "https://placehold.co/64x64.png", dataAiHint: "art studio icon" },
+    { id: "s9", name: "GalleryGo", avatar: "https://placehold.co/64x64.png", dataAiHint: "picture frame icon" },
 ];
 
 const suggestions = [
@@ -75,30 +77,35 @@ const suggestions = [
     { id: "u3", name: "SoundSculptor", avatar: "https://placehold.co/40x40.png", dataAiHint: "sound wave abstract", bio: "Crafting sonic landscapes." },
 ];
 
+// Stories Bar Component
+const StoriesBar = () => (
+  <Card className="overflow-hidden transition-shadow hover:shadow-md mb-6 md:mb-8">
+    <CardContent className="p-0">
+      <div className="flex space-x-3 p-4 overflow-x-auto">
+        {stories.map(story => (
+          <div key={story.id} className="flex flex-col items-center w-20 shrink-0 cursor-pointer group">
+            <div className={`relative rounded-full p-0.5 border-2 group-hover:scale-105 transition-transform ${story.isOwn ? 'border-transparent' : 'border-accent'}`}>
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={story.avatar} alt={story.name} data-ai-hint={story.dataAiHint} />
+                <AvatarFallback>{story.name.substring(0,1)}</AvatarFallback>
+              </Avatar>
+              {story.isOwn && <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-0.5 border-2 border-card"><UserPlus className="h-3 w-3"/></div>}
+            </div>
+            <p className="text-xs mt-1 truncate w-full text-center group-hover:text-primary transition-colors">{story.name}</p>
+          </div>
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+);
+
+
 export default function HomePage() {
   return (
-    <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 py-6">
+    <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 py-0 md:py-6"> {/* Reduced py for mobile to give more space */}
       {/* Main Feed Content (Left/Center for larger screens) */}
-      <div className="lg:col-span-2 space-y-8">
-        {/* Stories Bar */}
-        <Card className="overflow-hidden transition-shadow hover:shadow-md">
-          <CardContent className="p-0">
-            <div className="flex space-x-3 p-4 overflow-x-auto">
-              {stories.map(story => (
-                <div key={story.id} className="flex flex-col items-center w-20 shrink-0 cursor-pointer group">
-                  <div className={`relative rounded-full p-0.5 border-2 group-hover:scale-105 transition-transform ${story.isOwn ? 'border-transparent' : 'border-accent'}`}>
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src={story.avatar} alt={story.name} data-ai-hint={story.dataAiHint} />
-                      <AvatarFallback>{story.name.substring(0,1)}</AvatarFallback>
-                    </Avatar>
-                    {story.isOwn && <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-0.5 border-2 border-card"><UserPlus className="h-3 w-3"/></div>}
-                  </div>
-                  <p className="text-xs mt-1 truncate w-full text-center group-hover:text-primary transition-colors">{story.name}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="lg:col-span-2 space-y-6 md:space-y-8">
+        <StoriesBar />
 
         {/* Posts */}
         {placeholderPosts.map((post) => (
@@ -132,7 +139,7 @@ export default function HomePage() {
             </CardContent>
             <CardFooter className="flex flex-col items-start p-3 space-y-2">
               <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-1 sm:gap-3">
+                <div className="flex items-center gap-1 sm:gap-2"> {/* Reduced gap for smaller screens */}
                   <Button variant="ghost" size="icon" className="hover:text-red-500 transition-colors active:scale-90">
                     <Heart className="h-6 w-6" />
                   </Button>
@@ -198,9 +205,9 @@ export default function HomePage() {
                 <CardTitle className="text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/> Quick Tools</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
-                 <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/algorithmic-muse">Algorithmic Muse</Link></Button>
-                 <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/process-symphony">Process Symphony</Link></Button>
-                 <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/create">Create New Bloom</Link></Button>
+                 <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/algorithmic-muse">AI Idea Sparker</Link></Button>
+                 <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/process-symphony">Creative Soundtracks</Link></Button>
+                 <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/create">Create New Artwork</Link></Button>
             </CardContent>
         </Card>
         <div className="text-xs text-muted-foreground space-x-2">
@@ -217,3 +224,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    

@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input"; // Corrected import
 import { Globe, Search, TrendingUp } from "lucide-react";
 import Image from "next/image";
 
@@ -18,19 +18,19 @@ export default function CreativeStratospherePage() {
       <Card className="shadow-lg">
         <CardHeader className="text-center">
           <Globe className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">Creative Stratosphere</CardTitle>
-          <CardDescription>Explore the vast network of active Flux Signatures. Discover trending artists, communities, and "Creative Storms" – areas of high creative energy.</CardDescription>
+          <CardTitle className="text-3xl">Discover the Network</CardTitle>
+          <CardDescription>Explore active artists and creators. Discover trending styles, communities, and "Creative Hotspots" – areas of high creative energy.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center">
            <div className="w-full max-w-md mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input type="search" placeholder="Search artists, genres, or storms..." className="pl-10" />
+              <Input type="search" placeholder="Search artists, styles, or trends..." className="pl-10" />
             </div>
           </div>
-          <p className="text-muted-foreground">Dynamic visualization of the Creative Stratosphere will be implemented here.</p>
+          <p className="text-muted-foreground">A dynamic map of the creative network will be shown here.</p>
           <div className="my-8 p-6 border border-dashed border-border rounded-lg bg-muted/20 w-full max-w-3xl text-center">
-            <Image src="https://placehold.co/800x400.png" alt="Creative Stratosphere Visualization Placeholder" width={800} height={400} className="rounded-md object-cover mx-auto" data-ai-hint="network abstract" />
+            <Image src="https://placehold.co/800x400.png" alt="Creative Network Visualization Placeholder" width={800} height={400} className="rounded-md object-cover mx-auto" data-ai-hint="network abstract" />
             <p className="mt-2 text-sm text-muted-foreground">Imagine a dynamic, interactive constellation map here.</p>
           </div>
         </CardContent>
@@ -39,7 +39,7 @@ export default function CreativeStratospherePage() {
       <section>
         <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
           <TrendingUp className="h-7 w-7 text-accent" />
-          Trending Creative Storms
+          Trending Creative Hotspots
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {creativeStorms.map((storm) => (
@@ -52,12 +52,12 @@ export default function CreativeStratospherePage() {
                 <CardDescription className="text-xs pt-1">{storm.trendiness}% Trend Intensity</CardDescription>
               </CardHeader>
               <CardContent>
-                 <Image src={`https://placehold.co/300x150.png`} alt={storm.name || storm.title || "Creative Storm"} width={300} height={150} className="rounded-md object-cover mb-3" data-ai-hint={storm.dataAiHint} />
+                 <Image src={`https://placehold.co/300x150.png`} alt={storm.name || storm.title || "Creative Hotspot"} width={300} height={150} className="rounded-md object-cover mb-3" data-ai-hint={storm.dataAiHint} />
                 <p className="text-sm text-muted-foreground mb-1">{storm.description}</p>
                 <p className="text-xs text-primary">{storm.artistsInvolved} artists involved</p>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" size="sm" className="w-full">Explore Storm</Button>
+                <Button variant="outline" size="sm" className="w-full">Explore Hotspot</Button>
               </CardFooter>
             </Card>
           ))}
@@ -66,3 +66,5 @@ export default function CreativeStratospherePage() {
     </div>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -42,14 +43,14 @@ export default function AlgorithmicMusePage() {
       const result = await generateMusePrompt(data);
       setGeneratedPrompt(result);
       toast({
-        title: "Prompt Generated!",
-        description: "Your algorithmic muse has delivered inspiration.",
+        title: "Idea Generated!",
+        description: "Your AI Idea Sparker has delivered inspiration.",
       });
     } catch (error) {
       console.error("Error generating muse prompt:", error);
       toast({
         title: "Error",
-        description: "Failed to generate prompt. Please try again.",
+        description: "Failed to generate idea. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -62,8 +63,8 @@ export default function AlgorithmicMusePage() {
       <Card className="shadow-lg">
         <CardHeader className="text-center">
           <Lightbulb className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">Algorithmic Muse</CardTitle>
-          <CardDescription>Let AI spark your creativity. Provide some context, and the muse will suggest a unique prompt tailored to you.</CardDescription>
+          <CardTitle className="text-3xl">AI Idea Sparker</CardTitle>
+          <CardDescription>Let AI help spark your creativity. Provide some context, and get a unique idea prompt tailored to you.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -81,7 +82,7 @@ export default function AlgorithmicMusePage() {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>The more detail, the better the prompt!</FormDescription>
+                    <FormDescription>The more detail, the better the idea!</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -94,7 +95,7 @@ export default function AlgorithmicMusePage() {
                     <FormLabel>Current Mood/State of Mind</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., contemplative, energetic, stuck, curious, melancholic"
+                        placeholder="e.g., thoughtful, energetic, stuck, curious, calm"
                         rows={2}
                         {...field}
                       />
@@ -108,32 +109,32 @@ export default function AlgorithmicMusePage() {
                 name="desiredPromptType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Desired Prompt Type</FormLabel>
+                    <FormLabel>Desired Idea Type</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select prompt type" />
+                          <SelectValue placeholder="Select idea type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="visual">Visual Prompt</SelectItem>
-                        <SelectItem value="textual">Textual Prompt</SelectItem>
+                        <SelectItem value="visual">Visual Idea</SelectItem>
+                        <SelectItem value="textual">Textual Idea</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isLoading} className="w-full">
+              <Button type="submit" variant="gradientPrimary" disabled={isLoading} className="w-full transition-transform hover:scale-105">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Conjuring Inspiration...
+                    Generating Idea...
                   </>
                 ) : (
                   <>
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Generate Prompt
+                    Get New Idea
                   </>
                 )}
               </Button>
@@ -145,7 +146,7 @@ export default function AlgorithmicMusePage() {
       {generatedPrompt && (
         <Card className="mt-8 bg-accent/20 border-accent shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl text-accent-foreground">Your Muse's Suggestion ✨</CardTitle>
+            <CardTitle className="text-2xl text-accent-foreground">Your AI Generated Idea ✨</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-lg whitespace-pre-wrap">{generatedPrompt.prompt}</p>
@@ -155,3 +156,5 @@ export default function AlgorithmicMusePage() {
     </div>
   );
 }
+
+    

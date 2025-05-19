@@ -1,11 +1,13 @@
+
 "use client";
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowRight, Maximize2, Eye } from "lucide-react";
+import { ArrowRight, Maximize2, Eye, Gem } from "lucide-react";
 import Image from "next/image";
+import { Badge } from '@/components/ui/badge'; // Ensure Badge is imported
 
 interface Bloom {
   id: string;
@@ -30,10 +32,11 @@ export default function CrystallineBloomsPage() {
 
   return (
     <div className="space-y-8">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-3xl">Crystalline Blooms</CardTitle>
-          <CardDescription>Explore your collection of artworks, process chronicles, sketches, and multimedia content. Click to unfold and reveal more.</CardDescription>
+      <Card className="shadow-lg">
+        <CardHeader className="text-center">
+          <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
+          <CardTitle className="text-3xl">My Artworks</CardTitle>
+          <CardDescription>Explore your collection of artworks, process videos, sketches, and multimedia creations.</CardDescription>
         </CardHeader>
       </Card>
 
@@ -59,7 +62,7 @@ export default function CrystallineBloomsPage() {
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
                    <Button variant="outline" size="sm" className="w-full group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
-                    <Eye className="mr-2 h-4 w-4" /> Unfold Bloom
+                    <Eye className="mr-2 h-4 w-4" /> View Details
                   </Button>
                 </CardFooter>
               </Card>
@@ -83,7 +86,7 @@ export default function CrystallineBloomsPage() {
                 {selectedBloom.fullContentUrl && (
                   <Button asChild className="mt-4">
                     <a href={selectedBloom.fullContentUrl} target="_blank" rel="noopener noreferrer">
-                      <Maximize2 className="mr-2 h-4 w-4" /> View High-Fidelity
+                      <Maximize2 className="mr-2 h-4 w-4" /> View Full Size
                     </a>
                   </Button>
                 )}
@@ -95,3 +98,5 @@ export default function CrystallineBloomsPage() {
     </div>
   );
 }
+
+    
