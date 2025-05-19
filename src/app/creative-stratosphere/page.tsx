@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Corrected import
+import { Input } from "@/components/ui/input";
 import { Globe, Search, TrendingUp } from "lucide-react";
 import Image from "next/image";
 
@@ -15,7 +15,7 @@ export default function CreativeStratospherePage() {
 
   return (
     <div className="space-y-8">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg card-interactive-hover">
         <CardHeader className="text-center">
           <Globe className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl">Discover the Network</CardTitle>
@@ -43,7 +43,7 @@ export default function CreativeStratospherePage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {creativeStorms.map((storm) => (
-            <Card key={storm.id} className="hover:shadow-xl transition-shadow">
+            <Card key={storm.id} className="card-interactive-hover">
               <CardHeader>
                 <CardTitle className="text-xl">{storm.name || storm.title}</CardTitle>
                 <div className="relative w-full h-2 bg-muted rounded-full mt-1">
@@ -66,5 +66,3 @@ export default function CreativeStratospherePage() {
     </div>
   );
 }
-
-    

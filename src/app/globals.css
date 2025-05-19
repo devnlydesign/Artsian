@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -106,16 +107,30 @@ body {
   }
 
   .bg-gradient-primary-accent {
-    background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
+    background-image: linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%);
+    background-size: 200% auto;
+    background-position: 0% 0%;
+    transition: background-position 0.4s ease-in-out, box-shadow 0.3s ease-in-out;
   }
-  .hover\:bg-gradient-primary-accent-hover:hover {
-    background-image: linear-gradient(to right, hsl(var(--primary) / 0.9), hsl(var(--accent) / 0.9));
+  .bg-gradient-primary-accent:hover {
+    background-position: 100% 0%; /* Shifts the gradient on hover */
+    /* hover:brightness-110 is handled by button variant */
   }
+
   .text-gradient-primary-accent {
     background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text; /* Standard property */
     text-fill-color: transparent; /* Standard property */
+  }
+
+  /* Enhanced card hover effect */
+  .card-interactive-hover {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  .card-interactive-hover:hover {
+    @apply shadow-xl transform -translate-y-0.5; /* Existing shadow-xl is good, added slight translate */
+    box-shadow: 0 10px 15px -3px hsl(var(--primary) / 0.15), 0 4px 6px -4px hsl(var(--primary) / 0.15); /* Tinted shadow */
   }
 }

@@ -109,7 +109,7 @@ export default function HomePage() {
 
         {/* Posts */}
         {placeholderPosts.map((post) => (
-          <Card key={post.id} className="overflow-hidden shadow-lg transition-shadow hover:shadow-xl">
+          <Card key={post.id} className="overflow-hidden shadow-lg card-interactive-hover">
             <CardHeader className="flex flex-row items-center justify-between p-3">
               <div className="flex items-center gap-3">
                 <Avatar className="transition-transform hover:scale-110">
@@ -133,7 +133,7 @@ export default function HomePage() {
                   layout="fill"
                   objectFit="cover"
                   data-ai-hint={post.dataAiHintImage}
-                  className="transition-transform hover:scale-105"
+                  className="transition-transform group-hover:scale-105"
                 />
               </div>
             </CardContent>
@@ -175,7 +175,7 @@ export default function HomePage() {
 
       {/* Sidebar (Right for larger screens) */}
       <aside className="lg:col-span-1 space-y-6 sticky top-20 h-fit hidden lg:block">
-        <Card className="transition-shadow hover:shadow-md">
+        <Card className="card-interactive-hover">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Suggested for You</CardTitle>
           </CardHeader>
@@ -200,7 +200,7 @@ export default function HomePage() {
             <Button variant="outline" className="w-full hover:border-primary">See All Suggestions</Button>
           </CardFooter>
         </Card>
-        <Card className="transition-shadow hover:shadow-md">
+        <Card className="card-interactive-hover">
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/> Quick Tools</CardTitle>
             </CardHeader>
@@ -224,5 +224,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

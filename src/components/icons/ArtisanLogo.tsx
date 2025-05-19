@@ -1,3 +1,4 @@
+
 import type { SVGProps } from 'react';
 
 export function ArtisanLogo(props: SVGProps<SVGSVGElement>) {
@@ -5,19 +6,11 @@ export function ArtisanLogo(props: SVGProps<SVGSVGElement>) {
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      fill="currentColor" // Changed to allow color via className (e.g., text-primary)
       {...props}
     >
-      <path d="M12 2L2 7l10 5 10-5-10-5z" />
-      <path d="M2 17l10 5 10-5" />
-      <path d="M2 12l10 5 10-5" />
-      <path d="M12 22V12" />
-      <path d="M22 7v10" />
-      <path d="M2 7v10" />
+      {/* A simple, abstract gem-like shape */}
+      <path d="M12 1.5L3.5 8.5L5.25 19.5L12 22.5L18.75 19.5L20.5 8.5L12 1.5Z" />
     </svg>
   );
 }

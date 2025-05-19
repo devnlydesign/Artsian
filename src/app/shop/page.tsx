@@ -27,7 +27,7 @@ const shopItems: ShopItem[] = [
 export default function ShopPage() {
   return (
     <div className="space-y-8">
-      <Card className="shadow-lg transition-shadow hover:shadow-xl">
+      <Card className="shadow-lg card-interactive-hover">
         <CardHeader className="text-center">
           <ShoppingCart className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Artist Shop</CardTitle>
@@ -39,7 +39,7 @@ export default function ShopPage() {
         <h2 className="text-2xl font-semibold mb-4 flex items-center"><Sparkles className="h-6 w-6 mr-2 text-accent" /> Featured Items</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {shopItems.map((item) => (
-            <Card key={item.id} className="hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 flex flex-col group">
+            <Card key={item.id} className="card-interactive-hover hover:shadow-2xl flex flex-col group">
               <CardHeader className="p-0">
                 <div className="relative aspect-square overflow-hidden rounded-t-lg">
                    <Image 
@@ -77,7 +77,7 @@ export default function ShopPage() {
         </div>
       </section>
 
-      <Card className="transition-shadow hover:shadow-lg">
+      <Card className="card-interactive-hover">
         <CardHeader>
             <CardTitle>Secure Checkout Process</CardTitle>
             <CardDescription>All transactions are processed securely. This is a placeholder for the e-commerce integration.</CardDescription>

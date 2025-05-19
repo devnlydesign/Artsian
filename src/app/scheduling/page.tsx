@@ -40,7 +40,7 @@ export default function SchedulingPage() {
 
   return (
     <div className="space-y-8">
-      <Card className="shadow-lg transition-shadow hover:shadow-xl">
+      <Card className="shadow-lg card-interactive-hover">
         <CardHeader className="text-center">
           <CalendarClock className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Creative Bloom Cycles</CardTitle>
@@ -55,7 +55,7 @@ export default function SchedulingPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="card-interactive-hover">
             <CardHeader>
               <CardTitle>Calendar View</CardTitle>
             </CardHeader>
@@ -79,7 +79,7 @@ export default function SchedulingPage() {
         </div>
 
         <div className="lg:col-span-2">
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="card-interactive-hover">
             <CardHeader>
               <CardTitle>
                 Items for {selectedDate ? format(selectedDate, "PPP") : "All Dates"}
@@ -92,7 +92,7 @@ export default function SchedulingPage() {
               {itemsForSelectedDate.length > 0 ? (
                 <div className="space-y-4">
                   {itemsForSelectedDate.map((item) => (
-                    <Card key={item.id} className="flex items-center p-4 gap-4 hover:shadow-lg transition-shadow duration-200 ease-in-out hover:border-primary">
+                    <Card key={item.id} className="flex items-center p-4 gap-4 card-interactive-hover hover:border-primary">
                       <Image 
                         src={item.thumbnailUrl} 
                         alt={item.title} 
