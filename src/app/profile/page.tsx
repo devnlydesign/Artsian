@@ -8,15 +8,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Placeholder data for user profile
 const userProfile = {
-  name: "Artist Name",
-  username: "artistusername",
+  name: "Alex Chroma", // Placeholder name
+  username: "alexchroma_art", // Placeholder username
   avatarUrl: "https://placehold.co/150x150.png",
-  dataAiHintAvatar: "artist self portrait",
+  dataAiHintAvatar: "artist self portrait painting",
   bannerUrl: "https://placehold.co/1000x250.png",
-  dataAiHintBanner: "abstract studio",
-  bio: "Exploring the intersections of art, technology, and consciousness. Creator of Crystalline Blooms and Flux Signatures on ARTISAN.",
-  location: "Digital Realm",
-  website: "artistwebsite.com",
+  dataAiHintBanner: "abstract art studio wide",
+  bio: "Exploring the intersections of art, technology, and consciousness. Creator of Crystalline Blooms and Flux Signatures on ARTISAN. Lover of vibrant colors and dynamic forms.",
+  location: "Digital Realm / NYC",
+  website: "alexchroma.art",
   followers: 12345,
   following: 567,
   postsCount: 88,
@@ -24,25 +24,34 @@ const userProfile = {
 
 // Placeholder for user's blooms/posts
 const userBlooms = [
-  { id: "b1", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "artwork abstract" },
-  { id: "b2", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "digital painting" },
-  { id: "b3", type: "video", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "short video" },
-  { id: "b4", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "sculpture photo" },
-  { id: "b5", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "generative design" },
-  { id: "b6", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "concept sketch" },
+  { id: "b1", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "abstract colorful artwork" },
+  { id: "b2", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "surreal digital painting" },
+  { id: "b3", type: "video", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "generative art video loop" },
+  { id: "b4", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "futuristic sculpture photo" },
+  { id: "b5", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "geometric pattern design" },
+  { id: "b6", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "detailed concept sketch" },
 ];
 
 
 export default function ProfilePage() {
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden shadow-lg">
-        <div className="relative h-40 md:h-64 bg-muted">
-          <Image src={userProfile.bannerUrl} alt="Profile banner" layout="fill" objectFit="cover" data-ai-hint={userProfile.dataAiHintBanner} />
+      <Card className="overflow-hidden shadow-lg transition-shadow hover:shadow-xl">
+        <div className="relative h-40 md:h-64 bg-muted group">
+          <Image 
+            src={userProfile.bannerUrl} 
+            alt="Profile banner" 
+            layout="fill" 
+            objectFit="cover" 
+            data-ai-hint={userProfile.dataAiHintBanner} 
+            className="transition-transform group-hover:scale-105 duration-300"
+            priority
+            />
+           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
         </div>
         <CardContent className="pt-0 relative">
           <div className="flex flex-col md:flex-row items-center md:items-end -mt-16 md:-mt-20 space-y-4 md:space-y-0 md:space-x-6 px-6 pb-6">
-            <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-card shadow-lg">
+            <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-card shadow-lg transition-transform hover:scale-105">
               <AvatarImage src={userProfile.avatarUrl} alt={userProfile.name} data-ai-hint={userProfile.dataAiHintAvatar} />
               <AvatarFallback>{userProfile.name.substring(0,2).toUpperCase()}</AvatarFallback>
             </Avatar>
@@ -56,9 +65,14 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="flex gap-2 pt-4 md:pt-0">
-              <Button variant="default">Follow</Button> {/* Or "Edit Profile" if it's own profile */}
-              <Button variant="outline">Message</Button>
-              <Button variant="ghost" size="icon"><Settings className="h-5 w-5"/></Button>
+              {/* Assuming this is someone else's profile. If own, variant would be 'outline' and text 'Edit Profile' */}
+              <Button variant="gradientPrimary" className="transition-transform hover:scale-105">
+                <UserPlus className="mr-2 h-4 w-4" /> Follow
+              </Button> 
+              <Button variant="outline" className="transition-transform hover:scale-105">
+                <Mail className="mr-2 h-4 w-4" /> Message
+              </Button>
+              <Button variant="ghost" size="icon" className="transition-transform hover:scale-110 hover:text-primary"><Settings className="h-5 w-5"/></Button>
             </div>
           </div>
 
@@ -66,7 +80,7 @@ export default function ProfilePage() {
             <p className="text-sm">{userProfile.bio}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               {userProfile.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3"/>{userProfile.location}</span>}
-              {userProfile.website && <a href={`https://${userProfile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary"><LinkIcon className="h-3 w-3"/>{userProfile.website}</a>}
+              {userProfile.website && <a href={`https://${userProfile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary hover:underline"><LinkIcon className="h-3 w-3"/>{userProfile.website}</a>}
             </div>
           </div>
         </CardContent>
@@ -74,23 +88,33 @@ export default function ProfilePage() {
       
       <Tabs defaultValue="blooms" className="w-full">
         <TabsList className="grid w-full grid-cols-4 md:max-w-md mx-auto">
-          <TabsTrigger value="blooms"><Grid3x3 className="h-5 w-5 mr-0 md:mr-2" /><span className="hidden md:inline">Blooms</span></TabsTrigger>
-          <TabsTrigger value="reels"><Clapperboard className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Reels</span></TabsTrigger>
-          <TabsTrigger value="saved"><Bookmark className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Saved</span></TabsTrigger>
-          <TabsTrigger value="tagged"><Tag className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Tagged</span></TabsTrigger>
+          <TabsTrigger value="blooms" className="transition-colors"><Grid3x3 className="h-5 w-5 mr-0 md:mr-2" /><span className="hidden md:inline">Blooms</span></TabsTrigger>
+          <TabsTrigger value="reels" className="transition-colors"><Clapperboard className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Reels</span></TabsTrigger>
+          <TabsTrigger value="saved" className="transition-colors"><Bookmark className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Saved</span></TabsTrigger>
+          <TabsTrigger value="tagged" className="transition-colors"><Tag className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Tagged</span></TabsTrigger>
         </TabsList>
         <TabsContent value="blooms">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 sm:gap-2 mt-4">
             {userBlooms.map(bloom => (
-              <div key={bloom.id} className="relative aspect-square bg-muted hover:opacity-80 transition-opacity cursor-pointer">
-                <Image src={bloom.thumbnailUrl} alt="User bloom" layout="fill" objectFit="cover" data-ai-hint={bloom.dataAiHint}/>
+              <div key={bloom.id} className="relative aspect-square bg-muted group overflow-hidden rounded-sm">
+                <Image 
+                    src={bloom.thumbnailUrl} 
+                    alt="User bloom" 
+                    layout="fill" 
+                    objectFit="cover" 
+                    data-ai-hint={bloom.dataAiHint}
+                    className="transition-transform duration-300 group-hover:scale-110 cursor-pointer"
+                />
+                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    {/* Could add like/comment count overlay here */}
+                </div>
               </div>
             ))}
              {userBlooms.length === 0 && <p className="col-span-full text-center text-muted-foreground py-10">No blooms yet.</p>}
           </div>
         </TabsContent>
         <TabsContent value="reels">
-          <Card>
+          <Card className="transition-shadow hover:shadow-md">
             <CardContent className="pt-6 text-center text-muted-foreground">
               <Clapperboard className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
               <p>User's Reels will appear here.</p>
@@ -98,7 +122,7 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
         <TabsContent value="saved">
-          <Card>
+          <Card className="transition-shadow hover:shadow-md">
             <CardContent className="pt-6 text-center text-muted-foreground">
               <Bookmark className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
               <p>Saved content will appear here. Only visible to you.</p>
@@ -106,7 +130,7 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
         <TabsContent value="tagged">
-          <Card>
+          <Card className="transition-shadow hover:shadow-md">
             <CardContent className="pt-6 text-center text-muted-foreground">
               <Tag className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
               <p>Content where this user is tagged will appear here.</p>

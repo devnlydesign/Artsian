@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, PlusCircle, Edit3, Trash2, Bell } from "lucide-react";
+import { CalendarClock, PlusCircle, Edit3, Trash2, BellDot } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -22,9 +23,10 @@ interface ScheduledItem {
 }
 
 const initialScheduledItems: ScheduledItem[] = [
-  { id: "1", title: "Launch 'Quantum Entanglement' series", type: "New Artwork", bloomId: "bloom-qe", scheduledDate: new Date(new Date().setDate(new Date().getDate() + 7)), status: "Scheduled", thumbnailUrl: "https://placehold.co/150x100.png", dataAiHint: "abstract science" },
-  { id: "2", title: "Behind the scenes: Digital Sculpting", type: "Process Update", scheduledDate: new Date(new Date().setDate(new Date().getDate() + 3)), status: "Scheduled", thumbnailUrl: "https://placehold.co/150x100.png", dataAiHint: "digital sculpting" },
-  { id: "3", title: "Inner Circle Q&A Session", type: "Biome Announcement", scheduledDate: new Date(new Date().setDate(new Date().getDate() - 2)), status: "Published", thumbnailUrl: "https://placehold.co/150x100.png", dataAiHint: "community discussion" },
+  { id: "1", title: "Launch 'Quantum Entanglement' series", type: "New Artwork", bloomId: "bloom-qe", scheduledDate: new Date(new Date().setDate(new Date().getDate() + 7)), status: "Scheduled", thumbnailUrl: "https://placehold.co/150x100.png", dataAiHint: "quantum physics art" },
+  { id: "2", title: "Behind the scenes: Digital Sculpting", type: "Process Update", scheduledDate: new Date(new Date().setDate(new Date().getDate() + 3)), status: "Scheduled", thumbnailUrl: "https://placehold.co/150x100.png", dataAiHint: "3d sculpting software" },
+  { id: "3", title: "Inner Circle Q&A Session", type: "Biome Announcement", scheduledDate: new Date(new Date().setDate(new Date().getDate() - 2)), status: "Published", thumbnailUrl: "https://placehold.co/150x100.png", dataAiHint: "online community chat" },
+  { id: "4", title: "Draft: New Painting Concepts", type: "New Artwork", scheduledDate: new Date(new Date().setDate(new Date().getDate() + 14)), status: "Draft", thumbnailUrl: "https://placehold.co/150x100.png", dataAiHint: "painting sketch ideas" },
 ];
 
 
@@ -34,18 +36,18 @@ export default function SchedulingPage() {
 
   const itemsForSelectedDate = selectedDate 
     ? scheduledItems.filter(item => format(item.scheduledDate, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd"))
-    : [];
+    : scheduledItems.sort((a,b) => a.scheduledDate.getTime() - b.scheduledDate.getTime()); // Show all sorted if no date selected
 
   return (
     <div className="space-y-8">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg transition-shadow hover:shadow-xl">
         <CardHeader className="text-center">
           <CalendarClock className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">Creative Bloom Cycles</CardTitle>
+          <CardTitle className="text-3xl text-gradient-primary-accent">Creative Bloom Cycles</CardTitle>
           <CardDescription>Schedule new artwork, process updates, or announcements. Pre-program when Crystalline Blooms visually emerge.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">
-          <Button>
+          <Button variant="gradientPrimary" className="transition-transform hover:scale-105">
             <PlusCircle className="mr-2 h-5 w-5" /> Schedule New Bloom Cycle
           </Button>
         </CardContent>
@@ -53,7 +55,7 @@ export default function SchedulingPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <Card>
+          <Card className="transition-shadow hover:shadow-md">
             <CardHeader>
               <CardTitle>Calendar View</CardTitle>
             </CardHeader>
@@ -64,10 +66,12 @@ export default function SchedulingPage() {
                 onSelect={setSelectedDate}
                 className="rounded-md border"
                 modifiers={{ 
-                  scheduled: scheduledItems.map(item => item.scheduledDate) 
+                  scheduled: scheduledItems.filter(item => item.status === "Scheduled").map(item => item.scheduledDate),
+                  published: scheduledItems.filter(item => item.status === "Published").map(item => item.scheduledDate)
                 }}
                 modifiersStyles={{ 
-                  scheduled: { border: "2px solid hsl(var(--primary))", borderRadius: "var(--radius)"}
+                  scheduled: { border: "2px solid hsl(var(--primary))", borderRadius: "var(--radius)"},
+                  published: { border: "2px solid hsl(var(--accent))", borderRadius: "var(--radius)", opacity: 0.7 }
                 }}
               />
             </CardContent>
@@ -75,26 +79,26 @@ export default function SchedulingPage() {
         </div>
 
         <div className="lg:col-span-2">
-          <Card>
+          <Card className="transition-shadow hover:shadow-md">
             <CardHeader>
               <CardTitle>
-                Scheduled for {selectedDate ? format(selectedDate, "PPP") : "All Upcoming"}
+                Items for {selectedDate ? format(selectedDate, "PPP") : "All Dates"}
               </CardTitle>
               <CardDescription>
-                {selectedDate ? `Viewing items for the selected date.` : `Viewing all upcoming and recent items.`}
+                {selectedDate ? `Viewing items for the selected date.` : `Viewing all upcoming and recent items, sorted by date.`}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {(selectedDate ? itemsForSelectedDate : scheduledItems.sort((a,b) => a.scheduledDate.getTime() - b.scheduledDate.getTime())).length > 0 ? (
+              {itemsForSelectedDate.length > 0 ? (
                 <div className="space-y-4">
-                  {(selectedDate ? itemsForSelectedDate : scheduledItems).map((item) => (
-                    <Card key={item.id} className="flex items-center p-4 gap-4 hover:shadow-md transition-shadow">
+                  {itemsForSelectedDate.map((item) => (
+                    <Card key={item.id} className="flex items-center p-4 gap-4 hover:shadow-lg transition-shadow duration-200 ease-in-out hover:border-primary">
                       <Image 
                         src={item.thumbnailUrl} 
                         alt={item.title} 
                         width={100} 
                         height={67} 
-                        className="rounded-md object-cover aspect-[3/2]"
+                        className="rounded-md object-cover aspect-[3/2] transition-transform hover:scale-105"
                         data-ai-hint={item.dataAiHint}
                         />
                       <div className="flex-1">
@@ -102,14 +106,18 @@ export default function SchedulingPage() {
                         <p className="text-sm text-muted-foreground">{item.type}</p>
                         <p className="text-xs text-muted-foreground">{format(item.scheduledDate, "PPp")}</p>
                       </div>
-                      <Badge variant={item.status === "Scheduled" ? "default" : item.status === "Published" ? "secondary" : "outline"}>
+                      <Badge 
+                        variant={item.status === "Scheduled" ? "default" : item.status === "Published" ? "secondary" : "outline"}
+                        className="whitespace-nowrap"
+                      >
+                        {item.status === "Scheduled" && <BellDot className="mr-1 h-3 w-3 animate-pulse"/>}
                         {item.status}
                       </Badge>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <div className="flex flex-col sm:flex-row gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 transition-colors hover:text-primary">
                           <Edit3 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" F>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 transition-colors hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

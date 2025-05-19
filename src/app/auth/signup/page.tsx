@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from '@/components/ui/input';
 import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
 import { UserPlus, ArrowLeft } from 'lucide-react';
-import { useAppState } from '@/context/AppStateContext'; // Assuming you might use this for login action
+import { useAppState } from '@/context/AppStateContext';
 import { useRouter } from 'next/navigation';
 
 const signupSchema = z.object({
@@ -45,19 +45,20 @@ export default function SignupPage() {
     // In a real app, you would call your backend API here
     // For now, we'll just simulate a successful signup and "log in" the user
     alert("Signup successful! (Mocked)");
-    login(); // This will set isAuthenticated to true and redirect
-    router.push('/onboarding'); // Or redirect to an onboarding page
+    // Instead of direct login, redirect to onboarding
+    sessionStorage.setItem('hasSeenWelcome', 'true'); // Mark welcome as seen
+    router.push('/onboarding'); 
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-      <Button variant="ghost" asChild className="absolute top-4 left-4">
+      <Button variant="ghost" asChild className="absolute top-4 left-4 transition-transform hover:scale-105">
         <Link href="/auth/welcome"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Welcome</Link>
       </Button>
-      <Card className="w-full max-w-md shadow-2xl">
+      <Card className="w-full max-w-md shadow-2xl transition-shadow hover:shadow-primary/20">
         <CardHeader className="text-center">
           <ArtisanLogo className="mx-auto h-16 w-16 text-primary mb-3" />
-          <CardTitle className="text-3xl font-bold">Create Account</CardTitle>
+          <CardTitle className="text-3xl font-bold text-gradient-primary-accent">Create Account</CardTitle>
           <CardDescription className="text-md text-muted-foreground mt-1">
             Join ARTISAN and unleash your creativity.
           </CardDescription>
@@ -104,8 +105,8 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full text-lg py-3 transition-transform hover:scale-105">
-                <UserPlus className="mr-2 h-5 w-5" /> Sign Up
+              <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg">
+                <UserPlus className="mr-2 h-5 w-5" /> Sign Up & Continue
               </Button>
             </form>
           </Form>

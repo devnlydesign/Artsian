@@ -45,13 +45,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-      <Button variant="ghost" asChild className="absolute top-4 left-4">
+      <Button variant="ghost" asChild className="absolute top-4 left-4 transition-transform hover:scale-105">
         <Link href="/auth/welcome"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Welcome</Link>
       </Button>
-      <Card className="w-full max-w-md shadow-2xl">
+      <Card className="w-full max-w-md shadow-2xl transition-shadow hover:shadow-primary/20">
         <CardHeader className="text-center">
           <ArtisanLogo className="mx-auto h-16 w-16 text-primary mb-3" />
-          <CardTitle className="text-3xl font-bold">Log In to ARTISAN</CardTitle>
+          <CardTitle className="text-3xl font-bold text-gradient-primary-accent">Log In to ARTISAN</CardTitle>
           <CardDescription className="text-md text-muted-foreground mt-1">
             Welcome back! Access your creative dashboard.
           </CardDescription>
@@ -85,7 +85,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full text-lg py-3 transition-transform hover:scale-105">
+              <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg">
                 <LogIn className="mr-2 h-5 w-5" /> Log In
               </Button>
             </form>

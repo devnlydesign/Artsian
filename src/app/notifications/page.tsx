@@ -1,7 +1,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Heart, MessageCircle, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Bell, Heart, MessageCircle, UserPlus, CheckCheck } from "lucide-react";
 
 interface NotificationItem {
   id: string;
@@ -13,11 +14,11 @@ interface NotificationItem {
 }
 
 const notificationsData: NotificationItem[] = [
-  { id: "n1", type: "like", user: { name: "Elena Vortex", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "artist portrait" }, content: "liked your Crystalline Bloom 'Cosmic Dance'.", timestamp: "2h ago", isRead: false },
-  { id: "n2", type: "comment", user: { name: "Marcus Rune", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "designer face" }, content: "commented: \"Amazing textures!\"", timestamp: "5h ago", isRead: false },
-  { id: "n3", type: "follow", user: { name: "Anya Spectra", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "musician profile" }, content: "started following you.", timestamp: "1d ago", isRead: true },
+  { id: "n1", type: "like", user: { name: "Elena Vortex", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "female artist portrait" }, content: "liked your Crystalline Bloom 'Cosmic Dance'.", timestamp: "2h ago", isRead: false },
+  { id: "n2", type: "comment", user: { name: "Marcus Rune", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "male designer face" }, content: "commented: \"Amazing textures!\"", timestamp: "5h ago", isRead: false },
+  { id: "n3", type: "follow", user: { name: "Anya Spectra", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "female musician profile" }, content: "started following you.", timestamp: "1d ago", isRead: true },
   { id: "n4", type: "system", content: "Your Flux Signature has evolved! Check out the changes.", timestamp: "2d ago", isRead: true },
-  { id: "n5", type: "mention", user: { name: "Kai Glitch", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "tech enthusiast" }, content: "mentioned you in a post: \"Inspired by @YourUsername's latest work!\"", timestamp: "3d ago", isRead: true },
+  { id: "n5", type: "mention", user: { name: "Kai Glitch", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "male tech enthusiast" }, content: "mentioned you in a post: \"Inspired by @YourUsername's latest work!\"", timestamp: "3d ago", isRead: true },
 ];
 
 const getIconForType = (type: NotificationItem["type"]) => {
@@ -30,23 +31,29 @@ const getIconForType = (type: NotificationItem["type"]) => {
 };
 
 export default function NotificationsPage() {
+  // In a real app, you'd manage read state and potentially fetch new notifications
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg transition-shadow hover:shadow-xl">
         <CardHeader className="text-center">
           <Bell className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl">Notifications</CardTitle>
           <CardDescription>Stay updated with the latest activity related to your ARTISAN presence.</CardDescription>
         </CardHeader>
+        <CardContent className="flex justify-end p-4 border-t">
+            <Button variant="outline" size="sm">
+                <CheckCheck className="mr-2 h-4 w-4" /> Mark all as read
+            </Button>
+        </CardContent>
       </Card>
 
-      <Card>
+      <Card className="transition-shadow hover:shadow-lg">
         <CardContent className="pt-6 space-y-4">
           {notificationsData.length > 0 ? (
             notificationsData.map((notification) => (
               <div
                 key={notification.id}
-                className={`flex items-start gap-4 p-4 rounded-lg border ${!notification.isRead ? 'bg-primary/5' : 'bg-card'}`}
+                className={`flex items-start gap-4 p-4 rounded-lg border transition-all duration-200 ease-in-out hover:bg-muted/30 ${!notification.isRead ? 'bg-primary/5 border-primary/30' : 'bg-card'}`}
               >
                 {notification.user ? (
                   <Avatar className="h-10 w-10 mt-1">
@@ -54,17 +61,17 @@ export default function NotificationsPage() {
                     <AvatarFallback>{notification.user.name.substring(0, 1)}</AvatarFallback>
                   </Avatar>
                 ) : (
-                  <div className="h-10 w-10 flex items-center justify-center mt-1">
+                  <div className="h-10 w-10 flex items-center justify-center mt-1 rounded-full bg-muted">
                      {getIconForType(notification.type)}
                   </div>
                 )}
                 <div className="flex-1">
                   <p className="text-sm">
-                    {notification.user && <span className="font-semibold">{notification.user.name}</span>} {notification.content}
+                    {notification.user && <span className="font-semibold hover:underline cursor-pointer">{notification.user.name}</span>} {notification.content}
                   </p>
                   <p className="text-xs text-muted-foreground">{notification.timestamp}</p>
                 </div>
-                 {!notification.isRead && <div className="h-2.5 w-2.5 bg-primary rounded-full self-center"></div>}
+                 {!notification.isRead && <div className="h-2.5 w-2.5 bg-primary rounded-full self-center animate-pulse"></div>}
               </div>
             ))
           ) : (

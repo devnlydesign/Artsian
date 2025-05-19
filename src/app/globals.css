@@ -104,4 +104,18 @@ body {
   .animate-loading-bar {
     animation: loading-bar 1.8s ease-out forwards; /* Adjusted duration to match timeout slightly */
   }
+
+  .bg-gradient-primary-accent {
+    background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
+  }
+  .hover\:bg-gradient-primary-accent-hover:hover {
+    background-image: linear-gradient(to right, hsl(var(--primary) / 0.9), hsl(var(--accent) / 0.9));
+  }
+  .text-gradient-primary-accent {
+    background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text; /* Standard property */
+    text-fill-color: transparent; /* Standard property */
+  }
 }

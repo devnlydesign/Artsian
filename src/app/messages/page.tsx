@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessagesSquare, Send, Paperclip, Search } from "lucide-react";
 import { cn } from '@/lib/utils';
-import Image from "next/image";
+import Image from "next/image"; // Not used, can be removed if image previews in messages not needed
 
 interface Message {
   id: string;
@@ -30,10 +31,10 @@ interface Contact {
 }
 
 const contactsData: Contact[] = [
-  { id: "1", name: "Elena Vortex", avatar: "https://placehold.co/40x40.png", lastMessage: "Loved your latest bloom!", lastMessageTime: "10:32 AM", unread: 2, dataAiHint: "artist portrait" },
-  { id: "2", name: "Marcus Rune", avatar: "https://placehold.co/40x40.png", lastMessage: "Collaboration idea: what do you think?", lastMessageTime: "Yesterday", dataAiHint: "designer face" },
-  { id: "3", name: "Anya Spectra", avatar: "https://placehold.co/40x40.png", lastMessage: "The process symphony was inspiring!", lastMessageTime: "Mon", dataAiHint: "musician profile" },
-  { id: "4", name: "Kai Glitch", avatar: "https://placehold.co/40x40.png", lastMessage: "Check out this new generative tool.", lastMessageTime: "Last Week", dataAiHint: "tech enthusiast" },
+  { id: "1", name: "Elena Vortex", avatar: "https://placehold.co/40x40.png", lastMessage: "Loved your latest bloom!", lastMessageTime: "10:32 AM", unread: 2, dataAiHint: "female artist portrait" },
+  { id: "2", name: "Marcus Rune", avatar: "https://placehold.co/40x40.png", lastMessage: "Collaboration idea: what do you think?", lastMessageTime: "Yesterday", dataAiHint: "male designer face" },
+  { id: "3", name: "Anya Spectra", avatar: "https://placehold.co/40x40.png", lastMessage: "The process symphony was inspiring!", lastMessageTime: "Mon", dataAiHint: "female musician profile" },
+  { id: "4", name: "Kai Glitch", avatar: "https://placehold.co/40x40.png", lastMessage: "Check out this new generative tool.", lastMessageTime: "Last Week", dataAiHint: "male tech enthusiast" },
 ];
 
 const initialMessages: Message[] = [
@@ -70,7 +71,7 @@ export default function MessagesPage() {
 
   return (
     <div className="h-[calc(100vh-4rem-3.5rem)] flex flex-col"> {/* Adjust height based on header and padding */}
-      <Card className="flex-1 flex overflow-hidden shadow-lg">
+      <Card className="flex-1 flex overflow-hidden shadow-lg transition-shadow hover:shadow-xl">
         {/* Contacts List */}
         <div className="w-1/3 border-r border-border flex flex-col">
           <CardHeader className="p-4 border-b">
@@ -87,7 +88,7 @@ export default function MessagesPage() {
               <div
                 key={contact.id}
                 className={cn(
-                  "flex items-center p-3 hover:bg-muted/50 cursor-pointer border-b border-border",
+                  "flex items-center p-3 hover:bg-muted/50 cursor-pointer border-b border-border transition-colors",
                   selectedContact?.id === contact.id && "bg-muted"
                 )}
                 onClick={() => setSelectedContact(contact)}
@@ -157,7 +158,7 @@ export default function MessagesPage() {
               </ScrollArea>
               <CardContent className="p-4 border-t">
                 <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="transition-transform hover:scale-110">
                     <Paperclip className="h-5 w-5 text-muted-foreground" />
                   </Button>
                   <Input
@@ -167,7 +168,7 @@ export default function MessagesPage() {
                     className="flex-1"
                     autoComplete="off"
                   />
-                  <Button type="submit" size="icon">
+                  <Button type="submit" size="icon" variant="gradientPrimary" className="transition-transform hover:scale-110">
                     <Send className="h-5 w-5" />
                   </Button>
                 </form>
