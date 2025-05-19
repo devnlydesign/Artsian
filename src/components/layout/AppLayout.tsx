@@ -17,7 +17,9 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarTrigger,
-  SidebarInset
+  SidebarInset,
+  SidebarSeparator, // Added import
+  SidebarGroupLabel // Added import
 } from '@/components/ui/sidebar';
 import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
 import { Button } from '@/components/ui/button';
@@ -193,3 +195,4 @@ function UserMenu() {
 
 // Add a simple mobile bottom navigation if needed
 // function MobileBottomNav() { ... }
+
