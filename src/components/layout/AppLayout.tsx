@@ -32,17 +32,17 @@ import { MobileBottomNav } from './MobileBottomNav';
 
 const mainNavItems = [
   { href: "/", label: "Home", icon: Home, tooltip: "Home Feed" },
+  { href: "/profile", label: "Profile", icon: UserCircle, tooltip: "Your Profile" },
   { href: "/search", label: "Search", icon: Search, tooltip: "Search Content" },
   { href: "/creative-stratosphere", label: "Discover", icon: Compass, tooltip: "Discover Art & Creators" },
   { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Reels" },
   { href: "/messages", label: "Messages", icon: MessagesSquare, tooltip: "Direct Messages" },
   { href: "/notifications", label: "Activity", icon: Heart, tooltip: "Your Notifications" },
   { href: "/create", label: "Create", icon: PlusSquare, tooltip: "Create New Content" },
-  { href: "/profile", label: "Profile", icon: UserCircle, tooltip: "Your Profile" },
 ];
 
 const artisanToolsNavItems = [
-  { href: "/flux-signature", label: "My Artistic Style", icon: Palette, tooltip: "My Artistic Style" },
+  { href: "/flux-signature", label: "My Artistic Style", icon: Palette, tooltip: "View Your Artistic Style" },
   { href: "/crystalline-blooms", label: "My Artworks", icon: Gem, tooltip: "View My Artworks" },
   { href: "/algorithmic-muse", label: "AI Idea Sparker", icon: Lightbulb, tooltip: "Get Creative Ideas" },
   { href: "/genesis-trails", label: "Project Stories", icon: GitBranch, tooltip: "Project Creation Timelines" },
@@ -153,7 +153,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <UserMenu />
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6"> {/* Add padding-bottom for mobile nav */}
+        <main 
+            key={pathname} 
+            className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 animate-fadeInPage"
+        >
             {children}
         </main>
         {isMobile && <MobileBottomNav />}
