@@ -5,7 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitFork, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot
+  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette // Added Palette
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -32,27 +32,27 @@ import { MobileBottomNav } from './MobileBottomNav';
 
 const mainNavItems = [
   { href: "/", label: "Home", icon: Home, tooltip: "Home Feed" },
+  { href: "/profile", label: "Profile", icon: UserCircle, tooltip: "Your Profile" },
   { href: "/search", label: "Search", icon: Search, tooltip: "Search Content" },
-  { href: "/creative-stratosphere", label: "Discover", icon: Compass, tooltip: "Discover Art & Creators" },
+  { href: "/creative-stratosphere", label: "Explore", icon: Compass, tooltip: "Explore Art & Creators" },
   { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Reels" },
   { href: "/messages", label: "Messages", icon: MessagesSquare, tooltip: "Direct Messages" },
-  { href: "/notifications", label: "Notifications", icon: Heart, tooltip: "Your Notifications" },
+  { href: "/notifications", label: "Activity", icon: Heart, tooltip: "Your Notifications" },
   { href: "/create", label: "Create", icon: PlusSquare, tooltip: "Create New Content" },
-  { href: "/profile", label: "Profile", icon: UserCircle, tooltip: "Your Profile" },
 ];
 
 const artisanToolsNavItems = [
-  { href: "/flux-signature", label: "My Artistic Style", icon: Sparkles, tooltip: "My Artistic Style" },
+  { href: "/flux-signature", label: "My Style", icon: Palette, tooltip: "My Artistic Style" },
   { href: "/crystalline-blooms", label: "My Artworks", icon: Gem, tooltip: "View My Artworks" },
-  { href: "/algorithmic-muse", label: "Idea Sparker", icon: Lightbulb, tooltip: "Get Creative Prompts" },
-  { href: "/genesis-trails", label: "Project Stories", icon: GitFork, tooltip: "Project Timelines" },
-  { href: "/process-symphony", label: "Creative Soundtracks", icon: Music, tooltip: "AI Generated Audio" },
+  { href: "/algorithmic-muse", label: "Idea Sparker", icon: Lightbulb, tooltip: "Get Creative Ideas" },
+  { href: "/genesis-trails", label: "Project Stories", icon: GitBranch, tooltip: "Project Creation Timelines" },
+  { href: "/process-symphony", label: "Soundtracks", icon: Music, tooltip: "AI Generated Audio for Sessions" },
   { href: "/personal-assistant", label: "AI Assistant", icon: Bot, tooltip: "Personalize Your App" },
-  { href: "/biomes", label: "Private Spaces", icon: ShieldCheck, tooltip: "Private Communities" },
-  { href: "/insights", label: "My Impact", icon: BarChartBig, tooltip: "Audience Engagement" },
-  { href: "/amplify-flux", label: "Boost My Art", icon: Zap, tooltip: "Promote Your Work" },
-  { href: "/scheduling", label: "Content Planner", icon: CalendarClock, tooltip: "Content Scheduling" },
-  { href: "/shop", label: "Shop", icon: ShoppingCart, tooltip: "Artist Merchandise" },
+  { href: "/biomes", label: "Private Spaces", icon: ShieldCheck, tooltip: "Your Private Communities" },
+  { href: "/insights", label: "My Insights", icon: BarChartBig, tooltip: "Audience Engagement Data" },
+  { href: "/amplify-flux", label: "Boost Art", icon: Zap, tooltip: "Promote Your Work" },
+  { href: "/scheduling", label: "Content Planner", icon: CalendarClock, tooltip: "Plan Your Content Releases" },
+  { href: "/shop", label: "My Shop", icon: ShoppingCart, tooltip: "Your Artist Shop" },
 ];
 
 

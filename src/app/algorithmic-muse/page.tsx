@@ -15,8 +15,8 @@ import { Lightbulb, Loader2, Sparkles } from "lucide-react";
 import { generateMusePrompt, type GenerateMusePromptInput, type GenerateMusePromptOutput } from "@/ai/flows/algorithmic-muse-prompt";
 
 const formSchema = z.object({
-  artistCreativeHistory: z.string().min(50, "Please provide a detailed creative history (min 50 characters)."),
-  currentMood: z.string().min(3, "Describe your current mood (min 3 characters)."),
+  artistCreativeHistory: z.string().min(30, "Please describe your creative history (min 30 characters).").max(2000, "Creative history is too long (max 2000 characters)."),
+  currentMood: z.string().min(3, "Describe your current mood (min 3 characters).").max(200, "Mood description is too long (max 200 characters)."),
   desiredPromptType: z.enum(["visual", "textual"]),
 });
 
@@ -60,11 +60,11 @@ export default function AlgorithmicMusePage() {
 
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg card-interactive-hover">
         <CardHeader className="text-center">
           <Lightbulb className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">AI Idea Sparker</CardTitle>
-          <CardDescription>Let AI help spark your creativity. Provide some context, and get a unique idea prompt tailored to you.</CardDescription>
+          <CardTitle className="text-3xl text-gradient-primary-accent">AI Idea Sparker</CardTitle>
+          <CardDescription className="text-md">Let AI help ignite your creativity. Share some context and get a unique idea prompt tailored to you.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -77,7 +77,7 @@ export default function AlgorithmicMusePage() {
                     <FormLabel>Your Creative History</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Describe your past artworks, sketches, projects, themes you explore, techniques you use, etc."
+                        placeholder="Describe your past artworks, sketches, projects, common themes, techniques, etc."
                         rows={5}
                         {...field}
                       />
@@ -92,10 +92,10 @@ export default function AlgorithmicMusePage() {
                 name="currentMood"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Current Mood/State of Mind</FormLabel>
+                    <FormLabel>Current Mood or Focus</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., thoughtful, energetic, stuck, curious, calm"
+                        placeholder="e.g., thoughtful, energetic, stuck, curious, exploring nature themes"
                         rows={2}
                         {...field}
                       />
@@ -125,15 +125,15 @@ export default function AlgorithmicMusePage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" variant="gradientPrimary" disabled={isLoading} className="w-full transition-transform hover:scale-105">
+              <Button type="submit" variant="gradientPrimary" disabled={isLoading} className="w-full text-lg py-3 transition-transform hover:scale-105">
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Generating Idea...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-2 h-4 w-4" />
+                    <Sparkles className="mr-2 h-5 w-5" />
                     Get New Idea
                   </>
                 )}
@@ -144,17 +144,17 @@ export default function AlgorithmicMusePage() {
       </Card>
 
       {generatedPrompt && (
-        <Card className="mt-8 bg-accent/20 border-accent shadow-lg">
+        <Card className="mt-8 bg-primary/10 border-primary shadow-xl card-interactive-hover">
           <CardHeader>
-            <CardTitle className="text-2xl text-accent-foreground">Your AI Generated Idea ✨</CardTitle>
+            <CardTitle className="text-2xl text-primary-foreground flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-accent"/> Your AI Generated Idea
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg whitespace-pre-wrap">{generatedPrompt.prompt}</p>
+            <p className="text-lg whitespace-pre-wrap leading-relaxed">{generatedPrompt.prompt}</p>
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
-
-    

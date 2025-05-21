@@ -11,14 +11,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Zap, Loader2, BarChart, CheckCircle } from "lucide-react";
+import { Zap, Loader2, BarChart, CheckCircle, Target } from "lucide-react";
 import { amplifyFluxPulse, type AmplifyFluxPulseInput, type AmplifyFluxPulseOutput } from "@/ai/flows/amplify-flux-pulse";
 
 const formSchema = z.object({
   artistId: z.string().min(1, "Artist ID is required."),
-  fluxSignatureId: z.string().min(1, "Flux Signature ID is required."),
+  fluxSignatureId: z.string().min(1, "Artwork or Series ID to Promote is required."),
   crystallineBloomId: z.string().optional(),
-  promotionGoal: z.string().min(10, "Promotion goal must be at least 10 characters."),
+  promotionGoal: z.string().min(10, "Promotion goal must be at least 10 characters.").max(300, "Goal is too long (max 300 characters)."),
 });
 
 type AmplifyFormValues = z.infer<typeof formSchema>;
@@ -32,7 +32,7 @@ export default function AmplifyFluxPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       artistId: "artist-default-id", // Placeholder
-      fluxSignatureId: "fluxsig-default-id", // Placeholder
+      fluxSignatureId: "", 
       crystallineBloomId: "",
       promotionGoal: "",
     },
@@ -45,14 +45,14 @@ export default function AmplifyFluxPage() {
       const result = await amplifyFluxPulse(data);
       setAmplificationResult(result);
       toast({
-        title: "Flux Amplification Plan Ready!",
-        description: "AI has suggested strategies to boost your visibility.",
+        title: "Boost Plan Ready!",
+        description: "AI has suggested strategies to increase your art's visibility.",
       });
     } catch (error) {
       console.error("Error amplifying flux pulse:", error);
       toast({
         title: "Error",
-        description: "Failed to generate amplification plan. Please try again.",
+        description: "Failed to generate boost plan. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -62,11 +62,11 @@ export default function AmplifyFluxPage() {
 
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg card-interactive-hover">
         <CardHeader className="text-center">
           <Zap className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">Amplify Flux Pulse</CardTitle>
-          <CardDescription>Strategically increase the visibility and intensity of your Flux Signature or Crystalline Blooms with AI guidance.</CardDescription>
+          <CardTitle className="text-3xl text-gradient-primary-accent">Boost Your Art</CardTitle>
+          <CardDescription className="text-md">Get AI-powered tips to promote your art and reach a wider audience.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -76,23 +76,25 @@ export default function AmplifyFluxPage() {
                 name="artistId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Artist ID</FormLabel>
+                    <FormLabel>Your Artist ID</FormLabel>
                     <FormControl>
-                      <Input placeholder="Your unique artist identifier" {...field} />
+                      <Input placeholder="e.g., your-unique-artist-id" {...field} />
                     </FormControl>
+                    <FormDescription>This is your unique identifier on the platform.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="fluxSignatureId"
+                name="fluxSignatureId" // This field now broadly represents the item to promote
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Flux Signature ID</FormLabel>
+                    <FormLabel>Artwork/Series ID to Promote</FormLabel>
                     <FormControl>
-                      <Input placeholder="The ID of your Flux Signature" {...field} />
+                      <Input placeholder="ID of the art or series you want to boost" {...field} />
                     </FormControl>
+                     <FormDescription>The main piece or collection you're focusing on.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -102,11 +104,11 @@ export default function AmplifyFluxPage() {
                 name="crystallineBloomId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Crystalline Bloom ID (Optional)</FormLabel>
+                    <FormLabel>Specific Artwork ID (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="ID of a specific artwork to promote" {...field} />
+                      <Input placeholder="ID of a single artwork within a series" {...field} />
                     </FormControl>
-                    <FormDescription>Leave blank to focus on your overall Flux Signature.</FormDescription>
+                    <FormDescription>If promoting a series, you can specify one piece here. Otherwise, leave blank.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -116,23 +118,24 @@ export default function AmplifyFluxPage() {
                 name="promotionGoal"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Promotion Goal</FormLabel>
+                    <FormLabel>What's Your Promotion Goal?</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., Increase followers by 20%, promote my new 'Cosmic Dreams' artwork, drive traffic to my shop."
+                        placeholder="e.g., Increase followers, promote my new 'Cosmic Dreams' artwork, drive traffic to my shop."
                         rows={3}
                         {...field}
                       />
                     </FormControl>
+                     <FormDescription>Clearly state what you want to achieve with this promotion.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" variant="gradientPrimary" disabled={isLoading} className="w-full transition-transform hover:scale-105">
+              <Button type="submit" variant="gradientPrimary" disabled={isLoading} className="w-full text-lg py-3 transition-transform hover:scale-105">
                 {isLoading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing & Strategizing...</>
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Analyzing & Strategizing...</>
                 ) : (
-                  <><Zap className="mr-2 h-4 w-4" /> Amplify My Flux</>
+                  <><Target className="mr-2 h-5 w-5" /> Get Boost Strategies</>
                 )}
               </Button>
             </form>
@@ -141,19 +144,19 @@ export default function AmplifyFluxPage() {
       </Card>
 
       {amplificationResult && (
-        <Card className="mt-8 shadow-lg bg-primary/5 border-primary">
+        <Card className="mt-8 shadow-xl bg-primary/10 border-primary card-interactive-hover">
           <CardHeader>
-            <CardTitle className="text-2xl text-primary flex items-center gap-2">
-                <BarChart className="h-6 w-6" /> Amplification Strategy
+            <CardTitle className="text-2xl text-primary-foreground flex items-center gap-2">
+                <BarChart className="h-6 w-6 text-accent" /> Your Boost Strategy
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold mb-2 text-foreground">Suggested Strategies:</h3>
-              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <ul className="list-disc list-inside space-y-2 text-muted-foreground">
                 {amplificationResult.suggestedStrategies.map((strategy, index) => (
                   <li key={index} className="flex items-start">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 shrink-0" />
+                    <CheckCircle className="h-5 w-5 text-green-400 mr-2 mt-0.5 shrink-0" />
                     <span>{strategy}</span>
                   </li>
                 ))}
@@ -169,4 +172,3 @@ export default function AmplifyFluxPage() {
     </div>
   );
 }
-
