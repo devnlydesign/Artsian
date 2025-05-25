@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowRight, Maximize2, Eye, Gem } from "lucide-react";
 import Image from "next/image";
-import { Badge } from '@/components/ui/badge'; // Ensure Badge is imported
+import { Badge } from '@/components/ui/badge'; 
 
 interface Bloom {
   id: string;
@@ -45,7 +45,7 @@ export default function CrystallineBloomsPage() {
           <Dialog key={bloom.id} onOpenChange={(isOpen) => !isOpen && setSelectedBloom(null)}>
             <DialogTrigger asChild>
               <Card 
-                className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:border-primary group"
+                className="cursor-pointer card-interactive-hover group"
                 onClick={() => setSelectedBloom(bloom)}
               >
                 <CardHeader className="p-0">
@@ -98,5 +98,3 @@ export default function CrystallineBloomsPage() {
     </div>
   );
 }
-
-    

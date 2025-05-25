@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Users, Lock, PlusCircle, Settings } from "lucide-react";
@@ -6,8 +7,8 @@ import Image from "next/image";
 // Placeholder data for biomes
 const biomesData = [
   { id: "1", name: "Inner Circle", description: "A private space for patrons and close collaborators.", members: 12, access: "Paid Tier", privacy: "Invite-Only", dataAiHint: "exclusive community" },
-  { id: "2", name: "Sketchbook Collective", description: "A biome for sharing works-in-progress and getting feedback.", members: 45, access: "Free Tier", privacy: "Members-Only", dataAiHint: "collaborative art" },
-  { id: "3", name: "Project Avalon HQ", description: "Dedicated biome for the 'Avalon' multimedia project.", members: 7, access: "Project Team", privacy: "Strictly Private", dataAiHint: "team workspace" },
+  { id: "2", name: "Sketchbook Collective", description: "A space for sharing works-in-progress and getting feedback.", members: 45, access: "Free Tier", privacy: "Members-Only", dataAiHint: "collaborative art" },
+  { id: "3", name: "Project Avalon HQ", description: "Dedicated space for the 'Avalon' multimedia project.", members: 7, access: "Project Team", privacy: "Strictly Private", dataAiHint: "team workspace" },
 ];
 
 export default function BiomesPage() {
@@ -16,22 +17,22 @@ export default function BiomesPage() {
       <Card className="shadow-lg">
         <CardHeader className="text-center">
           <ShieldCheck className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">My Private Biomes</CardTitle>
-          <CardDescription>Manage your secure, self-contained ecosystems. Control access, share exclusive content, and foster your communities.</CardDescription>
+          <CardTitle className="text-3xl">My Private Spaces</CardTitle>
+          <CardDescription>Manage your secure spaces. Control access, share exclusive content, and build your communities.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">
-          <Button>
-            <PlusCircle className="mr-2 h-5 w-5" /> Create New Biome
+          <Button variant="gradientPrimary" className="transition-transform hover:scale-105">
+            <PlusCircle className="mr-2 h-5 w-5" /> Create New Space
           </Button>
         </CardContent>
       </Card>
 
       <section>
-        <h2 className="text-2xl font-semibold mb-4">Your Biomes</h2>
+        <h2 className="text-2xl font-semibold mb-4">Your Spaces</h2>
         {biomesData.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {biomesData.map((biome) => (
-              <Card key={biome.id} className="hover:shadow-xl transition-shadow">
+              <Card key={biome.id} className="card-interactive-hover group">
                 <CardHeader>
                   <div className="relative aspect-[16/9] mb-4 rounded-md overflow-hidden">
                     <Image 
@@ -40,9 +41,10 @@ export default function BiomesPage() {
                         layout="fill" 
                         objectFit="cover"
                         data-ai-hint={biome.dataAiHint}
+                        className="transition-transform duration-300 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
-                        <CardTitle className="text-xl text-white">{biome.name}</CardTitle>
+                        <CardTitle className="text-xl text-white group-hover:text-primary-foreground transition-colors">{biome.name}</CardTitle>
                     </div>
                   </div>
                   <CardDescription>{biome.description}</CardDescription>
@@ -56,17 +58,17 @@ export default function BiomesPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Settings className="mr-2 h-4 w-4" /> Manage Biome
+                  <Button variant="outline" size="sm" className="w-full group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+                    <Settings className="mr-2 h-4 w-4" /> Manage Space
                   </Button>
                 </CardFooter>
               </Card>
             ))}
           </div>
         ) : (
-          <Card>
+          <Card className="card-interactive-hover">
             <CardContent className="pt-6 text-center text-muted-foreground">
-              <p>You haven't created any Biomes yet.</p>
+              <p>You haven't created any Private Spaces yet.</p>
               <Button variant="link" className="mt-2">Get started by creating one!</Button>
             </CardContent>
           </Card>
