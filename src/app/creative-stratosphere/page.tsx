@@ -1,9 +1,11 @@
 
+"use client"; // Added "use client" directive
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Compass, Search, Image as ImageIcon, Users, Palette } from "lucide-react";
-import NextImage from "next/image"; // Renamed to avoid conflict with ImageIcon
+import { Compass, Search, Users } from "lucide-react"; // Removed ImageIcon, Palette as they are not used directly here
+import NextImage from "next/image"; 
 import Link from "next/link";
 
 // Placeholder data for explore content

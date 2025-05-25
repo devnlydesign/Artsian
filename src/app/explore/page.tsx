@@ -1,9 +1,12 @@
 
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Compass, Search, Image as ImageIcon, Users, Palette } from "lucide-react";
 import NextImage from "next/image"; // Renamed to avoid conflict with ImageIcon
+import Link from "next/link"; // Added missing import
 
 // Placeholder data for explore content
 const exploreItems = [
