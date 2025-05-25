@@ -5,8 +5,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette, LogOut
-} from 'lucide-react'; // Added LogOut
+  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette, LogOut, Users as UsersIcon, Star // Added UsersIcon, Star
+} from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -31,14 +31,19 @@ import { useAppState } from '@/context/AppStateContext';
 import { MobileBottomNav } from './MobileBottomNav';
 
 const mainNavItems = [
-  { href: "/", label: "Home", icon: Home, tooltip: "Home Feed" },
-  { href: "/profile", label: "My Profile", icon: UserCircle, tooltip: "Your Profile" },
-  { href: "/search", label: "Search", icon: Search, tooltip: "Search Content" },
-  { href: "/creative-stratosphere", label: "Discover", icon: Compass, tooltip: "Discover Art & Creators" },
-  { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Reels" },
-  { href: "/messages", label: "Messages", icon: MessagesSquare, tooltip: "Direct Messages" },
-  { href: "/notifications", label: "Activity", icon: Heart, tooltip: "Your Notifications" },
-  { href: "/create", label: "Create", icon: PlusSquare, tooltip: "Create New Content" },
+  { href: "/", label: "Home Feed", icon: Home, tooltip: "Your Home Feed" },
+  { href: "/explore", label: "Explore Content", icon: Compass, tooltip: "Explore Art & Creators" },
+  { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Short Videos" },
+  { href: "/messages", label: "Direct Messages", icon: MessagesSquare, tooltip: "Your Conversations" },
+  { href: "/communities", label: "Communities", icon: UsersIcon, tooltip: "Join Artist Groups" }, // New
+  { href: "/create", label: "Create New", icon: PlusSquare, tooltip: "Create New Content" },
+];
+
+const userSpecificNavItems = [
+  { href: "/profile", label: "My Profile", icon: UserCircle, tooltip: "Your Profile Page" },
+  { href: "/notifications", label: "My Activity", icon: Heart, tooltip: "Your Notifications" },
+  { href: "/settings", label: "Settings", icon: Settings, tooltip: "App & Account Settings" }, // New
+  { href: "/premium", label: "Get Premium", icon: Star, tooltip: "ARTISAN Premium Benefits" }, // New
 ];
 
 const artisanToolsNavItems = [
@@ -59,14 +64,14 @@ const artisanToolsNavItems = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMobile = useIsMobile();
-  const { isAuthenticated, showWelcome, logoutUser, currentUser } = useAppState(); // Use logoutUser
+  const { isAuthenticated, showWelcome, logoutUser, currentUser } = useAppState();
 
   if (showWelcome || pathname.startsWith('/auth/') || pathname.startsWith('/onboarding')) {
     return <>{children}</>;
   }
   
   const getPageTitle = () => {
-    const allNavItems = [...mainNavItems, ...artisanToolsNavItems];
+    const allNavItems = [...mainNavItems, ...userSpecificNavItems, ...artisanToolsNavItems];
     const currentItem = allNavItems.find(item => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)));
     return currentItem?.label || "Artisan";
   }
@@ -98,7 +103,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
-            <SidebarSeparator className="my-4" />
+            <SidebarSeparator className="my-3" />
+             <SidebarMenu className="px-2">
+              {userSpecificNavItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <Link href={item.href} legacyBehavior passHref>
+                    <SidebarMenuButton
+                      isActive={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
+                      className="justify-start"
+                      tooltip={item.tooltip}
+                       size="sm"
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+            <SidebarSeparator className="my-3" />
              <SidebarMenu className="px-2">
               <SidebarGroupLabel className="px-2 text-xs uppercase text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">Artist Tools</SidebarGroupLabel>
               {artisanToolsNavItems.map((item) => (
@@ -124,14 +147,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start p-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-auto transition-colors hover:bg-sidebar-accent">
                   <Settings className="h-6 w-6 text-sidebar-foreground" />
-                  <span className="ml-2 text-base text-sidebar-foreground group-data-[collapsible=icon]:hidden">More</span>
+                  <span className="ml-2 text-base text-sidebar-foreground group-data-[collapsible=icon]:hidden">More Options</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 mb-2 ml-2" side="top" align="start">
               <DropdownMenuLabel>User Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Your Activity</DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
+              <DropdownMenuItem>Your Activity Log</DropdownMenuItem>
               <DropdownMenuItem>Saved Content</DropdownMenuItem>
               <DropdownMenuSeparator />
               {isAuthenticated ? (
@@ -150,7 +173,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-md px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-md px-6 md:px-4" style={{'--header-height': '4rem'} as React.CSSProperties}>
             <div className="flex items-center gap-4">
               {isMobile && <SidebarTrigger />} 
                <Link href="/" className="flex items-center gap-2 md:hidden"> 
@@ -176,9 +199,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 function UserMenu() {
-  const { logoutUser, isAuthenticated, currentUser } = useAppState(); // Use logoutUser
+  const { logoutUser, isAuthenticated, currentUser } = useAppState();
   
-  // Use Firebase user data if available
   const userName = currentUser?.displayName || currentUser?.email?.split('@')[0] || "Artist";
   const userEmail = currentUser?.email || "No email";
   const userAvatarFallback = userName ? userName.substring(0,1).toUpperCase() : "A";
@@ -205,8 +227,9 @@ function UserMenu() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href="/profile">My Profile</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href="/premium">Get Premium</Link></DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logoutUser} className="text-destructive focus:bg-destructive/20 focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4"/>Log out

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Compass, Search, Image as ImageIcon, Users, Palette } from "lucide-react";
 import NextImage from "next/image"; // Renamed to avoid conflict with ImageIcon
-import Link from "next/link";
 
 // Placeholder data for explore content
 const exploreItems = [
@@ -22,7 +21,7 @@ const exploreItems = [
   { id: "e12", type: "image", src: "https://placehold.co/400x400.png", alt: "AI generated artwork", dataAiHint: "ai generated art" },
 ];
 
-export default function ExplorePage() { // Renamed from CreativeStratospherePage
+export default function ExplorePage() {
   return (
     <div className="space-y-8">
       <Card className="shadow-lg card-interactive-hover sticky top-[calc(var(--header-height,4rem)+1rem)] z-10 bg-background/80 backdrop-blur-md">
@@ -48,10 +47,11 @@ export default function ExplorePage() { // Renamed from CreativeStratospherePage
               src={item.src} 
               alt={item.alt} 
               width={400} // Base width, aspect ratio will determine height
-              height={item.id === 'e2' ? 600 : item.id === 'e4' ? 267 : item.id === 'e6' ? 500 : item.id === 'e7' ? 300 : item.id === 'e10' ? 300 : item.id === 'e11' ? 533 : 400} // Varied heights for masonry
+              height={item.id === 'e2' ? 600 : item.id === 'e4' ? 267 : item.id === 'e6' ? 500 : item.id === 'e7' ? 300 : item.id === 'e10' ? 300 : item.id === 'e11' ? 533 : 400} // Varied heights
               className="object-cover w-full h-auto" 
               data-ai-hint={item.dataAiHint}
             />
+            {/* Overlay for item type or interaction could go here */}
           </div>
         ))}
       </div>
@@ -62,6 +62,7 @@ export default function ExplorePage() { // Renamed from CreativeStratospherePage
         }
         .masonry-item {
           break-inside: avoid;
+          /* Add any specific item styling here */
         }
         @media (min-width: 640px) { /* sm */
           .masonry-grid {
@@ -86,6 +87,7 @@ export default function ExplorePage() { // Renamed from CreativeStratospherePage
             <CardDescription>Find your tribe. Connect with artists sharing your interests.</CardDescription>
         </CardHeader>
         <CardContent>
+            {/* Placeholder for community links or cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {["Digital Artists United", "Painters' Hub", "AI Art Explorers", "Sculpture Network"].map(name => (
                     <Button key={name} variant="secondary" className="h-auto py-3 transition-transform hover:scale-105" asChild>

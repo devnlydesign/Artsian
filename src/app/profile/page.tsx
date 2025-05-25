@@ -2,27 +2,34 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Settings, UserPlus, Mail, MapPin, Link as LinkIcon, Grid3x3, Clapperboard, Bookmark, Tag } from "lucide-react";
+import { Settings, UserPlus, Mail, MapPin, Link as LinkIcon, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Placeholder data for user profile
+// Placeholder data for user profile - including location and portfolio link
 const userProfile = {
-  name: "Alex Chroma", // Placeholder name
-  username: "alexchroma_art", // Placeholder username
+  name: "Alex Chroma",
+  username: "alexchroma_art",
   avatarUrl: "https://placehold.co/150x150.png",
   dataAiHintAvatar: "artist self portrait painting",
   bannerUrl: "https://placehold.co/1000x250.png",
   dataAiHintBanner: "abstract art studio wide",
   bio: "Exploring the intersections of art, technology, and consciousness. Creator of Crystalline Blooms and Flux Signatures on ARTISAN. Lover of vibrant colors and dynamic forms.",
-  location: "Digital Realm / NYC",
-  website: "alexchroma.art",
+  location: "Digital Realm / NYC", // Added from settings
+  website: "alexchroma.art", // This is one of the links
+  portfolioLink: "https://alexchroma.portfolio.site", // Added from settings
   followers: 12345,
   following: 567,
   postsCount: 88,
+  isPremium: true, // Mocked for showing checkmark
+  profileLinks: [ // Max 6 for basic, unlimited for premium
+    { title: "My Shop", url: "/shop/alexchroma_art" },
+    { title: "Behance", url: "https://behance.net/alexchroma" },
+    { title: "Instagram", url: "https://instagram.com/alexchroma_art" },
+    { title: "Commissions", url: "mailto:commissions@alexchroma.art" },
+  ]
 };
 
-// Placeholder for user's blooms/posts
 const userBlooms = [
   { id: "b1", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "abstract colorful artwork" },
   { id: "b2", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "surreal digital painting" },
@@ -34,9 +41,12 @@ const userBlooms = [
 
 
 export default function ProfilePage() {
+  // Assume userProfile.location and userProfile.portfolioLink are fetched from user settings
+  // userProfile.isPremium would also be fetched
+
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden shadow-lg transition-shadow hover:shadow-xl">
+      <Card className="overflow-hidden shadow-lg card-interactive-hover">
         <div className="relative h-40 md:h-64 bg-muted group">
           <Image 
             src={userProfile.bannerUrl} 
@@ -47,7 +57,7 @@ export default function ProfilePage() {
             className="transition-transform group-hover:scale-105 duration-300"
             priority
             />
-           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
         </div>
         <CardContent className="pt-0 relative">
           <div className="flex flex-col md:flex-row items-center md:items-end -mt-16 md:-mt-20 space-y-4 md:space-y-0 md:space-x-6 px-6 pb-6">
@@ -56,16 +66,18 @@ export default function ProfilePage() {
               <AvatarFallback>{userProfile.name.substring(0,2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="flex-1 text-center md:text-left pt-4">
-              <CardTitle className="text-3xl">{userProfile.name}</CardTitle>
+              <div className="flex items-center justify-center md:justify-start gap-1">
+                <CardTitle className="text-3xl">{userProfile.name}</CardTitle>
+                {userProfile.isPremium && <CheckCircle className="h-6 w-6 text-primary" title="Premium Member"/>}
+              </div>
               <CardDescription className="text-lg text-muted-foreground">@{userProfile.username}</CardDescription>
               <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-x-6 gap-y-2 text-sm">
-                <span><span className="font-semibold">{userProfile.postsCount}</span> posts</span>
+                <span><span className="font-semibold">{userProfile.postsCount}</span> artworks</span>
                 <span><span className="font-semibold">{userProfile.followers.toLocaleString()}</span> followers</span>
                 <span><span className="font-semibold">{userProfile.following.toLocaleString()}</span> following</span>
               </div>
             </div>
             <div className="flex gap-2 pt-4 md:pt-0">
-              {/* Assuming this is someone else's profile. If own, variant would be 'outline' and text 'Edit Profile' */}
               <Button variant="gradientPrimary" className="transition-transform hover:scale-105">
                 <UserPlus className="mr-2 h-4 w-4" /> Follow
               </Button> 
@@ -76,48 +88,70 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="px-6 pb-6 space-y-2">
+          <div className="px-6 pb-6 space-y-3">
             <p className="text-sm">{userProfile.bio}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               {userProfile.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3"/>{userProfile.location}</span>}
-              {userProfile.website && <a href={`https://${userProfile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary hover:underline"><LinkIcon className="h-3 w-3"/>{userProfile.website}</a>}
+              {userProfile.website && 
+                <a href={userProfile.website.startsWith('http') ? userProfile.website : `https://${userProfile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary hover:underline">
+                  <LinkIcon className="h-3 w-3"/>{userProfile.website.replace(/^https?:\/\//, '')}
+                </a>
+              }
+              {userProfile.portfolioLink && 
+                <a href={userProfile.portfolioLink.startsWith('http') ? userProfile.portfolioLink : `https://${userProfile.portfolioLink}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary hover:underline">
+                  <ExternalLink className="h-3 w-3"/>View Portfolio
+                </a>
+              }
             </div>
+             {userProfile.profileLinks && userProfile.profileLinks.length > 0 && (
+              <div className="pt-2">
+                <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1">My Links</h4>
+                <div className="flex flex-wrap gap-2">
+                  {userProfile.profileLinks.map((link, index) => (
+                    <Button key={index} variant="outline" size="sm" asChild className="transition-transform hover:scale-105 hover:border-primary">
+                      <a href={link.url.startsWith('http') || link.url.startsWith('mailto:') ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer">
+                        {link.title} <ExternalLink className="ml-1.5 h-3 w-3 opacity-70"/>
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
       
-      <Tabs defaultValue="blooms" className="w-full">
+      <Tabs defaultValue="artworks" className="w-full">
         <TabsList className="grid w-full grid-cols-4 md:max-w-md mx-auto">
-          <TabsTrigger value="blooms" className="transition-colors"><Grid3x3 className="h-5 w-5 mr-0 md:mr-2" /><span className="hidden md:inline">Blooms</span></TabsTrigger>
+          <TabsTrigger value="artworks" className="transition-colors"><Grid3x3 className="h-5 w-5 mr-0 md:mr-2" /><span className="hidden md:inline">Artworks</span></TabsTrigger>
           <TabsTrigger value="reels" className="transition-colors"><Clapperboard className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Reels</span></TabsTrigger>
           <TabsTrigger value="saved" className="transition-colors"><Bookmark className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Saved</span></TabsTrigger>
           <TabsTrigger value="tagged" className="transition-colors"><Tag className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Tagged</span></TabsTrigger>
         </TabsList>
-        <TabsContent value="blooms">
+        <TabsContent value="artworks">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 sm:gap-2 mt-4">
             {userBlooms.map(bloom => (
-              <div key={bloom.id} className="relative aspect-square bg-muted group overflow-hidden rounded-sm">
+              <div key={bloom.id} className="relative aspect-square bg-muted group overflow-hidden rounded-sm card-interactive-hover">
                 <Image 
                     src={bloom.thumbnailUrl} 
-                    alt="User bloom" 
+                    alt="User artwork" 
                     layout="fill" 
                     objectFit="cover" 
                     data-ai-hint={bloom.dataAiHint}
                     className="transition-transform duration-300 group-hover:scale-110 cursor-pointer"
                 />
                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    {/* Could add like/comment count overlay here */}
-                </div>
+                 </div>
               </div>
             ))}
-             {userBlooms.length === 0 && <p className="col-span-full text-center text-muted-foreground py-10">No blooms yet.</p>}
+             {userBlooms.length === 0 && <p className="col-span-full text-center text-muted-foreground py-10">No artworks yet.</p>}
           </div>
         </TabsContent>
         <TabsContent value="reels">
           <Card className="transition-shadow hover:shadow-md">
             <CardContent className="pt-6 text-center text-muted-foreground">
               <Clapperboard className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
-              <p>User's Reels will appear here.</p>
+              <p>Your Reels will appear here.</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -125,7 +159,7 @@ export default function ProfilePage() {
           <Card className="transition-shadow hover:shadow-md">
             <CardContent className="pt-6 text-center text-muted-foreground">
               <Bookmark className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
-              <p>Saved content will appear here. Only visible to you.</p>
+              <p>Your saved content will appear here. Only visible to you.</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -133,7 +167,7 @@ export default function ProfilePage() {
           <Card className="transition-shadow hover:shadow-md">
             <CardContent className="pt-6 text-center text-muted-foreground">
               <Tag className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
-              <p>Content where this user is tagged will appear here.</p>
+              <p>Content where you are tagged will appear here.</p>
             </CardContent>
           </Card>
         </TabsContent>
