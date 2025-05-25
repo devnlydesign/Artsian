@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,20 +11,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
-import { LogIn, ArrowLeft } from 'lucide-react';
+import { LogIn, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
-import { useRouter } from 'next/navigation';
+// No need to import useRouter explicitly if AppStateContext handles navigation
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(1, { message: "Password is required." }),
+  password: z.string().min(1, { message: "Password is required." }), // Firebase requires at least 6 chars for new passwords, but existing can be less if migrated
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const { login } = useAppState();
-  const router = useRouter();
+  const { loginUser } = useAppState();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -35,12 +35,10 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    console.log("Login data:", data);
-    // Mock login:
-    // In a real app, you would call your backend API here and verify credentials
-    // For now, we'll just simulate a successful login
-    alert("Login successful! (Mocked)");
-    login(); // This will set isAuthenticated to true and redirect
+    setIsLoading(true);
+    await loginUser(data.email, data.password);
+    // Navigation is handled by AppStateContext after successful Firebase login (via onAuthStateChanged)
+    setIsLoading(false);
   };
 
   return (
@@ -66,7 +64,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="you@example.com" {...field} />
+                      <Input type="email" placeholder="you@example.com" {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -79,14 +77,15 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <Input type="password" placeholder="••••••••" {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg">
-                <LogIn className="mr-2 h-5 w-5" /> Log In
+              <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogIn className="mr-2 h-5 w-5" />}
+                {isLoading ? 'Logging In...' : 'Log In'}
               </Button>
             </form>
           </Form>
@@ -98,7 +97,8 @@ export default function LoginPage() {
           </p>
            <p className="mt-2 text-center text-xs text-muted-foreground">
             <Link href="#" className="hover:underline">
-              Forgot password?
+              Forgot password? {/* Placeholder -
+ Add actual forgot password flow later */}
             </Link>
           </p>
         </CardContent>

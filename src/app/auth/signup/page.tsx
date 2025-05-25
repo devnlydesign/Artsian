@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,24 +11,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
-import { UserPlus, ArrowLeft } from 'lucide-react';
+import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
 import { useRouter } from 'next/navigation';
 
 const signupSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }), // Firebase default minimum
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
-  path: ["confirmPassword"], // path of error
+  path: ["confirmPassword"], 
 });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
-  const { login } = useAppState(); // Using login for simplicity, replace with actual signup logic
+  const { signupUser } = useAppState();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -40,14 +41,17 @@ export default function SignupPage() {
   });
 
   const onSubmit = async (data: SignupFormValues) => {
-    console.log("Signup data:", data);
-    // Mock signup:
-    // In a real app, you would call your backend API here
-    // For now, we'll just simulate a successful signup and "log in" the user
-    alert("Signup successful! (Mocked)");
-    // Instead of direct login, redirect to onboarding
-    sessionStorage.setItem('hasSeenWelcome', 'true'); // Mark welcome as seen
-    router.push('/onboarding'); 
+    setIsLoading(true);
+    const user = await signupUser(data.email, data.password);
+    if (user) {
+      // User signed up and logged in by Firebase
+      // onAuthStateChanged in AppStateContext will handle setting isAuthenticated
+      // Proceed to onboarding
+      sessionStorage.setItem('hasSeenWelcome', 'true'); 
+      router.push('/onboarding');
+    }
+    // If user is null, signupUser in context already showed a toast
+    setIsLoading(false);
   };
 
   return (
@@ -73,7 +77,7 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="you@example.com" {...field} />
+                      <Input type="email" placeholder="you@example.com" {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -86,7 +90,7 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <Input type="password" placeholder="••••••••" {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -99,14 +103,15 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <Input type="password" placeholder="••••••••" {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg">
-                <UserPlus className="mr-2 h-5 w-5" /> Sign Up & Continue
+              <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5" />}
+                {isLoading ? 'Creating Account...' : 'Sign Up & Continue'}
               </Button>
             </form>
           </Form>

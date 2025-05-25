@@ -5,8 +5,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette
-} from 'lucide-react';
+  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette, LogOut
+} from 'lucide-react'; // Added LogOut
 import {
   SidebarProvider,
   Sidebar,
@@ -32,7 +32,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 
 const mainNavItems = [
   { href: "/", label: "Home", icon: Home, tooltip: "Home Feed" },
-  { href: "/profile", label: "Profile", icon: UserCircle, tooltip: "Your Profile" },
+  { href: "/profile", label: "My Profile", icon: UserCircle, tooltip: "Your Profile" },
   { href: "/search", label: "Search", icon: Search, tooltip: "Search Content" },
   { href: "/creative-stratosphere", label: "Discover", icon: Compass, tooltip: "Discover Art & Creators" },
   { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Reels" },
@@ -59,7 +59,7 @@ const artisanToolsNavItems = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMobile = useIsMobile();
-  const { isAuthenticated, showWelcome, logout } = useAppState();
+  const { isAuthenticated, showWelcome, logoutUser, currentUser } = useAppState(); // Use logoutUser
 
   if (showWelcome || pathname.startsWith('/auth/') || pathname.startsWith('/onboarding')) {
     return <>{children}</>;
@@ -73,7 +73,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider defaultOpen={!isMobile} collapsible={isMobile ? "offcanvas" : "icon"}>
-      <Sidebar variant="sidebar" side="left" className="border-r border-sidebar-border hidden md:flex"> {/* Hide sidebar on mobile, bottom nav will show */}
+      <Sidebar variant="sidebar" side="left" className="border-r border-sidebar-border hidden md:flex">
         <SidebarHeader className="p-4">
           <Link href="/" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
             <ArtisanLogo className="h-8 w-8 text-sidebar-primary block group-data-[collapsible=expanded]:hidden" />
@@ -134,7 +134,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuItem>Your Activity</DropdownMenuItem>
               <DropdownMenuItem>Saved Content</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="text-destructive focus:bg-destructive/20 focus:text-destructive">Log out</DropdownMenuItem>
+              {isAuthenticated ? (
+                <DropdownMenuItem onClick={logoutUser} className="text-destructive focus:bg-destructive/20 focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4"/> Log out
+                </DropdownMenuItem>
+              ) : (
+                 <DropdownMenuItem asChild>
+                    <Link href="/auth/login">
+                        <UserCircle className="mr-2 h-4 w-4"/> Log In
+                    </Link>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </SidebarFooter>
@@ -142,12 +152,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-md px-6">
             <div className="flex items-center gap-4">
-              {isMobile && <SidebarTrigger />} {/* Hamburger for off-canvas sidebar on mobile */}
-               <Link href="/" className="flex items-center gap-2 md:hidden"> {/* Mobile only logo/title */}
+              {isMobile && <SidebarTrigger />} 
+               <Link href="/" className="flex items-center gap-2 md:hidden"> 
                  <ArtisanLogo className="h-7 w-7 text-primary" />
                  <span className="font-semibold text-xl text-gradient-primary-accent">Artisan</span>
                </Link>
-               <h1 className="text-xl font-semibold text-gradient-primary-accent hidden md:block"> {/* Desktop Page Title */}
+               <h1 className="text-xl font-semibold text-gradient-primary-accent hidden md:block"> 
                 {getPageTitle()}
               </h1>
             </div>
@@ -166,35 +176,56 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 function UserMenu() {
-  const { logout } = useAppState();
-  // Placeholder user data
-  const userName = "Alex Chroma";
-  const userEmail = "alex.chroma@example.com";
+  const { logoutUser, isAuthenticated, currentUser } = useAppState(); // Use logoutUser
+  
+  // Use Firebase user data if available
+  const userName = currentUser?.displayName || currentUser?.email?.split('@')[0] || "Artist";
+  const userEmail = currentUser?.email || "No email";
+  const userAvatarFallback = userName ? userName.substring(0,1).toUpperCase() : "A";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10 border-2 border-primary/50 transition-transform hover:scale-110">
-            <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user profile avatar" />
-            <AvatarFallback>{userName ? userName.substring(0,1).toUpperCase() : "U"}</AvatarFallback>
+            <AvatarImage src={currentUser?.photoURL || "https://placehold.co/40x40.png"} alt="User Avatar" data-ai-hint="user profile avatar" />
+            <AvatarFallback>{userAvatarFallback}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{userName}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {userEmail}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
-        <DropdownMenuItem>Settings</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout} className="text-destructive focus:bg-destructive/20 focus:text-destructive">Log out</DropdownMenuItem>
+        {isAuthenticated && currentUser ? (
+          <>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{userName}</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {userEmail}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
+            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logoutUser} className="text-destructive focus:bg-destructive/20 focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4"/>Log out
+            </DropdownMenuItem>
+          </>
+        ) : (
+           <>
+            <DropdownMenuItem asChild>
+                <Link href="/auth/login">
+                    <UserCircle className="mr-2 h-4 w-4"/> Log In
+                </Link>
+            </DropdownMenuItem>
+             <DropdownMenuItem asChild>
+                <Link href="/auth/signup">
+                    <PlusSquare className="mr-2 h-4 w-4"/> Sign Up
+                </Link>
+            </DropdownMenuItem>
+           </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

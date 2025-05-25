@@ -101,17 +101,25 @@ body {
 }
 
 @layer utilities {
-  @keyframes loading-bar {
+  @keyframes loading-bar { /* This will be an indeterminate loader now */
     0% {
-      width: 0%;
+      transform: translateX(-100%) scaleX(0.5);
+      opacity: 0.5;
+    }
+    50% {
+      transform: translateX(0%) scaleX(1);
+      opacity: 1;
     }
     100% {
-      width: 100%;
+      transform: translateX(100%) scaleX(0.5);
+      opacity: 0.5;
     }
   }
   .animate-loading-bar {
-    animation: loading-bar 1.8s ease-out forwards; /* Adjusted duration to match timeout slightly */
+    animation: loading-bar 1.5s ease-in-out infinite;
+    transform-origin: left center; /* Not strictly needed for translateX but good practice */
   }
+
 
   /* Updated gradient for flowing effect */
   .bg-gradient-primary-accent {
