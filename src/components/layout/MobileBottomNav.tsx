@@ -1,15 +1,16 @@
+
 "use client";
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Compass, PlusSquare, UserCircle, Users } from 'lucide-react'; // Added Users icon
+import { Home, Compass, PlusSquare, UserCircle, Users, MessagesSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/explore", label: "Explore", icon: Compass }, // Changed from Search to Explore to match top-level nav
+  { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/messages", label: "Chat", icon: MessagesSquare },
   { href: "/create", label: "Create", icon: PlusSquare },
-  { href: "/communities", label: "Groups", icon: Users }, // Added Communities
   { href: "/profile", label: "Profile", icon: UserCircle },
 ];
 
@@ -34,3 +35,5 @@ export function MobileBottomNav() {
     </nav>
   );
 }
+
+    

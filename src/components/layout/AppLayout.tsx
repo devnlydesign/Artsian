@@ -5,7 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette, LogOut, Users as UsersIcon, Star // Added UsersIcon, Star
+  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette, LogOut, Users as UsersIcon, Star
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -34,16 +34,16 @@ const mainNavItems = [
   { href: "/", label: "Home Feed", icon: Home, tooltip: "Your Home Feed" },
   { href: "/explore", label: "Explore Content", icon: Compass, tooltip: "Explore Art & Creators" },
   { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Short Videos" },
-  { href: "/messages", label: "Direct Messages", icon: MessagesSquare, tooltip: "Your Conversations" },
-  { href: "/communities", label: "Communities", icon: UsersIcon, tooltip: "Join Artist Groups" }, // New
+  { href: "/messages", label: "Chat", icon: MessagesSquare, tooltip: "Your Chats" },
+  { href: "/communities", label: "Communities", icon: UsersIcon, tooltip: "Join Artist Groups" },
   { href: "/create", label: "Create New", icon: PlusSquare, tooltip: "Create New Content" },
 ];
 
 const userSpecificNavItems = [
   { href: "/profile", label: "My Profile", icon: UserCircle, tooltip: "Your Profile Page" },
   { href: "/notifications", label: "My Activity", icon: Heart, tooltip: "Your Notifications" },
-  { href: "/settings", label: "Settings", icon: Settings, tooltip: "App & Account Settings" }, // New
-  { href: "/premium", label: "Get Premium", icon: Star, tooltip: "ARTISAN Premium Benefits" }, // New
+  { href: "/settings", label: "Settings", icon: Settings, tooltip: "App & Account Settings" },
+  { href: "/premium", label: "Get Premium", icon: Star, tooltip: "ARTISAN Premium Benefits" },
 ];
 
 const artisanToolsNavItems = [
@@ -253,3 +253,5 @@ function UserMenu() {
     </DropdownMenu>
   );
 }
+
+    

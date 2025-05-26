@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessagesSquare, Send, Paperclip, Search } from "lucide-react";
 import { cn } from '@/lib/utils';
-import Image from "next/image"; // Not used, can be removed if image previews in messages not needed
+import type { SVGProps } from 'react'; // Image not used, removed Image import
 
 interface Message {
   id: string;
@@ -76,11 +76,11 @@ export default function MessagesPage() {
         <div className="w-1/3 border-r border-border flex flex-col">
           <CardHeader className="p-4 border-b">
             <div className="flex items-center justify-between">
-                <CardTitle className="text-xl flex items-center gap-2"><MessagesSquare className="h-6 w-6 text-primary" /> Channels</CardTitle>
+                <CardTitle className="text-xl flex items-center gap-2"><MessagesSquare className="h-6 w-6 text-primary" /> Chats</CardTitle>
             </div>
             <div className="relative mt-2">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search contacts..." className="pl-8 h-9" />
+              <Input placeholder="Search chats..." className="pl-8 h-9" />
             </div>
           </CardHeader>
           <ScrollArea className="flex-1">
@@ -177,8 +177,8 @@ export default function MessagesPage() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
               <MessagesSquare className="h-24 w-24 mb-4" />
-              <p className="text-lg">Select a contact to start messaging.</p>
-              <p>This is a 'Direct Energy Channel' - visualize messages as flowing energy particles.</p>
+              <p className="text-lg">Select a contact to start chatting.</p>
+              <p className="text-sm">This is your space for direct conversations.</p>
             </div>
           )}
         </div>
@@ -186,3 +186,5 @@ export default function MessagesPage() {
     </div>
   );
 }
+
+    
