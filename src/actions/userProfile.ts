@@ -2,7 +2,22 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, Timestamp } from 'firebase/firestore';
+
+export interface FluxSignature {
+  style?: string;
+  activityLevel?: string; 
+  currentMood?: string; 
+  dominantColors?: string[]; // Array of hex color strings
+  keywords?: string[];
+  visualRepresentation?: string; // URL to an image
+  dataAiHintVisual?: string;
+}
+
+export interface FluxEvolutionPoint {
+  date: string; // Should be ISO string or 'YYYY-MM-DD'
+  change: string;
+}
 
 export interface UserProfileData {
   uid: string;
@@ -19,9 +34,11 @@ export interface UserProfileData {
   location?: string;
   portfolioLink?: string;
   emailOptIn?: boolean;
-  isPremium?: boolean; // Added for premium status
-  createdAt?: any; // Firestore ServerTimestamp
-  updatedAt?: any; // Firestore ServerTimestamp
+  isPremium?: boolean;
+  fluxSignature?: FluxSignature;
+  fluxEvolutionPoints?: FluxEvolutionPoint[];
+  createdAt?: Timestamp; 
+  updatedAt?: Timestamp; 
 }
 
 export async function saveUserProfile(userId: string, data: Partial<UserProfileData>): Promise<{ success: boolean; message?: string }> {
@@ -32,19 +49,22 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
     const userProfileRef = doc(db, 'users', userId);
     const profileSnapshot = await getDoc(userProfileRef);
 
+    const dataToSave = { ...data };
+    // Ensure timestamps are handled correctly
     if (profileSnapshot.exists()) {
-      // Update existing document
       await updateDoc(userProfileRef, {
-        ...data,
+        ...dataToSave,
         updatedAt: serverTimestamp(),
       });
     } else {
-      // Create new document
+      // For new profiles, ensure all necessary fields including new ones are considered
       await setDoc(userProfileRef, {
         uid: userId,
-        email: data.email ?? null, // Ensure email is set on creation if available
-        ...data,
-        isPremium: data.isPremium ?? false, // Default to false if not provided
+        email: data.email ?? null,
+        isPremium: data.isPremium ?? false,
+        fluxSignature: data.fluxSignature ?? {}, // Initialize if not provided
+        fluxEvolutionPoints: data.fluxEvolutionPoints ?? [], // Initialize if not provided
+        ...dataToSave,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -65,7 +85,12 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     const userProfileRef = doc(db, 'users', userId);
     const docSnap = await getDoc(userProfileRef);
     if (docSnap.exists()) {
-      return docSnap.data() as UserProfileData;
+      // Explicitly cast to UserProfileData to ensure type safety
+      const profile = docSnap.data() as UserProfileData;
+      // Ensure fluxSignature and fluxEvolutionPoints are at least empty objects/arrays if not present
+      profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
+      profile.fluxEvolutionPoints = profile.fluxEvolutionPoints ?? [];
+      return profile;
     } else {
       console.log("No such user profile!");
       return null;
@@ -75,3 +100,4 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     return null;
   }
 }
+
