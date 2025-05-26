@@ -24,9 +24,9 @@ const premiumFeatures = [
   "**Exclusive Premium Badge / Checkmark** on Profile",
   "**Unlimited links** on your profile",
   "**Create a custom portfolio website** directly on ARTISAN",
-  "**Enhanced Discovery & Visibility** (Amplify Flux Pulse priority)",
+  "**Enhanced Discovery & Visibility** (e.g., priority in Amplify Flux Pulse)",
   "**Create & Host Broadcasting Channels**",
-  "Access to advanced AI tools & insights",
+  "Access to advanced AI tools & insights (e.g., deeper Energy Flow Patterns)",
   "Early access to new features",
   "Ad-free experience (if ads are introduced later)",
 ];
