@@ -14,13 +14,14 @@ import { useAppState } from '@/context/AppStateContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
+import { saveUserProfile, type UserProfileData } from '@/actions/userProfile';
 
 interface OnboardingStep {
   id: number;
   title: string;
   description: string;
   icon: React.ElementType;
-  fields?: Array<{ name: string; label: string; type: 'input' | 'textarea'; placeholder: string }>;
+  fields?: Array<{ name: keyof UserProfileData; label: string; type: 'input' | 'textarea'; placeholder: string }>;
   isFinalStep?: boolean;
 }
 
@@ -79,8 +80,8 @@ const totalSteps = onboardingSteps.length;
 
 export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<Record<string, string | boolean>>({}); // Allow boolean for checkbox
-  const { isAuthenticated, isLoadingAuth } = useAppState();
+  const [formData, setFormData] = useState<Partial<UserProfileData>>({});
+  const { isAuthenticated, isLoadingAuth, currentUser } = useAppState();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,31 +98,57 @@ export default function OnboardingPage() {
   }, [isLoadingAuth, isAuthenticated, router, toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    if (type === 'checkbox') {
-        const { checked } = e.target as HTMLInputElement;
-        setFormData(prev => ({ ...prev, [name]: checked }));
-    } else {
-        setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name as keyof UserProfileData]: value }));
+  };
+
+  const handleCheckboxChange = (name: keyof UserProfileData, checked: boolean) => {
+    setFormData(prev => ({ ...prev, [name]: checked }));
   };
 
   const handleNext = async () => {
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     } else {
+      if (!currentUser || !currentUser.uid) {
+        toast({ title: "Error", description: "User not found. Please log in again.", variant: "destructive"});
+        setIsSubmitting(false);
+        router.push('/auth/login');
+        return;
+      }
       setIsSubmitting(true);
-      console.log("Onboarding complete. Data:", formData);
-      // In a real app, submit formData to backend here, including emailOptIn
-      // e.g., await saveOnboardingData(currentUser.uid, formData);
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const profileDataToSave: UserProfileData = {
+        uid: currentUser.uid,
+        email: currentUser.email,
+        fullName: formData.fullName || "",
+        username: formData.username || "",
+        bio: formData.bio || "",
+        genre: formData.genre || "",
+        style: formData.style || "",
+        motivations: formData.motivations || "",
+        inspirations: formData.inspirations || "",
+        website: formData.website || "",
+        socialMedia: formData.socialMedia || "",
+        emailOptIn: formData.emailOptIn ?? false,
+        isPremium: false, // Default to false on initial onboarding
+      };
+      
+      const result = await saveUserProfile(currentUser.uid, profileDataToSave);
 
-      toast({
-        title: "Onboarding Complete!",
-        description: "Welcome to ARTISAN! You're all set to explore.",
-      });
-      router.push('/');
+      if (result.success) {
+        toast({
+          title: "Onboarding Complete!",
+          description: "Welcome to ARTISAN! You're all set to explore.",
+        });
+        router.push('/');
+      } else {
+        toast({
+          title: "Onboarding Error",
+          description: result.message || "Could not save your profile. Please try again.",
+          variant: "destructive",
+        });
+      }
       setIsSubmitting(false);
     }
   };
@@ -211,7 +238,7 @@ export default function OnboardingPage() {
                         id="emailOptIn" 
                         name="emailOptIn" 
                         checked={!!formData.emailOptIn}
-                        onCheckedChange={(checked) => setFormData(prev => ({...prev, emailOptIn: checked}))}
+                        onCheckedChange={(checked) => handleCheckboxChange("emailOptIn", !!checked)}
                         disabled={isSubmitting}
                     />
                     <div className="grid gap-1.5 leading-none">

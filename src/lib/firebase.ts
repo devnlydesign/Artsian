@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-// import { getFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 // import { getStorage } from 'firebase/storage';
 
 const firebaseConfig: FirebaseOptions = {
@@ -23,13 +23,14 @@ if (!getApps().length) {
 }
 
 const auth = getAuth(app);
-// const db = getFirestore(app);
+const db = getFirestore(app);
 // const storage = getStorage(app);
 
-export { app, auth /*, db, storage */ };
+export { app, auth, db /*, storage */ };
 
 // IMPORTANT: Replace the placeholder values in firebaseConfig with your actual Firebase project settings.
 // You can find these in your Firebase project console:
 // Project settings > General > Your apps > Firebase SDK snippet > Config.
 // It's recommended to use environment variables for these settings, especially NEXT_PUBLIC_ for client-side accessible ones.
 // Ensure your .env.local (or equivalent) file is populated with these variables.
+
