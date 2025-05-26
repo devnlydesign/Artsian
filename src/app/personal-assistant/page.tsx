@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input"; // Keep for potential future use, though not in current form
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Loader2, Sparkles } from "lucide-react";
+import { Bot, Loader2, Sparkles, HelpCircle } from "lucide-react";
 import { personalizeApp, type PersonalizeAppInput, type PersonalizeAppOutput } from "@/ai/flows/personalization-assistant-flow";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
-  userRequest: z.string().min(10, "Please describe your desired adjustment in at least 10 characters."),
+  userRequest: z.string().min(10, "Please describe your desired adjustment or feeling in at least 10 characters."),
 });
 
 type AssistantFormValues = z.infer<typeof formSchema>;
@@ -60,7 +61,7 @@ export default function PersonalAssistantPage() {
         <CardHeader className="text-center">
           <Bot className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Your Personal AI Assistant</CardTitle>
-          <CardDescription>Need help tailoring ARTISAN? Describe what you'd like to change, and I'll provide suggestions!</CardDescription>
+          <CardDescription>Need help tailoring ARTISAN? Describe what you'd like to change, or how you're feeling, and I'll provide suggestions for app personalization!</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -70,10 +71,10 @@ export default function PersonalAssistantPage() {
                 name="userRequest"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>What would you like to adjust or create?</FormLabel>
+                    <FormLabel>How can I help you personalize ARTISAN?</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., 'I want a darker theme with blue accents', 'Suggest a layout for my profile page', 'Give me ideas for a fantasy art style'"
+                        placeholder="e.g., 'I want a theme that feels calm and introspective', 'Suggest a layout for my profile page', 'I feel energetic, suggest a vibrant dark theme!'"
                         rows={4}
                         {...field}
                       />
@@ -109,6 +110,13 @@ export default function PersonalAssistantPage() {
           </CardHeader>
           <CardContent>
             <p className="text-md whitespace-pre-wrap">{assistantResponse.suggestion}</p>
+             <Alert variant="default" className="mt-4 bg-background/70">
+              <HelpCircle className="h-4 w-4" />
+              <AlertTitle>How to use these suggestions</AlertTitle>
+              <AlertDescription>
+                These are suggestions from your AI assistant. To apply theme changes (like CSS HSL variables), you or another AI assistant with file editing capabilities will need to update the <code className="bg-muted px-1 py-0.5 rounded text-xs">src/app/globals.css</code> file.
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
       )}

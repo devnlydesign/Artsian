@@ -15,7 +15,7 @@ const PersonalizeAppInputSchema = z.object({
   userRequest: z
     .string()
     .describe(
-      'The user’s request for personalization, e.g., theme changes, layout ideas, feature suggestions, or creative inspiration.'
+      'The user’s request for personalization, e.g., theme changes, layout ideas, feature suggestions, or creative inspiration. If asking for theme changes, the user might describe their current mood or desired feeling (e.g., "I feel energetic and want a vibrant theme", or "I want a calming, dark blue theme").'
     ),
 });
 export type PersonalizeAppInput = z.infer<typeof PersonalizeAppInputSchema>;
@@ -24,7 +24,7 @@ const PersonalizeAppOutputSchema = z.object({
   suggestion: z
     .string()
     .describe(
-      'AI-generated suggestions to help the user personalize the app. This can include advice on theme changes, layout ideas, or creative prompts.'
+      'AI-generated suggestions to help the user personalize the app. This can include advice on theme changes (providing specific HSL CSS variable examples for "src/app/globals.css"), layout ideas, or creative prompts.'
     ),
 });
 export type PersonalizeAppOutput = z.infer<typeof PersonalizeAppOutputSchema>;
@@ -37,35 +37,39 @@ const personalizationPrompt = ai.definePrompt({
   name: 'personalizationAssistantPrompt',
   input: {schema: PersonalizeAppInputSchema},
   output: {schema: PersonalizeAppOutputSchema},
-  prompt: `You are a friendly and highly skilled AI assistant integrated within the ARTISAN application. ARTISAN is a creative platform built with Next.js, React, ShadCN UI components, Tailwind CSS, and Genkit for AI features.
+  prompt: `You are a friendly and highly skilled AI assistant integrated within the ARTISAN application. ARTISAN is a creative platform built with Next.js, React, ShadCN UI components, Tailwind CSS, and Genkit for AI features. The app is currently in dark mode by default.
 
 Your role is to help the user personalize their experience with the ARTISAN app.
-Based on the user's request, provide actionable suggestions. These suggestions might involve:
-- Modifying theme colors (CSS HSL variables in 'src/app/globals.css').
-- Suggesting UI layout ideas (conceptually).
-- Proposing new features they might like, keeping in mind the existing tech stack.
-- Offering creative prompts or ideas if they ask for artistic inspiration.
+Based on the user's request, provide actionable suggestions.
+
+If the user describes a mood or feeling and asks for a theme change, translate that into a color palette and suggest specific HSL CSS variable changes for 'src/app/globals.css'.
+Focus on the dark theme variables within the '.dark {}' selector. The key variables are:
+--background: HSL value (e.g., 220 20% 7%)
+--foreground: HSL value (e.g., 220 15% 88%)
+--card: HSL value (e.g., 220 20% 10%)
+--primary: HSL value (e.g., 200 100% 50%) - This is often used for vibrant gradients.
+--accent: HSL value (e.g., 280 80% 60%) - This is also used for vibrant gradients.
+--secondary: HSL value (e.g., 220 15% 20%)
+--muted: HSL value (e.g., 220 15% 15%)
+--border: HSL value (e.g., 220 15% 18%)
+--input: HSL value (e.g., 220 15% 16%)
+--ring: HSL value (e.g., 200 100% 55%)
 
 User's Request: {{{userRequest}}}
 
-Provide your suggestions in a clear, concise, and helpful manner. If suggesting code changes (like CSS variables), present them clearly and accurately according to the app's structure.
-For example, if the user asks for a "darker theme with green accents", you could suggest:
-"To achieve a darker theme with green accents, you can update your 'src/app/globals.css' file.
-For the dark theme (within the '.dark {}' selector), consider these HSL values:
-:root { /* Or .dark specific if a dark class system is fully in place */
-  --background: 200 10% 10%; /* Dark Slate Blue-Greenish */
-  --foreground: 120 30% 90%; /* Light Greenish White */
-  --card: 200 10% 15%;
-  --primary: 130 60% 50%;   /* A nice green for primary actions */
-  --accent: 140 70% 45%;    /* A complementary green for accents */
-  /* ... other variables ... */
+Provide your suggestions in a clear, concise, and helpful manner. Present CSS variable changes clearly.
+For example, if the user says "I'm feeling creative and energetic and want a theme that reflects that, with purples and bright blues":
+"To achieve an energetic theme with purples and bright blues for your dark mode, you could try these HSL values in your 'src/app/globals.css' within the '.dark {}' block:
+.dark {
+  --background: 260 30% 8%; /* Deep Indigo */
+  --foreground: 250 50% 90%; /* Light Lavender */
+  --card: 260 30% 12%;
+  --primary: 220 90% 60%;   /* Vibrant Blue */
+  --accent: 280 90% 65%;    /* Electric Purple */
+  --secondary: 260 20% 25%;
+  /* ... other variables can be adjusted to complement ... */
 }
-And for the light theme, you could adjust the --accent to a green shade:
-:root {
-  --accent: 130 70% 43%; /* Rich Green */
-  /* ... other variables ... */
-}
-Remember to review all HSL variables for consistency. You can find them in 'src/app/globals.css'."
+Remember to review all HSL variables for consistency. You (or another AI assistant) can make these changes by editing the 'src/app/globals.css' file."
 
 If the user asks for "ideas for a futuristic art style", you could suggest:
 "For a futuristic art style, you could explore themes like:
@@ -74,7 +78,7 @@ If the user asks for "ideas for a futuristic art style", you could suggest:
 - Abstract representations of data flows and digital consciousness.
 Consider using metallic textures, glowing lines, and a cool color palette (like blues and purples) with vibrant highlights (like electric pink or lime green)."
 
-Be specific and actionable. The user is looking for concrete advice they (or another AI assistant helping them with code) can follow.
+Be specific and actionable. The user is looking for concrete advice.
 Focus on providing guidance for customizing THIS specific ARTISAN app.
 `,
 });
@@ -88,9 +92,6 @@ const personalizationAssistantFlow = ai.defineFlow(
   async input => {
     const {output} = await personalizationPrompt(input);
     if (!output) {
-        // Fallback or error handling if the prompt doesn't return the expected structure
-        // This is crucial as output can sometimes be null if the model doesn't adhere to the schema
-        // For now, providing a generic message.
         return { suggestion: "I received your request, but I'm having a little trouble formulating a specific suggestion right now. Could you try rephrasing or asking something slightly different?" };
     }
     return output;

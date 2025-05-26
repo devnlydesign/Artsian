@@ -1,8 +1,14 @@
 
+"use client"; // Required for useState, useEffect, and client-side actions
+
+import React, { useState } from 'react'; // Added useState
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Sparkles, Star, TrendingUp, Zap, Gift, Rocket } from "lucide-react";
+import { CheckCircle, Sparkles, Star, TrendingUp, Zap, Gift, Rocket, Loader2 } from "lucide-react"; // Added Loader2
 import Link from "next/link";
+import { useAppState } from '@/context/AppStateContext'; // Added
+import { saveUserProfile } from '@/actions/userProfile'; // Added
+import { useToast } from '@/hooks/use-toast'; // Added
 
 const basicFeatures = [
   "Create & Share Artworks (Crystalline Blooms)",
@@ -26,6 +32,56 @@ const premiumFeatures = [
 ];
 
 export default function PremiumPage() {
+  const { currentUser, isAuthenticated } = useAppState();
+  const { toast } = useToast();
+  const [isActivatingPremium, setIsActivatingPremium] = useState(false);
+  const [isStartingTrial, setIsStartingTrial] = useState(false);
+
+
+  const handleActivateMockPremium = async () => {
+    if (!currentUser || !isAuthenticated) {
+      toast({ title: "Login Required", description: "Please log in to activate premium features.", variant: "destructive" });
+      return;
+    }
+    setIsActivatingPremium(true);
+    try {
+      const result = await saveUserProfile(currentUser.uid, { isPremium: true });
+      if (result.success) {
+        toast({ title: "Mock Premium Activated!", description: "Premium features are now simulated for your account. Refresh profile to see changes." });
+        // Optionally, you could update the AppStateContext or re-fetch profile here if needed immediately
+      } else {
+        toast({ title: "Activation Failed", description: result.message || "Could not activate mock premium.", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
+    } finally {
+      setIsActivatingPremium(false);
+    }
+  };
+  
+  const handleStartFreeTrial = async () => {
+     if (!currentUser || !isAuthenticated) {
+      toast({ title: "Login Required", description: "Please log in to start your free trial.", variant: "destructive" });
+      return;
+    }
+    setIsStartingTrial(true);
+    // In a real app, this would redirect to Stripe or a payment flow.
+    // For now, we can also just activate the mock premium status.
+    try {
+      const result = await saveUserProfile(currentUser.uid, { isPremium: true });
+      if (result.success) {
+        toast({ title: "Free Trial Started!", description: "Your 3-month premium trial is now active! Refresh your profile to see changes." });
+      } else {
+        toast({ title: "Trial Activation Failed", description: result.message || "Could not start your free trial.", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "An unexpected error occurred during trial activation.", variant: "destructive" });
+    } finally {
+      setIsStartingTrial(false);
+    }
+  };
+
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <Card className="shadow-lg card-interactive-hover text-center">
@@ -41,10 +97,17 @@ export default function PremiumPage() {
             Supercharge your presence, connect more deeply, and stand out. <br/>
             <span className="font-semibold text-primary">Try Premium free for 3 months!</span>
           </p>
-           <Button size="lg" variant="gradientPrimary" className="text-xl py-4 px-8 transition-transform hover:scale-105">
-            <Gift className="mr-2 h-6 w-6"/> Start Your 3-Month Free Trial
+           <Button 
+            size="lg" 
+            variant="gradientPrimary" 
+            className="text-xl py-4 px-8 transition-transform hover:scale-105"
+            onClick={handleStartFreeTrial}
+            disabled={isStartingTrial || !isAuthenticated}
+            >
+            {isStartingTrial ? <Loader2 className="mr-2 h-6 w-6 animate-spin"/> : <Gift className="mr-2 h-6 w-6"/>}
+            {isStartingTrial ? "Starting Trial..." : "Start Your 3-Month Free Trial"}
           </Button>
-          <p className="text-xs text-muted-foreground mt-2">Then $9.99/month. Cancel anytime.</p>
+          <p className="text-xs text-muted-foreground mt-2">Then $9.99/month USD. Cancel anytime.</p>
         </CardContent>
       </Card>
 
@@ -87,23 +150,43 @@ export default function PremiumPage() {
             ))}
           </CardContent>
           <CardFooter>
-             <Button size="lg" variant="gradientPrimary" className="w-full text-lg transition-transform hover:scale-105">
-                <Gift className="mr-2 h-5 w-5"/> Start 3-Month Free Trial
+             <Button 
+                size="lg" 
+                variant="gradientPrimary" 
+                className="w-full text-lg transition-transform hover:scale-105"
+                onClick={handleStartFreeTrial}
+                disabled={isStartingTrial || !isAuthenticated}
+                >
+                {isStartingTrial ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Gift className="mr-2 h-5 w-5"/>}
+                {isStartingTrial ? "Processing..." : "Start 3-Month Free Trial"}
             </Button>
           </CardFooter>
         </Card>
       </div>
-       <Card className="text-center card-interactive-hover">
-            <CardHeader>
-                <CardTitle>Ready to Amplify Your Art?</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground mb-4">Join thousands of artists leveraging premium tools to grow their audience and showcase their work like never before.</p>
-                <Button variant="link" asChild>
-                    <Link href="/contact-sales">Have questions or need a custom plan? Contact Us</Link>
-                </Button>
-            </CardContent>
-        </Card>
+      
+      <Card className="text-center card-interactive-hover">
+        <CardHeader>
+            <CardTitle>Development & Testing</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <p className="text-muted-foreground mb-2">For testing purposes, you can simulate premium status for your account.</p>
+            <Button 
+                variant="outline" 
+                onClick={handleActivateMockPremium} 
+                disabled={isActivatingPremium || !isAuthenticated}
+            >
+                {isActivatingPremium ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                {isActivatingPremium ? "Activating..." : "Activate Mock Premium (Dev)"}
+            </Button>
+            {!isAuthenticated && <p className="text-xs text-destructive mt-1">Log in to test premium features.</p>}
+        </CardContent>
+         <CardFooter className="flex-col items-center">
+             <p className="text-muted-foreground mb-4">Join thousands of artists leveraging premium tools to grow their audience and showcase their work like never before.</p>
+            <Button variant="link" asChild>
+                <Link href="/contact-sales">Have questions or need a custom plan? Contact Us</Link>
+            </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
