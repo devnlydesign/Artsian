@@ -35,7 +35,7 @@ const mainNavItems = [
   { href: "/explore", label: "Explore Content", icon: Compass, tooltip: "Explore Art & Creators" },
   { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Short Videos" },
   { href: "/messages", label: "Chat", icon: MessagesSquare, tooltip: "Your Chats" },
-  { href: "/communities", label: "Communities", icon: UsersIcon, tooltip: "Join Artist Groups" },
+  { href: "/communities", label: "Communities", icon: UsersIcon, tooltip: "Join Artist Groups" }, // Updated label
   { href: "/create", label: "Create New", icon: PlusSquare, tooltip: "Create New Content" },
 ];
 

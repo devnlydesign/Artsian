@@ -86,7 +86,7 @@ export default function ExplorePage() {
 
       <Card className="card-interactive-hover">
         <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Users className="text-accent"/> Explore Communities</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Users className="text-accent"/> Explore Communities</CardTitle> {/* Updated text */}
             <CardDescription>Find your tribe. Connect with artists sharing your interests.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,3 +108,5 @@ export default function ExplorePage() {
     </div>
   );
 }
+
+    
