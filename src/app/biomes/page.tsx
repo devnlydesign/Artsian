@@ -108,13 +108,22 @@ export default function BiomesPage() {
     // Check for Stripe session status in URL
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('biome_join_success')) {
-        const biomeId = urlParams.get('biome_join_success');
-        const biomeName = biomes.find(b => b.id === biomeId)?.name || "the biome";
-        toast({
-            title: "Payment Successful!",
-            description: `Your subscription for ${biomeName} is being processed. Membership will update shortly.`,
-            duration: 7000,
-        });
+        const biomeIdParam = urlParams.get('biome_join_success');
+        // Ensure biomes array is populated before finding biome name
+        if (biomes.length > 0 && biomeIdParam) {
+            const biomeName = biomes.find(b => b.id === biomeIdParam)?.name || "the biome";
+            toast({
+                title: "Payment Successful!",
+                description: `Your subscription for ${biomeName} is being processed. Membership will update shortly.`,
+                duration: 7000,
+            });
+        } else if (biomeIdParam) {
+             toast({
+                title: "Payment Successful!",
+                description: `Your subscription for the biome is being processed. Membership will update shortly.`,
+                duration: 7000,
+            });
+        }
         // Remove query params from URL
         window.history.replaceState({}, document.title, window.location.pathname);
         fetchBiomesAndMemberships(); // Re-fetch to update status, though webhook is prime source
@@ -128,7 +137,7 @@ export default function BiomesPage() {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, isLoadingAuth]);
+  }, [currentUser, isLoadingAuth]); // biomes and toast removed from dep array as they might cause loop if fetchBiomesAndMemberships updates them
 
 
   const handleCreateBiome: SubmitHandler<CreateBiomeFormValues> = async (data) => {
@@ -216,9 +225,9 @@ export default function BiomesPage() {
         }
       }
 
-      if (result?.success && biome.accessType === 'free') { // Only refresh directly for free biomes or leaving
+      if (result?.success && (biome.accessType === 'free' || isMember)) { // Only refresh directly for free biomes or leaving paid
         await fetchBiomesAndMemberships(); 
-      } else if (result?.success === false) { // If join/leave itself failed
+      } else if (result?.success === false) { // If join/leave itself failed for any reason
          await fetchBiomesAndMemberships();
       }
     } catch (error) {
@@ -236,198 +245,201 @@ export default function BiomesPage() {
             <p className="mt-4 text-muted-foreground">Loading your private spaces...</p>
         </div>
     );
-  }
-
-  return (
-    <div className="space-y-8">
-      <Card className="shadow-lg card-interactive-hover">
-        <CardHeader className="text-center">
-          <ShieldCheck className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl text-gradient-primary-accent">My Private Spaces (Biomes)</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
-          <CardDescription>Manage your secure spaces. Control access, share exclusive content, and build your communities.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-          {isAuthenticated ? (
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="gradientPrimary" className="transition-transform hover:scale-105">
-                    <PlusCircle className="mr-2 h-5 w-5" /> Create New Private Space
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Create a New Private Space</DialogTitle>
-                  <DialogDescription>
-                    Fill in the details for your new exclusive space.
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleCreateBiome)} className="space-y-4 py-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Space Name</FormLabel>
-                          <FormControl><Input placeholder="e.g., Inner Circle" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl><Textarea placeholder="What is this space for?" {...field} rows={3} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="accessType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Access Type</FormLabel>
-                           <Select onValueChange={(value) => {field.onChange(value); form.setValue('stripePriceId', ''); form.clearErrors('stripePriceId');}} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select access type" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="free">Free</SelectItem>
-                                <SelectItem value="paid">Paid (Subscription)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    {form.watch("accessType") === "paid" && (
-                         <FormField
-                            control={form.control}
-                            name="stripePriceId"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Stripe Price ID</FormLabel>
-                                <FormControl><Input placeholder="price_xxxx (from Stripe Dashboard)" {...field} /></FormControl>
-                                <ShadFormDescription className="text-xs">Get this from your Stripe Product. This enables subscription via Stripe.</ShadFormDescription>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    )}
-                     <FormField
-                      control={form.control}
-                      name="imageUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Image URL (Optional)</FormLabel>
-                          <FormControl><Input type="url" placeholder="https://placehold.co/400x200.png" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="dataAiHint"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>AI Hint for Image (Optional)</FormLabel>
-                          <FormControl><Input placeholder="e.g., exclusive community" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => {form.reset(); setIsCreateDialogOpen(false);}}>Cancel</Button>
-                      <Button type="submit" variant="gradientPrimary" disabled={isCreating}>
-                        {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {isCreating ? "Creating..." : "Create Space"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          ) : (
-            <p className="text-sm text-muted-foreground">Log in to create private spaces.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <section>
-        <h2 className="text-2xl font-semibold mb-4">Your Spaces</h2>
-        {biomes.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {biomes.map((biome) => {
-              const isMember = userMemberships.includes(biome.id);
-              const isOwner = biome.creatorId === currentUser?.uid;
-              return (
-              <Card key={biome.id} className="card-interactive-hover group flex flex-col">
-                  <a className="flex flex-col flex-1 cursor-pointer" 
-                     onClick={() => toast({title: "Biome Detail Page", description: "Navigation to individual biome pages with posts and member lists coming soon!"})}> {/* Placeholder action */}
-                    <CardHeader className="p-0">
-                      <div className="relative aspect-[16/9] rounded-t-lg overflow-hidden">
-                          <Image 
-                              src={biome.imageUrl || "https://placehold.co/400x200.png"} 
-                              alt={biome.name} 
-                              layout="fill" 
-                              objectFit="cover"
-                              data-ai-hint={biome.dataAiHint || biome.name.toLowerCase().split(" ").slice(0,2).join(" ") || "private space"}
-                              className="transition-transform duration-300 group-hover:scale-110"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
-                          {isOwner && <Badge variant="secondary" className="absolute top-2 left-2">Owner</Badge>}
-                           {biome.accessType === 'paid' && <Badge variant="destructive" className="absolute top-2 right-2"><DollarSign className="h-3 w-3 mr-1"/>Paid</Badge>}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 flex-1">
-                      <CardTitle className="text-xl mb-1 group-hover:text-primary transition-colors">{biome.name}</CardTitle>
-                      <CardDescription className="text-sm line-clamp-3 h-16">{biome.description}</CardDescription>
-                    </CardContent>
-                  </a>
-                <CardFooter className="p-4 border-t flex justify-between items-center">
-                  <div className="text-sm text-muted-foreground flex items-center">
-                      <Users className="mr-1.5 h-4 w-4 text-primary" /> {biome.memberCount || 0} members
-                  </div>
-                  {isAuthenticated && !isOwner && (
-                  <Button 
-                      variant={isMember ? "outline" : (biome.accessType === 'paid' ? "secondary" : "default")}
-                      size="sm" 
-                      className={cn("transition-colors", 
-                        isMember ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : 
-                        (biome.accessType === 'paid' ? "border-green-500 text-green-600 hover:bg-green-500/10" : "group-hover:bg-accent group-hover:text-accent-foreground")
-                      )}
-                      onClick={() => handleJoinLeave(biome, isMember)}
-                      disabled={isJoiningOrLeaving === biome.id}
-                  >
-                    {isJoiningOrLeaving === biome.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isMember ? null : (biome.accessType === 'paid' ? <DollarSign className="mr-2 h-4 w-4" /> : <ArrowRight className="mr-2 h-4 w-4"/>))}
-                    {isJoiningOrLeaving === biome.id ? (isMember ? 'Leaving...' : 'Processing...') : (isMember ? 'Leave' : (biome.accessType === 'paid' ? 'Join (Paid)' : 'Join'))}
+  } else {
+    return (
+      <div className="space-y-8">
+        <Card className="shadow-lg card-interactive-hover">
+          <CardHeader className="text-center">
+            <ShieldCheck className="mx-auto h-12 w-12 text-primary mb-2" />
+            <CardTitle className="text-3xl text-gradient-primary-accent">My Private Spaces (Biomes)</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+            <CardDescription>Manage your secure spaces. Control access, share exclusive content, and build your communities.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            {isAuthenticated ? (
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="gradientPrimary" className="transition-transform hover:scale-105">
+                      <PlusCircle className="mr-2 h-5 w-5" /> Create New Private Space
                   </Button>
-                  )}
-                  {!isAuthenticated && (
-                    <Button asChild size="sm" variant={biome.accessType === 'paid' ? "secondary" : "default"}>
-                        <Link href="/auth/login">{biome.accessType === 'paid' ? 'Join (Paid)' : 'Join'}</Link>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Create a New Private Space</DialogTitle>
+                    <DialogDescription>
+                      Fill in the details for your new exclusive space.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleCreateBiome)} className="space-y-4 py-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Space Name</FormLabel>
+                            <FormControl><Input placeholder="e.g., Inner Circle" {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl><Textarea placeholder="What is this space for?" {...field} rows={3} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="accessType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Access Type</FormLabel>
+                             <Select onValueChange={(value) => {field.onChange(value); form.setValue('stripePriceId', ''); form.clearErrors('stripePriceId');}} defaultValue={field.value}>
+                              <FormControl><SelectTrigger><SelectValue placeholder="Select access type" /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                  <SelectItem value="free">Free</SelectItem>
+                                  <SelectItem value="paid">Paid (Subscription)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {form.watch("accessType") === "paid" && (
+                           <FormField
+                              control={form.control}
+                              name="stripePriceId"
+                              render={({ field }) => (
+                                  <FormItem>
+                                  <FormLabel>Stripe Price ID</FormLabel>
+                                  <FormControl><Input placeholder="price_xxxx (from Stripe Dashboard)" {...field} /></FormControl>
+                                  <ShadFormDescription className="text-xs">Get this from your Stripe Product. This enables subscription via Stripe.</ShadFormDescription>
+                                  <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                      )}
+                       <FormField
+                        control={form.control}
+                        name="imageUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Image URL (Optional)</FormLabel>
+                            <FormControl><Input type="url" placeholder="https://placehold.co/400x200.png" {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="dataAiHint"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>AI Hint for Image (Optional)</FormLabel>
+                            <FormControl><Input placeholder="e.g., exclusive community" {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => {form.reset(); setIsCreateDialogOpen(false);}}>Cancel</Button>
+                        <Button type="submit" variant="gradientPrimary" disabled={isCreating}>
+                          {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          {isCreating ? "Creating..." : "Create Space"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            ) : (
+              <p className="text-sm text-muted-foreground">Log in to create private spaces.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <section>
+          <h2 className="text-2xl font-semibold mb-4">Your Spaces</h2>
+          {biomes.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {biomes.map((biome) => {
+                const isMember = userMemberships.includes(biome.id);
+                const isOwner = biome.creatorId === currentUser?.uid;
+                return (
+                <Card key={biome.id} className="card-interactive-hover group flex flex-col">
+                    <a className="flex flex-col flex-1 cursor-pointer" 
+                       onClick={() => toast({title: "Biome Detail Page", description: "Navigation to individual biome pages with posts and member lists coming soon!"})}> {/* Placeholder action */}
+                      <CardHeader className="p-0">
+                        <div className="relative aspect-[16/9] rounded-t-lg overflow-hidden">
+                            <Image 
+                                src={biome.imageUrl || "https://placehold.co/400x200.png"} 
+                                alt={biome.name} 
+                                layout="fill" 
+                                objectFit="cover"
+                                data-ai-hint={biome.dataAiHint || biome.name.toLowerCase().split(" ").slice(0,2).join(" ") || "private space"}
+                                className="transition-transform duration-300 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                            {isOwner && <Badge variant="secondary" className="absolute top-2 left-2">Owner</Badge>}
+                             {biome.accessType === 'paid' && <Badge variant="destructive" className="absolute top-2 right-2"><DollarSign className="h-3 w-3 mr-1"/>Paid</Badge>}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 flex-1">
+                        <CardTitle className="text-xl mb-1 group-hover:text-primary transition-colors">{biome.name}</CardTitle>
+                        <CardDescription className="text-sm line-clamp-3 h-16">{biome.description}</CardDescription>
+                      </CardContent>
+                    </a>
+                  <CardFooter className="p-4 border-t flex justify-between items-center">
+                    <div className="text-sm text-muted-foreground flex items-center">
+                        <Users className="mr-1.5 h-4 w-4 text-primary" /> {biome.memberCount || 0} members
+                    </div>
+                    {isAuthenticated && !isOwner && (
+                    <Button 
+                        variant={isMember ? "outline" : (biome.accessType === 'paid' ? "secondary" : "default")}
+                        size="sm" 
+                        className={cn("transition-colors", 
+                          isMember ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : 
+                          (biome.accessType === 'paid' ? "border-green-500 text-green-600 hover:bg-green-500/10" : "group-hover:bg-accent group-hover:text-accent-foreground")
+                        )}
+                        onClick={() => handleJoinLeave(biome, isMember)}
+                        disabled={isJoiningOrLeaving === biome.id}
+                    >
+                      {isJoiningOrLeaving === biome.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isMember ? null : (biome.accessType === 'paid' ? <DollarSign className="mr-2 h-4 w-4" /> : <ArrowRight className="mr-2 h-4 w-4"/>))}
+                      {isJoiningOrLeaving === biome.id ? (isMember ? 'Leaving...' : 'Processing...') : (isMember ? 'Leave' : (biome.accessType === 'paid' ? 'Join (Paid)' : 'Join'))}
                     </Button>
-                  )}
-                  {isOwner && (
-                     <Button variant="outline" size="sm" className="group-hover:bg-accent group-hover:text-accent-foreground" onClick={() => toast({title: "Manage Biome", description:"Biome management page coming soon!"})}>
-                        <Settings className="mr-2 h-4 w-4" /> Manage
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            );
-            })}
-          </div>
-        ) : (
-          <Card className="card-interactive-hover">
-            <CardContent className="pt-6 text-center text-muted-foreground">
-              <ShieldCheck className="mx-auto h-12 w-12 mb-3"/>
-              <p>You haven't created or joined any Private Spaces yet.</p>
-              {isAuthenticated && <Button variant="link" className="mt-2" onClick={() => setIsCreateDialogOpen(true)}>Get started by creating one!</Button>}
-            </CardContent>
-          </Card>
-        )}
-      </section
+                    )}
+                    {!isAuthenticated && (
+                      <Button asChild size="sm" variant={biome.accessType === 'paid' ? "secondary" : "default"}>
+                          <Link href="/auth/login">{biome.accessType === 'paid' ? 'Join (Paid)' : 'Join'}</Link>
+                      </Button>
+                    )}
+                    {isOwner && (
+                       <Button variant="outline" size="sm" className="group-hover:bg-accent group-hover:text-accent-foreground" onClick={() => toast({title: "Manage Biome", description:"Biome management page coming soon!"})}>
+                          <Settings className="mr-2 h-4 w-4" /> Manage
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              );
+              })}
+            </div>
+          ) : (
+            <Card className="card-interactive-hover">
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                <ShieldCheck className="mx-auto h-12 w-12 mb-3"/>
+                <p>You haven't created or joined any Private Spaces yet.</p>
+                {isAuthenticated && <Button variant="link" className="mt-2" onClick={() => setIsCreateDialogOpen(true)}>Get started by creating one!</Button>}
+              </CardContent>
+            </Card>
+          )}
+        </section>
+      </div>
+    );
+  }
+}
