@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as ShadFormDescription } from "@/components/ui/form"; // Renamed FormDescription
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,15 +24,35 @@ import {
   leaveBiome, 
   getUserBiomeMemberships,
   type BiomeData 
-} from '@/actions/biomeActions'; // Updated to use biomeActions
+} from '@/actions/biomeActions';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+
 
 const createBiomeSchema = z.object({
   name: z.string().min(3, "Biome name must be at least 3 characters.").max(50, "Name too long."),
   description: z.string().min(10, "Description must be at least 10 characters.").max(300, "Description too long."),
   accessType: z.enum(['free', 'paid']),
-  stripePriceId: z.string().optional().or(z.literal('')), // Optional for now
+  stripePriceId: z.string().optional().refine((val, ctx) => {
+    if (ctx.parent.accessType === 'paid' && (!val || val.trim() === '')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Stripe Price ID is required for paid biomes.",
+      });
+      return false;
+    }
+    if (val && !val.startsWith('price_')) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Invalid Stripe Price ID format. It should start with 'price_'.",
+        });
+        return false;
+    }
+    return true;
+  }, { message: "Stripe Price ID is required for paid biomes." }),
   imageUrl: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
   dataAiHint: z.string().max(50, "AI hint too long.").optional().or(z.literal('')),
 });
@@ -69,7 +89,7 @@ export default function BiomesPage() {
       setBiomes(fetchedBiomes);
       if (currentUser?.uid) {
         const memberships = await getUserBiomeMemberships(currentUser.uid);
-        setUserMemberships(memberships.map(m => m.biomeId));
+        setUserMemberships(memberships.filter(m => m.status === 'active').map(m => m.biomeId));
       } else {
         setUserMemberships([]);
       }
@@ -85,6 +105,28 @@ export default function BiomesPage() {
     if (!isLoadingAuth) {
         fetchBiomesAndMemberships();
     }
+    // Check for Stripe session status in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('biome_join_success')) {
+        const biomeId = urlParams.get('biome_join_success');
+        const biomeName = biomes.find(b => b.id === biomeId)?.name || "the biome";
+        toast({
+            title: "Payment Successful!",
+            description: `Your subscription for ${biomeName} is being processed. Membership will update shortly.`,
+            duration: 7000,
+        });
+        // Remove query params from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        fetchBiomesAndMemberships(); // Re-fetch to update status, though webhook is prime source
+    } else if (urlParams.get('biome_join_cancel')) {
+        toast({
+            title: "Payment Cancelled",
+            description: "Your attempt to join the paid biome was cancelled.",
+            variant: "default",
+            duration: 7000,
+        });
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, isLoadingAuth]);
 
@@ -94,6 +136,11 @@ export default function BiomesPage() {
       toast({ title: "Login Required", description: "Please log in to create a private space.", variant: "destructive" });
       return;
     }
+    if (data.accessType === 'paid' && (!data.stripePriceId || !data.stripePriceId.startsWith('price_'))) {
+      form.setError("stripePriceId", { type: "manual", message: "Valid Stripe Price ID (starting with 'price_') is required for paid biomes."});
+      return;
+    }
+
     setIsCreating(true);
     try {
       const result = await createBiome(
@@ -137,23 +184,42 @@ export default function BiomesPage() {
         } else {
             toast({ title: "Failed to Leave", description: result.message || "Could not leave space.", variant: "destructive" });
         }
-      } else {
+      } else { // Attempting to join
         if (biome.accessType === 'paid') {
-          // Placeholder: Direct user to payment or show info
-          toast({ title: "Paid Space", description: `'${biome.name}' requires a subscription. Payment flow coming soon!`, duration: 5000 });
-          setIsJoiningOrLeaving(null);
-          return;
-        }
-        result = await joinBiome(currentUser.uid, biome.id);
-         if (result.success) {
-            toast({ title: "Joined Space!", description: `Welcome to '${biome.name}'!` });
-        } else {
-            toast({ title: "Failed to Join", description: result.message || "Could not join space.", variant: "destructive" });
+          if (!biome.stripePriceId) {
+             toast({ title: "Configuration Error", description: "This paid biome is not configured for payments.", variant: "destructive" });
+             setIsJoiningOrLeaving(null);
+             return;
+          }
+          result = await joinBiome(currentUser.uid, currentUser.email, currentUser.displayName, biome.id);
+          if (result.success && result.sessionId) {
+            const stripe = await stripePromise;
+            if (stripe) {
+              const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: result.sessionId });
+              if (stripeError) {
+                console.error("Stripe redirect error:", stripeError);
+                toast({ title: "Stripe Error", description: stripeError.message || "Failed to redirect to Stripe.", variant: "destructive" });
+              }
+            } else {
+                 toast({ title: "Stripe Error", description: "Stripe.js failed to load.", variant: "destructive" });
+            }
+          } else if (!result.success) {
+            toast({ title: "Failed to Join", description: result.message || "Could not initiate join process for paid biome.", variant: "destructive" });
+          }
+        } else { // Free biome
+            result = await joinBiome(currentUser.uid, currentUser.email, currentUser.displayName, biome.id);
+            if (result.success) {
+                toast({ title: "Joined Space!", description: `Welcome to '${biome.name}'!` });
+            } else {
+                toast({ title: "Failed to Join", description: result.message || "Could not join space.", variant: "destructive" });
+            }
         }
       }
 
-      if (result.success) {
+      if (result?.success && biome.accessType === 'free') { // Only refresh directly for free biomes or leaving
         await fetchBiomesAndMemberships(); 
+      } else if (result?.success === false) { // If join/leave itself failed
+         await fetchBiomesAndMemberships();
       }
     } catch (error) {
       console.error("Error joining/leaving biome:", error);
@@ -226,7 +292,7 @@ export default function BiomesPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Access Type</FormLabel>
-                           <Select onValueChange={field.onChange} defaultValue={field.value}>
+                           <Select onValueChange={(value) => {field.onChange(value); form.setValue('stripePriceId', ''); form.clearErrors('stripePriceId');}} defaultValue={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Select access type" /></SelectTrigger></FormControl>
                             <SelectContent>
                                 <SelectItem value="free">Free</SelectItem>
@@ -243,9 +309,9 @@ export default function BiomesPage() {
                             name="stripePriceId"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Stripe Price ID (Optional)</FormLabel>
+                                <FormLabel>Stripe Price ID</FormLabel>
                                 <FormControl><Input placeholder="price_xxxx (from Stripe Dashboard)" {...field} /></FormControl>
-                                <FormDescription className="text-xs">Get this from your Stripe Product. Payment flow is not yet active.</FormDescription>
+                                <ShadFormDescription className="text-xs">Get this from your Stripe Product. This enables subscription via Stripe.</ShadFormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )}
@@ -274,7 +340,7 @@ export default function BiomesPage() {
                       )}
                     />
                     <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                      <Button type="button" variant="outline" onClick={() => {form.reset(); setIsCreateDialogOpen(false);}}>Cancel</Button>
                       <Button type="submit" variant="gradientPrimary" disabled={isCreating}>
                         {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         {isCreating ? "Creating..." : "Create Space"}
@@ -299,9 +365,8 @@ export default function BiomesPage() {
               const isOwner = biome.creatorId === currentUser?.uid;
               return (
               <Card key={biome.id} className="card-interactive-hover group flex flex-col">
-                 {/* <Link href={`/biomes/${biome.id}`} legacyBehavior passHref> */}
                   <a className="flex flex-col flex-1 cursor-pointer" 
-                     onClick={() => toast({title: "Biome Detail Page", description: "Navigation to individual biome pages coming soon!"})}> {/* Placeholder action */}
+                     onClick={() => toast({title: "Biome Detail Page", description: "Navigation to individual biome pages with posts and member lists coming soon!"})}> {/* Placeholder action */}
                     <CardHeader className="p-0">
                       <div className="relative aspect-[16/9] rounded-t-lg overflow-hidden">
                           <Image 
@@ -314,6 +379,7 @@ export default function BiomesPage() {
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
                           {isOwner && <Badge variant="secondary" className="absolute top-2 left-2">Owner</Badge>}
+                           {biome.accessType === 'paid' && <Badge variant="destructive" className="absolute top-2 right-2"><DollarSign className="h-3 w-3 mr-1"/>Paid</Badge>}
                       </div>
                     </CardHeader>
                     <CardContent className="p-4 flex-1">
@@ -321,11 +387,9 @@ export default function BiomesPage() {
                       <CardDescription className="text-sm line-clamp-3 h-16">{biome.description}</CardDescription>
                     </CardContent>
                   </a>
-                {/* </Link> */}
                 <CardFooter className="p-4 border-t flex justify-between items-center">
                   <div className="text-sm text-muted-foreground flex items-center">
                       <Users className="mr-1.5 h-4 w-4 text-primary" /> {biome.memberCount || 0} members
-                      {biome.accessType === 'paid' && <DollarSign className="ml-2 mr-0.5 h-4 w-4 text-green-500" title="Paid Biome" />}
                   </div>
                   {isAuthenticated && !isOwner && (
                   <Button 
@@ -348,7 +412,7 @@ export default function BiomesPage() {
                     </Button>
                   )}
                   {isOwner && (
-                     <Button variant="outline" size="sm" className="group-hover:bg-accent group-hover:text-accent-foreground">
+                     <Button variant="outline" size="sm" className="group-hover:bg-accent group-hover:text-accent-foreground" onClick={() => toast({title: "Manage Biome", description:"Biome management page coming soon!"})}>
                         <Settings className="mr-2 h-4 w-4" /> Manage
                     </Button>
                   )}
@@ -366,8 +430,4 @@ export default function BiomesPage() {
             </CardContent>
           </Card>
         )}
-      </section>
-    </div>
-  );
-}
-
+      </section

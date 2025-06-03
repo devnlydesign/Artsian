@@ -37,6 +37,7 @@ export interface UserProfileData {
   portfolioLink?: string;
   emailOptIn?: boolean;
   isPremium?: boolean;
+  stripeCustomerId?: string; // Added for Stripe subscriptions
   fluxSignature?: FluxSignature;
   fluxEvolutionPoints?: FluxEvolutionPoint[];
   createdAt?: Timestamp; 
@@ -56,8 +57,9 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
     const dataToSave: Partial<UserProfileData> = { ...data };
     
     Object.keys(dataToSave).forEach(key => {
-      if (dataToSave[key as keyof UserProfileData] === undefined) {
-        delete dataToSave[key as keyof UserProfileData];
+      const K = key as keyof UserProfileData;
+      if (dataToSave[K] === undefined) {
+        delete dataToSave[K];
       }
     });
 
@@ -68,17 +70,19 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         updatedAt: serverTimestamp(),
       });
     } else {
+      // For new profiles, ensure all optional fields have a default or are explicitly set if provided
       await setDoc(userProfileRef, {
         uid: userId,
         email: data.email ?? null,
         photoURL: data.photoURL ?? null,
         bannerURL: data.bannerURL ?? null,
         isPremium: data.isPremium ?? false,
+        stripeCustomerId: data.stripeCustomerId ?? undefined,
         fluxSignature: data.fluxSignature ?? { dominantColors: [], keywords: [] }, 
         fluxEvolutionPoints: data.fluxEvolutionPoints ?? [], 
         followersCount: data.followersCount ?? 0,
         followingCount: data.followingCount ?? 0,
-        ...dataToSave,
+        ...dataToSave, // Spread the rest of the provided data
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -100,12 +104,16 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     const docSnap = await getDoc(userProfileRef);
     if (docSnap.exists()) {
       const profile = docSnap.data() as UserProfileData;
+      // Ensure all potentially undefined fields have sensible defaults if needed by calling code
       profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
       profile.fluxEvolutionPoints = profile.fluxEvolutionPoints ?? [];
       profile.photoURL = profile.photoURL ?? undefined;
       profile.bannerURL = profile.bannerURL ?? undefined;
       profile.followersCount = profile.followersCount ?? 0;
       profile.followingCount = profile.followingCount ?? 0;
+      profile.stripeCustomerId = profile.stripeCustomerId ?? undefined;
+      profile.isPremium = profile.isPremium ?? false;
+      profile.emailOptIn = profile.emailOptIn ?? false;
       return profile;
     } else {
       console.log("No such user profile!");
@@ -115,4 +123,3 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     console.error("Error fetching user profile: ", error);
     return null;
   }
-}

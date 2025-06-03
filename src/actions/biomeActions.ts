@@ -1,4 +1,3 @@
-
 'use server';
 
 import { db } from '@/lib/firebase';
@@ -16,8 +15,10 @@ import {
   increment,
   deleteDoc,
   orderBy,
-  setDoc,
+  setDoc as firestoreSetDoc, // Renamed to avoid conflict with local setDoc
 } from 'firebase/firestore';
+import { createSubscriptionCheckoutSession } from './stripe'; // Import for paid biomes
+import type { UserProfileData } from './userProfile'; // For user details
 
 export interface BiomeData {
   id: string;
@@ -28,32 +29,22 @@ export interface BiomeData {
   imageUrl?: string;
   dataAiHint?: string;
   memberCount: number;
-  accessType: 'free' | 'paid'; // 'free' or 'paid'
-  stripePriceId?: string | null; // For 'paid' biomes
+  accessType: 'free' | 'paid'; 
+  stripePriceId?: string | null; 
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 export interface BiomeMembershipData {
-  id: string; // e.g., `${userId}_${biomeId}`
+  id: string; 
   userId: string;
   biomeId: string;
-  role: 'owner' | 'member' | 'admin'; // 'owner', 'admin', 'member'
+  role: 'owner' | 'member' | 'admin'; 
   joinedAt: Timestamp;
-  status?: 'active' | 'pending_payment' | 'cancelled'; // For paid biomes
+  status?: 'active' | 'pending_payment' | 'cancelled' | 'incomplete'; // For paid biomes
+  stripeSubscriptionId?: string | null; // For tracking Stripe subscription
+  stripeCurrentPeriodEnd?: Timestamp | null; // For subscription validity
 }
-
-// Firestore Security Rules Reminder:
-// match /biomes/{biomeId} {
-//   allow read: if true; // Or more specific, e.g., if resource.data.accessType == 'free' || isBiomeMember(biomeId)
-//   allow create: if request.auth != null && request.auth.uid == request.resource.data.creatorId;
-//   allow update: if request.auth != null && request.auth.uid == resource.data.creatorId; // Or biome admins
-// }
-// match /biomeMemberships/{membershipId} {
-//   allow read: if request.auth != null && (request.auth.uid == resource.data.userId || isBiomeAdmin(resource.data.biomeId));
-//   allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-//   allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
-// }
 
 export async function createBiome(
   creatorId: string,
@@ -69,38 +60,35 @@ export async function createBiome(
     return { success: false, message: "Creator ID, name, and description are required." };
   }
   if (accessType === 'paid' && !stripePriceId) {
-    // For now, we'll allow creating paid biomes without a priceId as a placeholder.
-    // In a full implementation, this might be an error or require Stripe product setup first.
-    console.warn("Creating a 'paid' biome without a Stripe Price ID. Full payment functionality will require this.");
+    return { success: false, message: "A Stripe Price ID is required for paid biomes." };
   }
 
   try {
     const biomesCollectionRef = collection(db, 'biomes');
-    const docRef = await addDoc(biomesCollectionRef, {
+    const newBiomeDocRef = await addDoc(biomesCollectionRef, {
       name,
       description,
       creatorId,
       creatorName,
       imageUrl,
       dataAiHint,
-      memberCount: 1, // Creator is the first member
+      memberCount: 1, 
       accessType,
-      stripePriceId: accessType === 'paid' ? stripePriceId || null : null,
+      stripePriceId: accessType === 'paid' ? stripePriceId : null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
 
-    // Add creator as the first member and owner
-    const membershipRef = doc(db, 'biomeMemberships', `${creatorId}_${docRef.id}`);
-    await setDoc(membershipRef, {
+    const membershipRef = doc(db, 'biomeMemberships', `${creatorId}_${newBiomeDocRef.id}`);
+    await firestoreSetDoc(membershipRef, {
       userId: creatorId,
-      biomeId: docRef.id,
+      biomeId: newBiomeDocRef.id,
       role: 'owner',
       joinedAt: serverTimestamp(),
-      status: 'active',
+      status: 'active', 
     });
 
-    return { success: true, biomeId: docRef.id };
+    return { success: true, biomeId: newBiomeDocRef.id };
   } catch (error) {
     console.error("Error creating biome: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -142,8 +130,10 @@ export async function getBiomeById(biomeId: string): Promise<BiomeData | null> {
 
 export async function joinBiome(
   userId: string,
+  userEmail: string | undefined | null,
+  userName: string | undefined | null,
   biomeId: string
-): Promise<{ success: boolean; message?: string; requiresPayment?: boolean }> {
+): Promise<{ success: boolean; message?: string; sessionId?: string; requiresPayment?: boolean }> {
   if (!userId || !biomeId) {
     return { success: false, message: "User ID and Biome ID are required." };
   }
@@ -158,36 +148,49 @@ export async function joinBiome(
     const membershipDocRef = doc(db, 'biomeMemberships', membershipId);
     const membershipSnap = await getDoc(membershipDocRef);
 
-    if (membershipSnap.exists()) {
-      return { success: false, message: "User is already a member of this biome." };
+    if (membershipSnap.exists() && membershipSnap.data()?.status === 'active') {
+      return { success: false, message: "User is already an active member of this biome." };
     }
 
     if (biome.accessType === 'paid') {
-      // Placeholder for Stripe integration.
-      // In a real app, this would initiate a Stripe Checkout session.
-      // For now, we'll just indicate payment is required.
-      console.log(`User ${userId} attempting to join paid biome ${biomeId}. Stripe integration needed.`);
-      return { success: false, message: "This is a paid biome. Payment functionality is not yet implemented.", requiresPayment: true };
+      if (!biome.stripePriceId) {
+        return { success: false, message: "This paid biome is missing a Stripe Price ID. Cannot process payment." };
+      }
+      // For paid biomes, initiate Stripe Checkout
+      const checkoutResult = await createSubscriptionCheckoutSession(
+        userId,
+        userEmail,
+        userName,
+        biome.stripePriceId,
+        biomeId
+      );
+
+      if ('error' in checkoutResult) {
+        return { success: false, message: checkoutResult.error, requiresPayment: true };
+      }
+      // Optionally, create a 'pending_payment' membership record here, or let webhook handle it.
+      // For now, we let webhook create the membership.
+      return { success: true, sessionId: checkoutResult.sessionId, requiresPayment: true };
+
+    } else { // For 'free' biomes:
+      const batch = writeBatch(db);
+      batch.set(membershipDocRef, {
+        userId,
+        biomeId,
+        role: 'member',
+        joinedAt: serverTimestamp(),
+        status: 'active',
+      });
+
+      const biomeDocRef = doc(db, 'biomes', biomeId);
+      batch.update(biomeDocRef, {
+        memberCount: increment(1),
+        updatedAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      return { success: true, message: "Successfully joined biome." };
     }
-
-    // For 'free' biomes:
-    const batch = writeBatch(db);
-    batch.set(membershipDocRef, {
-      userId,
-      biomeId,
-      role: 'member',
-      joinedAt: serverTimestamp(),
-      status: 'active',
-    });
-
-    const biomeDocRef = doc(db, 'biomes', biomeId);
-    batch.update(biomeDocRef, {
-      memberCount: increment(1),
-      updatedAt: serverTimestamp()
-    });
-
-    await batch.commit();
-    return { success: true, message: "Successfully joined biome." };
   } catch (error) {
     console.error("Error joining biome: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -212,14 +215,23 @@ export async function leaveBiome(
       return { success: false, message: "User is not a member of this biome." };
     }
     
-    // Prevent owner from leaving directly, they might need to transfer ownership or delete biome
-    if (membershipSnap.data()?.role === 'owner') {
+    const membershipData = membershipSnap.data() as BiomeMembershipData;
+    if (membershipData.role === 'owner') {
         const biome = await getBiomeById(biomeId);
         if (biome && biome.memberCount > 1) {
              return { success: false, message: "Owner cannot leave a biome with other members. Transfer ownership or manage members first." };
         }
-        // If owner is the last member, deleting the membership could orphan the biome.
-        // Consider logic for biome deletion if owner leaves and is last member.
+    }
+
+    // If it was a paid biome, you might need to cancel the Stripe subscription here
+    // or handle it via a separate "manage subscription" flow.
+    // For simplicity, this example just removes the Firestore record.
+    // A webhook for `customer.subscription.deleted` should also handle membership status changes.
+    if (membershipData.stripeSubscriptionId) {
+        console.warn(`User ${userId} leaving biome ${biomeId} with active subscription ${membershipData.stripeSubscriptionId}. Subscription should be cancelled in Stripe.`);
+        // Ideally: await stripe.subscriptions.update(membershipData.stripeSubscriptionId, { cancel_at_period_end: true });
+        // Or: await stripe.subscriptions.del(membershipData.stripeSubscriptionId);
+        // For now, we'll just log a warning and proceed with Firestore deletion.
     }
 
 
@@ -271,7 +283,3 @@ export async function isUserMemberOfBiome(userId: string, biomeId: string): Prom
     return false;
   }
 }
-
-// Placeholder for future biome post actions
-// export async function createBiomePost(...) {}
-// export async function getBiomePosts(...) {}
