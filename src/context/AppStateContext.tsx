@@ -12,9 +12,10 @@ import {
   type User as FirebaseUser 
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { getUserProfile } from '@/actions/userProfile'; // Import for profile checking
 
 type AppStateContextType = {
-  isLoadingAuth: boolean; // Renamed from isLoading
+  isLoadingAuth: boolean; 
   isAuthenticated: boolean;
   currentUser: FirebaseUser | null;
   loginUser: (email: string, password: string) => Promise<FirebaseUser | null>;
@@ -30,56 +31,69 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [showWelcome, setShowWelcome] = useState(false); // Initial state to false
+  const [showWelcome, setShowWelcome] = useState(false); 
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => { // Made async
       if (user) {
         setCurrentUser(user);
         setIsAuthenticated(true);
-        setShowWelcome(false); // User is authenticated, don't show welcome
+        setShowWelcome(false); 
         sessionStorage.setItem('hasSeenWelcome', 'true');
-        // If user is authenticated and on an auth page, redirect to home
-        if (pathname.startsWith('/auth') || pathname.startsWith('/onboarding')) {
-          router.push('/');
+
+        try {
+          const userProfile = await getUserProfile(user.uid);
+          if (!userProfile) { // New user or onboarding incomplete
+            // Allow user to be on signup or onboarding page without redirecting them back to onboarding
+            if (pathname !== '/onboarding' && !pathname.startsWith('/auth/signup')) { 
+              router.push('/onboarding');
+            }
+          } else { // Existing user with a profile
+            if (pathname.startsWith('/auth/') || pathname === '/onboarding') {
+              router.push('/');
+            }
+          }
+        } catch (error) {
+          console.error("Error checking user profile during auth state change:", error);
+          toast({ title: "Auth Error", description: "Could not verify user profile. Please try again.", variant: "destructive"});
+          // Fallback: if profile check fails, and they are on auth pages, send to home.
+          if (pathname.startsWith('/auth/') || pathname === '/onboarding') {
+            router.push('/');
+          }
         }
+
       } else {
         setCurrentUser(null);
         setIsAuthenticated(false);
-        // If user is not authenticated and hasn't seen welcome, show it
         if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true') {
           setShowWelcome(true);
-          if (!pathname.startsWith('/auth/welcome')) { // Avoid loop if already there
+          // Avoid redirect loop if already on welcome or auth pages.
+          if (!pathname.startsWith('/auth/welcome') && !pathname.startsWith('/auth/login') && !pathname.startsWith('/auth/signup')) {
              router.push('/auth/welcome');
           }
         } else {
-          setShowWelcome(false); // User logged out or chose guest, don't force welcome
+          setShowWelcome(false); 
         }
       }
       setIsLoadingAuth(false);
     });
 
-    // Initial check for welcome screen visibility, independent of auth state change
-    // This ensures if a user lands on the site for the first time, welcome is shown
-     if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true' && !auth.currentUser) {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true' && !auth.currentUser && !pathname.startsWith('/auth/')) {
         setShowWelcome(true);
-        if (!pathname.startsWith('/auth')) router.push('/auth/welcome');
+        router.push('/auth/welcome');
     }
 
-
     return () => unsubscribe();
-  }, [router, pathname]); // pathname ensures redirection logic re-evaluates on route change
+  }, [router, pathname, toast]);
 
   const loginUser = async (email: string, password: string): Promise<FirebaseUser | null> => {
+    setIsLoadingAuth(true); // Indicate loading during login attempt
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting isAuthenticated and currentUser
-      sessionStorage.setItem('hasSeenWelcome', 'true');
-      setShowWelcome(false);
-      router.push('/'); // Navigate to home on successful login
+      // onAuthStateChanged will handle setting isAuthenticated, currentUser, and navigation
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -88,18 +102,17 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
         message = "Invalid email or password.";
       }
       toast({ title: "Login Error", description: message, variant: "destructive" });
+      setIsLoadingAuth(false); // Reset loading on error
       return null;
     }
+    // setIsLoadingAuth(false) is handled by onAuthStateChanged
   };
 
   const signupUser = async (email: string, password: string): Promise<FirebaseUser | null> => {
+    setIsLoadingAuth(true); // Indicate loading during signup attempt
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting isAuthenticated and currentUser
-      // User is now signed up and logged in via Firebase
-      sessionStorage.setItem('hasSeenWelcome', 'true');
-      setShowWelcome(false);
-      // Navigation to onboarding will happen in the SignupPage component
+      // onAuthStateChanged will handle setting user state and navigation to onboarding
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase signup error:", error);
@@ -110,17 +123,18 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
         message = "Password is too weak. It should be at least 6 characters.";
       }
       toast({ title: "Signup Error", description: message, variant: "destructive" });
+      setIsLoadingAuth(false); // Reset loading on error
       return null;
     }
+    // setIsLoadingAuth(false) is handled by onAuthStateChanged
   };
 
   const logoutUser = async () => {
     try {
       await signOut(auth);
-      // onAuthStateChanged will handle setting isAuthenticated to false
-      sessionStorage.removeItem('hasSeenWelcome'); // Allow welcome screen to show again
-      setShowWelcome(true);
-      router.push('/auth/welcome'); // Navigate to welcome page on logout
+      sessionStorage.removeItem('hasSeenWelcome');
+      setShowWelcome(true); 
+      // onAuthStateChanged will push to /auth/welcome if not already there
     } catch (error) {
       console.error("Firebase logout error:", error);
       toast({ title: "Logout Error", description: "Failed to log out. Please try again.", variant: "destructive" });

@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
 import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
-import { useRouter } from 'next/navigation';
+// No need for useRouter here, AppStateContext handles navigation
 
 const signupSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -28,7 +28,6 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const { signupUser } = useAppState();
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<SignupFormValues>({
@@ -43,14 +42,9 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
     const user = await signupUser(data.email, data.password);
-    if (user) {
-      // User signed up and logged in by Firebase
-      // onAuthStateChanged in AppStateContext will handle setting isAuthenticated
-      // Proceed to onboarding
-      sessionStorage.setItem('hasSeenWelcome', 'true'); 
-      router.push('/onboarding');
-    }
-    // If user is null, signupUser in context already showed a toast
+    // If user is created, onAuthStateChanged in AppStateContext will handle
+    // setting isAuthenticated and redirecting to /onboarding.
+    // If user is null, signupUser in context already showed a toast.
     setIsLoading(false);
   };
 
@@ -111,7 +105,7 @@ export default function SignupPage() {
               />
               <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5" />}
-                {isLoading ? 'Creating Account...' : 'Sign Up & Continue'}
+                {isLoading ? 'Creating Account...' : 'Sign Up'}
               </Button>
             </form>
           </Form>
