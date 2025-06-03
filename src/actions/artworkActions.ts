@@ -29,10 +29,8 @@ export interface ArtworkData {
   isPublished?: boolean; // Optional: For draft/published status
   createdAt: Timestamp;
   updatedAt: Timestamp;
-
-  // Deprecated fields, functionality moved to layers
-  // fullContentUrl?: string;
-  // details?: string;
+  isAmplified?: boolean; // For Amplify Flux Pulse feature
+  amplifiedAt?: Timestamp | null; // Timestamp of when it was last amplified
 }
 
 // Firestore Security Rules Reminder:
@@ -42,12 +40,13 @@ export interface ArtworkData {
 // match /artworks/{artworkId} {
 //   allow read: if true; // Or more restrictive, e.g., if resource.data.isPublished == true || request.auth.uid == resource.data.userId;
 //   allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-//   allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+//   allow update: if request.auth != null && request.auth.uid == resource.data.userId; // Ensure rules allow updating isAmplified by owner
+//   allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
 // }
 
 export async function createArtwork(
   userId: string,
-  artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished'> & { isPublished?: boolean }
+  artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished' | 'isAmplified' | 'amplifiedAt'> & { isPublished?: boolean }
 ): Promise<{ success: boolean; artworkId?: string; message?: string }> {
   if (!userId) {
     return { success: false, message: "User ID is required to create an artwork." };
@@ -63,6 +62,8 @@ export async function createArtwork(
       userId: userId,
       layers: artworkDetails.layers || [], // Ensure layers is at least an empty array
       isPublished: artworkDetails.isPublished ?? true, // Default to published
+      isAmplified: false,
+      amplifiedAt: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -86,10 +87,14 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
     const artworks: ArtworkData[] = [];
     querySnapshot.forEach((doc) => {
       try {
-        // Add basic validation or try-catch for each document processing
         const data = doc.data();
         if (data && data.title && data.type && data.description && data.imageUrl) {
-            artworks.push({ id: doc.id, ...data } as ArtworkData);
+            artworks.push({ 
+              id: doc.id, 
+              ...data,
+              isAmplified: data.isAmplified ?? false,
+              amplifiedAt: data.amplifiedAt ?? null,
+            } as ArtworkData);
         } else {
             console.warn(`Skipping malformed artwork document with id: ${doc.id}`);
         }
@@ -113,9 +118,14 @@ export async function getArtworkById(artworkId: string): Promise<ArtworkData | n
     const docSnap = await getDoc(artworkDocRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // Ensure layers field exists and is an array, default to empty array if not
       const layers = Array.isArray(data.layers) ? data.layers : [];
-      return { id: docSnap.id, ...data, layers } as ArtworkData;
+      return { 
+        id: docSnap.id, 
+        ...data, 
+        layers,
+        isAmplified: data.isAmplified ?? false,
+        amplifiedAt: data.amplifiedAt ?? null,
+      } as ArtworkData;
     } else {
       console.log("No such artwork found!");
       return null;

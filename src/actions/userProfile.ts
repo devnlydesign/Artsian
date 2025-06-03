@@ -37,13 +37,15 @@ export interface UserProfileData {
   portfolioLink?: string;
   emailOptIn?: boolean;
   isPremium?: boolean;
-  stripeCustomerId?: string; // Added for Stripe subscriptions
+  stripeCustomerId?: string;
   fluxSignature?: FluxSignature;
   fluxEvolutionPoints?: FluxEvolutionPoint[];
   createdAt?: Timestamp; 
   updatedAt?: Timestamp; 
   followersCount?: number;
   followingCount?: number;
+  isProfileAmplified?: boolean; // For Amplify Flux Pulse feature
+  profileAmplifiedAt?: Timestamp | null; // Timestamp of when profile was last amplified
 }
 
 export async function saveUserProfile(userId: string, data: Partial<UserProfileData>): Promise<{ success: boolean; message?: string }> {
@@ -59,7 +61,7 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
     Object.keys(dataToSave).forEach(key => {
       const K = key as keyof UserProfileData;
       if (dataToSave[K] === undefined) {
-        delete dataToSave[K];
+        delete dataToSave[K]; // Ensure undefined fields are removed if not explicitly set
       }
     });
 
@@ -70,19 +72,20 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         updatedAt: serverTimestamp(),
       });
     } else {
-      // For new profiles, ensure all optional fields have a default or are explicitly set if provided
       await setDoc(userProfileRef, {
         uid: userId,
         email: data.email ?? null,
         photoURL: data.photoURL ?? null,
         bannerURL: data.bannerURL ?? null,
         isPremium: data.isPremium ?? false,
-        stripeCustomerId: data.stripeCustomerId ?? undefined,
+        stripeCustomerId: data.stripeCustomerId ?? null,
         fluxSignature: data.fluxSignature ?? { dominantColors: [], keywords: [] }, 
         fluxEvolutionPoints: data.fluxEvolutionPoints ?? [], 
         followersCount: data.followersCount ?? 0,
         followingCount: data.followingCount ?? 0,
-        ...dataToSave, // Spread the rest of the provided data
+        isProfileAmplified: data.isProfileAmplified ?? false,
+        profileAmplifiedAt: data.profileAmplifiedAt ?? null,
+        ...dataToSave, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -114,6 +117,8 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.stripeCustomerId = profile.stripeCustomerId ?? undefined;
       profile.isPremium = profile.isPremium ?? false;
       profile.emailOptIn = profile.emailOptIn ?? false;
+      profile.isProfileAmplified = profile.isProfileAmplified ?? false;
+      profile.profileAmplifiedAt = profile.profileAmplifiedAt ?? null;
       return profile;
     } else {
       console.log("No such user profile!");
@@ -123,3 +128,4 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     console.error("Error fetching user profile: ", error);
     return null;
   }
+}

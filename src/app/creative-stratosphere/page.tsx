@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Compass, Search, Users, Palette, Sparkles, Loader2 } from "lucide-react";
+import { Compass, Search, Users, Palette, Sparkles, Loader2, Zap as ZapIcon } from "lucide-react"; // Renamed Zap to ZapIcon to avoid conflict
 import NextImage from "next/image";
 import Link from "next/link";
 import { getPublicFluxSignatures, type StratosphereItemData } from '@/actions/stratosphereActions';
@@ -59,16 +59,21 @@ export default function CreativeStratospherePage() {
       ) : (
         <div className="masonry-grid">
           {stratosphereItems.map((item) => (
-            <Link key={item.userId} href={`/profile/${item.userId}`} legacyBehavior passHref>
+            <Link key={item.uid} href={`/profile/${item.uid}`} legacyBehavior passHref>
               <a className="masonry-item mb-4 block card-interactive-hover rounded-lg overflow-hidden shadow-md group">
-                <Card className="h-full flex flex-col">
+                <Card className="h-full flex flex-col relative"> {/* Added relative for badge positioning */}
+                  {item.isProfileAmplified && (
+                    <Badge variant="destructive" className="absolute top-2 left-2 z-10 animate-pulse">
+                        <ZapIcon className="h-3 w-3 mr-1" /> Amplified
+                    </Badge>
+                  )}
                   <div className="relative w-full aspect-[16/9] bg-muted">
                     <NextImage
-                      src={item.fluxSignature.visualRepresentation || "https://placehold.co/800x400.png"}
+                      src={item.fluxSignature?.visualRepresentation || "https://placehold.co/800x400.png"}
                       alt={`${item.fullName || item.username}'s Flux Signature Visual`}
                       layout="fill"
                       objectFit="cover"
-                      data-ai-hint={item.fluxSignature.dataAiHintVisual || "abstract art"}
+                      data-ai-hint={item.fluxSignature?.dataAiHintVisual || "abstract art"}
                       className="transition-transform duration-300 group-hover:scale-105"
                     />
                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -84,14 +89,14 @@ export default function CreativeStratospherePage() {
                         {item.username && <p className="text-xs text-muted-foreground truncate">@{item.username}</p>}
                       </div>
                     </div>
-                    {item.fluxSignature.keywords && item.fluxSignature.keywords.length > 0 && (
+                    {item.fluxSignature?.keywords && item.fluxSignature.keywords.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {item.fluxSignature.keywords.slice(0,3).map(keyword => (
                           <Badge key={keyword} variant="secondary" className="text-xs">{keyword}</Badge>
                         ))}
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.fluxSignature.style || "Evolving Artist"}</p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.fluxSignature?.style || "Evolving Artist"}</p>
                   </CardContent>
                 </Card>
               </a>
