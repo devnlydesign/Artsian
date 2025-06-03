@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import NextImage from "next/image"; // Renamed to avoid conflict
 import { storage } from '@/lib/firebase';
 import { ref as storageRefSdk, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"; // Added this line
 
 async function deleteFileFromFirebaseStorage(url: string | undefined | null): Promise<void> {
   if (!url || !url.startsWith('https://firebasestorage.googleapis.com/')) {
@@ -72,6 +73,11 @@ export default function SettingsPage() {
     }
     fetchProfile();
   }, [currentUser]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name as keyof UserProfileData]: value }));
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'banner') => {
     const file = event.target.files?.[0];
