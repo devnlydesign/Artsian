@@ -107,7 +107,7 @@ export default function PremiumPage() {
             {isStartingTrial ? <Loader2 className="mr-2 h-6 w-6 animate-spin"/> : <Gift className="mr-2 h-6 w-6"/>}
             {isStartingTrial ? "Starting Trial..." : "Start Your 3-Month Free Trial"}
           </Button>
-          <p className="text-xs text-muted-foreground mt-2">Then $9.99/month USD. Cancel anytime.</p>
+          <p className="text-xs text-muted-foreground mt-2">Then KMW200.00/month ZMW. Cancel anytime.</p>
         </CardContent>
       </Card>
 
@@ -139,7 +139,7 @@ export default function PremiumPage() {
                 <Rocket className="h-7 w-7 text-primary"/>Premium Plan
             </CardTitle>
             <CardDescription>Unlock the full power of ARTISAN.</CardDescription>
-            <p className="text-3xl font-bold text-primary pt-2">$9.99 <span className="text-sm font-normal text-muted-foreground">/ month (after trial)</span></p>
+            <p className="text-3xl font-bold text-primary pt-2">ZMW200.00 <span className="text-sm font-normal text-muted-foreground">/ month (after trial)</span></p>
           </CardHeader>
           <CardContent className="space-y-3">
             {premiumFeatures.map((feature, index) => (

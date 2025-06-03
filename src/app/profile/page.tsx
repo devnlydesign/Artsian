@@ -5,8 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Settings, UserPlus, Mail, MapPin, Link as LinkIcon, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
-import Image from "next/image";
+import { Settings, UserCircle, Mail, MapPin, Link as LinkIcon, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
+import NextImage from "next/image"; // Renamed to avoid conflicts
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppState } from '@/context/AppStateContext';
 import { getUserProfile, type UserProfileData } from '@/actions/userProfile';
@@ -32,13 +32,11 @@ export default function ProfilePage() {
   const following = 567;
   const postsCount = 88;
   
-  // Mocked profile links for display - in a real app, these would be part of UserProfileData
   const profileLinks = [
-    { title: "My Shop", url: "/shop/alexchroma_art" }, // Assuming shop is per user
+    { title: "My Shop", url: "/shop/alexchroma_art" }, 
     { title: "Behance", url: "https://behance.net/alexchroma" },
     { title: "Instagram", url: "https://instagram.com/alexchroma_art" },
   ];
-
 
   useEffect(() => {
     async function fetchProfile() {
@@ -48,7 +46,6 @@ export default function ProfilePage() {
         setProfileData(data);
         setIsLoading(false);
       } else {
-        // Handle case where there's no logged-in user, maybe redirect or show guest view
         setIsLoading(false);
       }
     }
@@ -90,27 +87,30 @@ export default function ProfilePage() {
   const location = profileData?.location;
   const website = profileData?.website;
   const portfolioLink = profileData?.portfolioLink;
-  const isPremium = profileData?.isPremium || false; // Get from fetched data
+  const isPremium = profileData?.isPremium || false;
+  const photoURL = profileData?.photoURL || "https://placehold.co/160x160.png"; // Default placeholder
+  const bannerURL = profileData?.bannerURL || "https://placehold.co/1000x250.png"; // Default placeholder
 
   return (
     <div className="space-y-6">
       <Card className="overflow-hidden shadow-lg card-interactive-hover">
         <div className="relative h-40 md:h-64 bg-muted group">
-          <Image 
-            src={"https://placehold.co/1000x250.png"} // Replace with profileData.bannerUrl if available
+          <NextImage 
+            src={bannerURL} 
             alt="Profile banner" 
             layout="fill" 
             objectFit="cover" 
             data-ai-hint={"abstract art studio wide"} 
             className="transition-transform group-hover:scale-105 duration-300"
             priority
+            key={bannerURL} // Add key to force re-render on URL change
             />
            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
         </div>
         <CardContent className="pt-0 relative">
           <div className="flex flex-col md:flex-row items-center md:items-end -mt-16 md:-mt-20 space-y-4 md:space-y-0 md:space-x-6 px-6 pb-6">
             <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-card shadow-lg transition-transform hover:scale-105">
-              <AvatarImage src={currentUser?.photoURL || "https://placehold.co/150x150.png"} alt={name} data-ai-hint={"artist self portrait painting"} />
+              <AvatarImage src={photoURL} alt={name} data-ai-hint={"artist self portrait painting"} key={photoURL}/>
               <AvatarFallback>{name.substring(0,2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="flex-1 text-center md:text-left pt-4">
@@ -126,8 +126,6 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="flex gap-2 pt-4 md:pt-0">
-              {/* Follow/Message/Settings buttons logic would depend on if it's own profile or other's */}
-              {/* For now, assume this is the logged-in user's profile view, so show settings */}
               <Button variant="outline" className="transition-transform hover:scale-105" asChild>
                 <Link href="/settings"><Settings className="mr-2 h-4 w-4" /> Edit Profile</Link>
               </Button> 
@@ -149,7 +147,6 @@ export default function ProfilePage() {
                 </a>
               }
             </div>
-             {/* Display fetched links or a message if none */}
              {profileLinks && profileLinks.length > 0 && (
               <div className="pt-2">
                 <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1">My Links</h4>
@@ -178,9 +175,10 @@ export default function ProfilePage() {
         </TabsList>
         <TabsContent value="artworks">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 sm:gap-2 mt-4">
-            {userBlooms.map(bloom => ( // This should eventually be profileData.artworks or similar
+            {/* This section will eventually display artworks from getArtworksByUserId */}
+            {userBlooms.map(bloom => ( 
               <div key={bloom.id} className="relative aspect-square bg-muted group overflow-hidden rounded-sm card-interactive-hover">
-                <Image 
+                <NextImage 
                     src={bloom.thumbnailUrl} 
                     alt="User artwork" 
                     layout="fill" 

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,18 +14,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/context/AppStateContext';
-import { createArtwork, type ArtworkData } from '@/actions/artworkActions';
-import { Gem, Loader2, PlusCircle } from 'lucide-react';
+import { createArtwork } from '@/actions/artworkActions';
+import { Gem, Loader2, PlusCircle, UploadCloud } from 'lucide-react';
+import NextImage from "next/image";
+import { storage } from '@/lib/firebase';
+import { ref as storageRefSdk, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const artworkFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters.").max(100, "Title is too long."),
   type: z.enum(["Artwork", "Process Chronicle", "Sketch", "Multimedia", "Other"]),
   description: z.string().min(10, "Description must be at least 10 characters.").max(1000, "Description is too long."),
-  imageUrl: z.string().url("Must be a valid URL for the image."),
+  // imageUrl field is removed as it's handled by file upload
   dataAiHint: z.string().min(2, "AI hint must be at least 2 characters.").max(50, "AI hint is too long (max 2 words recommended).").optional(),
-  fullContentUrl: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
+  fullContentUrl: z.string().url("Must be a valid URL for full content.").optional().or(z.literal('')),
   details: z.string().max(2000, "Details are too long.").optional().or(z.literal('')),
-  // tags: z.string().optional(), // For simplicity, tags can be a comma-separated string later parsed
 });
 
 type ArtworkFormValues = z.infer<typeof artworkFormSchema>;
@@ -36,32 +38,58 @@ export default function NewCrystallineBloomPage() {
   const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [artworkImageFile, setArtworkImageFile] = useState<File | null>(null);
+  const [artworkImagePreview, setArtworkImagePreview] = useState<string | null>(null);
+  const artworkFileInputRef = useRef<HTMLInputElement>(null);
+
   const form = useForm<ArtworkFormValues>({
     resolver: zodResolver(artworkFormSchema),
     defaultValues: {
       title: "",
       type: "Artwork",
       description: "",
-      imageUrl: "",
       dataAiHint: "",
       fullContentUrl: "",
       details: "",
     },
   });
 
+  const handleArtworkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setArtworkImageFile(file);
+      setArtworkImagePreview(URL.createObjectURL(file));
+    }
+  };
+
   const onSubmit: SubmitHandler<ArtworkFormValues> = async (data) => {
     if (!currentUser?.uid) {
       toast({ title: "Authentication Error", description: "You must be logged in to create an artwork.", variant: "destructive" });
       return;
     }
+    if (!artworkImageFile) {
+      toast({ title: "Image Required", description: "Please select an image for your artwork.", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
+    let uploadedImageUrl = "";
+
     try {
+      // 1. Upload image to Firebase Storage
+      const artworkFilePath = `artworks/${currentUser.uid}/${Date.now()}_${artworkImageFile.name}`;
+      const artworkFileRef = storageRefSdk(storage, artworkFilePath);
+      await uploadBytes(artworkFileRef, artworkImageFile);
+      uploadedImageUrl = await getDownloadURL(artworkFileRef);
+      toast({ title: "Image Uploaded", description: "Artwork image successfully uploaded." });
+
+      // 2. Create artwork document in Firestore with the image URL
       const artworkDetailsToSave = {
         title: data.title,
         type: data.type,
         description: data.description,
-        imageUrl: data.imageUrl,
-        dataAiHint: data.dataAiHint || data.title.toLowerCase().split(" ").slice(0,2).join(" ") || "abstract art", // Default AI hint
+        imageUrl: uploadedImageUrl, // Use the uploaded image URL
+        dataAiHint: data.dataAiHint || data.title.toLowerCase().split(" ").slice(0,2).join(" ") || "abstract art",
         fullContentUrl: data.fullContentUrl || undefined,
         details: data.details || undefined,
       };
@@ -73,7 +101,7 @@ export default function NewCrystallineBloomPage() {
           title: "Artwork Created!",
           description: `'${data.title}' has been added to your collection.`,
         });
-        router.push('/crystalline-blooms'); // Redirect to the artworks page
+        router.push('/crystalline-blooms'); 
       } else {
         toast({
           title: "Error Creating Artwork",
@@ -85,7 +113,7 @@ export default function NewCrystallineBloomPage() {
       console.error("Error submitting artwork:", error);
       toast({
         title: "Submission Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: "An unexpected error occurred during upload or save. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -98,7 +126,7 @@ export default function NewCrystallineBloomPage() {
   }
 
   if (!isAuthenticated) {
-    router.push('/auth/login?redirect=/crystalline-blooms/new'); // Or a more user-friendly "please login" page
+    router.push('/auth/login?redirect=/crystalline-blooms/new');
     return <div className="flex justify-center items-center min-h-screen"><p>Redirecting to login...</p></div>;
   }
 
@@ -119,18 +147,51 @@ export default function NewCrystallineBloomPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Title</FormLabel>
-                    <FormControl><Input placeholder="e.g., Nebula Dreams" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Nebula Dreams" {...field} disabled={isSubmitting} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              {/* Artwork Image Upload */}
+              <FormItem>
+                <FormLabel>Main Artwork Image</FormLabel>
+                <Card 
+                    className="border-2 border-dashed border-border hover:border-primary transition-colors p-6 cursor-pointer"
+                    onClick={() => artworkFileInputRef.current?.click()}
+                >
+                  <CardContent className="flex flex-col items-center justify-center text-center">
+                    {artworkImagePreview ? (
+                        <div className="relative w-full h-48 mb-4 rounded-md overflow-hidden">
+                           <NextImage src={artworkImagePreview} alt="Artwork Preview" layout="fill" objectFit="contain" />
+                        </div>
+                    ) : (
+                        <UploadCloud className="h-12 w-12 text-muted-foreground mb-2" />
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {artworkImageFile ? `Selected: ${artworkImageFile.name}` : "Click or drag to upload image"}
+                    </p>
+                    <Input 
+                        id="artworkImageFile" 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        ref={artworkFileInputRef}
+                        onChange={handleArtworkFileChange} 
+                        disabled={isSubmitting}
+                    />
+                  </CardContent>
+                </Card>
+                 <FormDescription>This will be the main visual for your artwork.</FormDescription>
+                {!artworkImageFile && form.formState.isSubmitted && <p className="text-sm font-medium text-destructive">Artwork image is required.</p>}
+              </FormItem>
+
               <FormField
                 control={form.control}
                 name="type"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type of Artwork</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select artwork type" /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="Artwork">Artwork (General)</SelectItem>
@@ -150,19 +211,7 @@ export default function NewCrystallineBloomPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Description</FormLabel>
-                    <FormControl><Textarea placeholder="Describe your artwork, its meaning, or the techniques used..." rows={4} {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="imageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Main Image URL</FormLabel>
-                    <FormControl><Input type="url" placeholder="https://example.com/your-artwork.jpg" {...field} /></FormControl>
-                    <FormDescription>Link to the primary visual representation of your artwork.</FormDescription>
+                    <FormControl><Textarea placeholder="Describe your artwork, its meaning, or the techniques used..." rows={4} {...field} disabled={isSubmitting}/></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -173,8 +222,8 @@ export default function NewCrystallineBloomPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>AI Hint (Optional)</FormLabel>
-                    <FormControl><Input placeholder="e.g., galaxy space (max 2 words)" {...field} /></FormControl>
-                    <FormDescription>Keywords for AI image search if using placeholders or for alt text generation.</FormDescription>
+                    <FormControl><Input placeholder="e.g., galaxy space (max 2 words)" {...field} disabled={isSubmitting}/></FormControl>
+                    <FormDescription>Keywords for image search/alt text. Relevant if the main image isn't always visible.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -185,7 +234,8 @@ export default function NewCrystallineBloomPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Full Content URL (Optional)</FormLabel>
-                    <FormControl><Input type="url" placeholder="Link to high-res image, video, or interactive content" {...field} /></FormControl>
+                    <FormControl><Input type="url" placeholder="Link to high-res image, video, or interactive content" {...field} disabled={isSubmitting}/></FormControl>
+                    <FormDescription>Use this if your main uploaded image is a preview, or for supplementary content.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -196,7 +246,7 @@ export default function NewCrystallineBloomPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Additional Details (Optional)</FormLabel>
-                    <FormControl><Textarea placeholder="Further information, artist statement for this piece, etc." rows={3} {...field} /></FormControl>
+                    <FormControl><Textarea placeholder="Further information, artist statement for this piece, etc." rows={3} {...field} disabled={isSubmitting}/></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

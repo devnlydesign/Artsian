@@ -25,6 +25,8 @@ export interface UserProfileData {
   fullName?: string;
   username?: string;
   bio?: string;
+  photoURL?: string; // Added for profile picture URL
+  bannerURL?: string; // Added for banner image URL
   genre?: string;
   style?: string;
   motivations?: string;
@@ -49,8 +51,15 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
     const userProfileRef = doc(db, 'users', userId);
     const profileSnapshot = await getDoc(userProfileRef);
 
-    const dataToSave = { ...data };
-    // Ensure timestamps are handled correctly
+    const dataToSave: Partial<UserProfileData> = { ...data };
+    // Clean up undefined fields from data before saving, Firestore doesn't like `undefined`
+    Object.keys(dataToSave).forEach(key => {
+      if (dataToSave[key as keyof UserProfileData] === undefined) {
+        delete dataToSave[key as keyof UserProfileData];
+      }
+    });
+
+
     if (profileSnapshot.exists()) {
       await updateDoc(userProfileRef, {
         ...dataToSave,
@@ -61,8 +70,10 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       await setDoc(userProfileRef, {
         uid: userId,
         email: data.email ?? null,
+        photoURL: data.photoURL ?? null,
+        bannerURL: data.bannerURL ?? null,
         isPremium: data.isPremium ?? false,
-        fluxSignature: data.fluxSignature ?? {}, // Initialize if not provided
+        fluxSignature: data.fluxSignature ?? { dominantColors: [], keywords: [] }, // Initialize if not provided
         fluxEvolutionPoints: data.fluxEvolutionPoints ?? [], // Initialize if not provided
         ...dataToSave,
         createdAt: serverTimestamp(),
@@ -90,6 +101,8 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       // Ensure fluxSignature and fluxEvolutionPoints are at least empty objects/arrays if not present
       profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
       profile.fluxEvolutionPoints = profile.fluxEvolutionPoints ?? [];
+      profile.photoURL = profile.photoURL ?? undefined;
+      profile.bannerURL = profile.bannerURL ?? undefined;
       return profile;
     } else {
       console.log("No such user profile!");
@@ -100,4 +113,3 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     return null;
   }
 }
-
