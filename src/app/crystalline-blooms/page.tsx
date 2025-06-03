@@ -5,13 +5,14 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowRight, Maximize2, Eye, Gem, Loader2, PlusCircle } from "lucide-react";
+import { ArrowRight, Maximize2, Eye, Gem, Loader2, PlusCircle, FileText } from "lucide-react"; // Added FileText
 import Image from "next/image";
 import { Badge } from '@/components/ui/badge'; 
 import Link from 'next/link';
 import { useAppState } from '@/context/AppStateContext';
-import { getArtworksByUserId, type ArtworkData } from '@/actions/artworkActions';
+import { getArtworksByUserId, type ArtworkData, type LayerData } from '@/actions/artworkActions'; // Added LayerData
 import { formatDistanceToNow } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 export default function CrystallineBloomsPage() {
@@ -28,12 +29,12 @@ export default function CrystallineBloomsPage() {
         setUserArtworks(artworks);
         setIsLoadingArtworks(false);
       } else if (!isLoadingAuth && !isAuthenticated) {
-        setUserArtworks([]); // Clear artworks if user logs out
+        setUserArtworks([]); 
         setIsLoadingArtworks(false);
       }
     }
     
-    if (!isLoadingAuth) { // Only fetch if auth state is resolved
+    if (!isLoadingAuth) { 
         fetchArtworks();
     }
   }, [currentUser, isAuthenticated, isLoadingAuth]);
@@ -142,30 +143,58 @@ export default function CrystallineBloomsPage() {
                 </CardFooter>
               </Card>
             </DialogTrigger>
-            {/* Ensure selectedBloom is the one being mapped for DialogContent */}
             {selectedBloom && selectedBloom.id === bloom.id && (
               <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                   <DialogTitle className="text-2xl">{selectedBloom.title}</DialogTitle>
                   <DialogDescription>Type: {selectedBloom.type} {selectedBloom.createdAt && `| Created: ${formatDistanceToNow(selectedBloom.createdAt.toDate(), { addSuffix: true })}`}</DialogDescription>
                 </DialogHeader>
-                <div className="my-4 relative aspect-video rounded-md overflow-hidden bg-muted">
-                  <Image 
-                    src={selectedBloom.fullContentUrl || selectedBloom.imageUrl || "https://placehold.co/800x450.png"} 
-                    alt={selectedBloom.title} 
-                    layout="fill" 
-                    objectFit="contain"
-                    data-ai-hint={selectedBloom.dataAiHint || "artwork image"} 
-                  />
-                </div>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{selectedBloom.details || selectedBloom.description}</p>
-                {selectedBloom.fullContentUrl && (
-                  <Button asChild className="mt-4">
-                    <a href={selectedBloom.fullContentUrl} target="_blank" rel="noopener noreferrer">
-                      <Maximize2 className="mr-2 h-4 w-4" /> View Full Size
-                    </a>
-                  </Button>
-                )}
+                <ScrollArea className="max-h-[70vh]">
+                  <div className="pr-6"> {/* Padding for scrollbar */}
+                    <div className="my-4 relative aspect-video rounded-md overflow-hidden bg-muted">
+                      <Image 
+                        src={selectedBloom.imageUrl || "https://placehold.co/800x450.png"} 
+                        alt={selectedBloom.title} 
+                        layout="fill" 
+                        objectFit="contain"
+                        data-ai-hint={selectedBloom.dataAiHint || "artwork image"} 
+                      />
+                    </div>
+                    <p className="text-sm text-foreground whitespace-pre-wrap mb-4">{selectedBloom.description}</p>
+                    
+                    {selectedBloom.layers && selectedBloom.layers.length > 0 && (
+                      <div className="space-y-4 mt-4 border-t pt-4">
+                        <h4 className="text-lg font-semibold text-primary flex items-center gap-2">
+                          <FileText className="h-5 w-5" /> Content Layers
+                        </h4>
+                        {selectedBloom.layers.map((layer) => (
+                          <div key={layer.id} className="p-3 bg-muted/50 rounded-md">
+                            {layer.title && <h5 className="font-semibold text-md mb-1">{layer.title}</h5>}
+                            {layer.type === 'text' && layer.content && (
+                              <p className="text-sm text-foreground whitespace-pre-wrap">{layer.content}</p>
+                            )}
+                            {/* Placeholder for other layer types like image, video, audio */}
+                            {(layer.type === 'image' || layer.type === 'video' || layer.type === 'audio') && layer.url && (
+                               <a href={layer.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
+                                 View {layer.type} layer content
+                               </a>
+                            )}
+                            {layer.description && <p className="text-xs text-muted-foreground mt-1">{layer.description}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Example of how fullContentUrl was handled previously, can be removed or adapted for specific layer types if needed */}
+                    {/* {selectedBloom.fullContentUrl && ( 
+                      <Button asChild className="mt-4">
+                        <a href={selectedBloom.fullContentUrl} target="_blank" rel="noopener noreferrer">
+                          <Maximize2 className="mr-2 h-4 w-4" /> View Full Size
+                        </a>
+                      </Button>
+                    )} */}
+                  </div>
+                </ScrollArea>
               </DialogContent>
             )}
           </Dialog>

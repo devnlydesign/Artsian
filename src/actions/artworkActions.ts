@@ -5,20 +5,34 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, serverTimestamp, orderBy, Timestamp, doc, getDoc } from 'firebase/firestore';
 import type { UserProfileData } from './userProfile'; // Assuming UserProfileData might be linked or referenced
 
+export interface LayerData {
+  id: string; // Unique identifier for the layer (e.g., UUID)
+  type: "text" | "image" | "video" | "audio";
+  title?: string;
+  description?: string;
+  content?: string; // For text type
+  url?: string;     // For image, video, audio types (Firebase Storage URL)
+  dataAiHint?: string; // For image/video layers
+  order: number;    // Display order of the layer
+}
+
 export interface ArtworkData {
   id: string;
   userId: string; // Firebase UID of the creator
   title: string;
   type: "Artwork" | "Process Chronicle" | "Sketch" | "Multimedia" | "Other";
-  description: string;
-  imageUrl: string; // URL to the main image of the artwork
-  dataAiHint: string; // For Unsplash/AI image search hints for placeholders
-  fullContentUrl?: string; // Optional: URL for high-fidelity view or other media
-  details?: string; // Optional: More detailed description or content
+  description: string; // General description of the artwork
+  imageUrl: string; // URL to the main COVER image/thumbnail of the artwork
+  dataAiHint: string; // For Unsplash/AI image search hints for the cover image
+  layers?: LayerData[]; // Array of content layers
   tags?: string[]; // Optional: User-defined tags
   isPublished?: boolean; // Optional: For draft/published status
   createdAt: Timestamp;
   updatedAt: Timestamp;
+
+  // Deprecated fields, functionality moved to layers
+  // fullContentUrl?: string;
+  // details?: string;
 }
 
 // Firestore Security Rules Reminder:
@@ -47,6 +61,7 @@ export async function createArtwork(
     const docRef = await addDoc(artworksCollectionRef, {
       ...artworkDetails,
       userId: userId,
+      layers: artworkDetails.layers || [], // Ensure layers is at least an empty array
       isPublished: artworkDetails.isPublished ?? true, // Default to published
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -87,7 +102,10 @@ export async function getArtworkById(artworkId: string): Promise<ArtworkData | n
     const artworkDocRef = doc(db, 'artworks', artworkId);
     const docSnap = await getDoc(artworkDocRef);
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as ArtworkData;
+      const data = docSnap.data();
+      // Ensure layers field exists and is an array, default to empty array if not
+      const layers = Array.isArray(data.layers) ? data.layers : [];
+      return { id: docSnap.id, ...data, layers } as ArtworkData;
     } else {
       console.log("No such artwork found!");
       return null;
