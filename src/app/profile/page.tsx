@@ -5,14 +5,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Settings, UserCircle, Mail, MapPin, Link as LinkIcon, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
-import NextImage from "next/image"; // Renamed to avoid conflicts
+import { Settings, UserCircle, Mail, MapPin, Link as LinkIcon, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink, Loader2, Users } from "lucide-react";
+import NextImage from "next/image"; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppState } from '@/context/AppStateContext';
 import { getUserProfile, type UserProfileData } from '@/actions/userProfile';
-import Link from 'next/link'; // Next.js Link
+import Link from 'next/link'; 
 
-// Placeholder data for user's artworks/blooms (to be fetched or managed separately)
 const userBlooms = [
   { id: "b1", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "abstract colorful artwork" },
   { id: "b2", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "surreal digital painting" },
@@ -23,14 +22,9 @@ const userBlooms = [
 ];
 
 export default function ProfilePage() {
-  const { currentUser } = useAppState();
+  const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Mocked counts - in a real app, these would come from backend queries
-  const followers = 12345;
-  const following = 567;
-  const postsCount = 88;
   
   const profileLinks = [
     { title: "My Shop", url: "/shop/alexchroma_art" }, 
@@ -40,19 +34,21 @@ export default function ProfilePage() {
 
   useEffect(() => {
     async function fetchProfile() {
-      if (currentUser?.uid) {
+      if (isAuthenticated && currentUser?.uid) {
         setIsLoading(true);
         const data = await getUserProfile(currentUser.uid);
         setProfileData(data);
         setIsLoading(false);
-      } else {
-        setIsLoading(false);
+      } else if (!isLoadingAuth) {
+        setIsLoading(false); 
       }
     }
-    fetchProfile();
-  }, [currentUser]);
+    if (!isLoadingAuth) {
+        fetchProfile();
+    }
+  }, [currentUser, isAuthenticated, isLoadingAuth]);
 
-  if (isLoading) {
+  if (isLoadingAuth || isLoading) {
     return (
       <div className="space-y-6">
         <Card className="overflow-hidden shadow-lg">
@@ -72,11 +68,12 @@ export default function ProfilePage() {
     );
   }
   
-  if (!profileData && !currentUser) {
+  if (!isAuthenticated || !profileData) {
      return (
         <div className="text-center py-10">
+            <UserCircle className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4">Please log in to view your profile.</p>
-            <Button asChild><Link href="/auth/login">Log In</Link></Button>
+            <Button asChild variant="gradientPrimary"><Link href="/auth/login?redirect=/profile">Log In</Link></Button>
         </div>
     );
   }
@@ -88,8 +85,11 @@ export default function ProfilePage() {
   const website = profileData?.website;
   const portfolioLink = profileData?.portfolioLink;
   const isPremium = profileData?.isPremium || false;
-  const photoURL = profileData?.photoURL || "https://placehold.co/160x160.png"; // Default placeholder
-  const bannerURL = profileData?.bannerURL || "https://placehold.co/1000x250.png"; // Default placeholder
+  const photoURL = profileData?.photoURL || "https://placehold.co/160x160.png"; 
+  const bannerURL = profileData?.bannerURL || "https://placehold.co/1000x250.png"; 
+  const followersCount = profileData?.followersCount || 0;
+  const followingCount = profileData?.followingCount || 0;
+  const postsCount = userBlooms.length; // Placeholder for actual post count
 
   return (
     <div className="space-y-6">
@@ -103,7 +103,7 @@ export default function ProfilePage() {
             data-ai-hint={"abstract art studio wide"} 
             className="transition-transform group-hover:scale-105 duration-300"
             priority
-            key={bannerURL} // Add key to force re-render on URL change
+            key={bannerURL} 
             />
            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
         </div>
@@ -121,8 +121,8 @@ export default function ProfilePage() {
               <CardDescription className="text-lg text-muted-foreground">@{username}</CardDescription>
               <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-x-6 gap-y-2 text-sm">
                 <span><span className="font-semibold">{postsCount}</span> artworks</span>
-                <span><span className="font-semibold">{followers.toLocaleString()}</span> followers</span>
-                <span><span className="font-semibold">{following.toLocaleString()}</span> following</span>
+                <span className="flex items-center gap-1"><Users className="h-4 w-4 text-muted-foreground" /><span className="font-semibold">{followersCount.toLocaleString()}</span> followers</span>
+                <span className="flex items-center gap-1"><Users className="h-4 w-4 text-muted-foreground" /><span className="font-semibold">{followingCount.toLocaleString()}</span> following</span>
               </div>
             </div>
             <div className="flex gap-2 pt-4 md:pt-0">
@@ -175,7 +175,6 @@ export default function ProfilePage() {
         </TabsList>
         <TabsContent value="artworks">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 sm:gap-2 mt-4">
-            {/* This section will eventually display artworks from getArtworksByUserId */}
             {userBlooms.map(bloom => ( 
               <div key={bloom.id} className="relative aspect-square bg-muted group overflow-hidden rounded-sm card-interactive-hover">
                 <NextImage 

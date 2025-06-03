@@ -25,8 +25,8 @@ export interface UserProfileData {
   fullName?: string;
   username?: string;
   bio?: string;
-  photoURL?: string; // Added for profile picture URL
-  bannerURL?: string; // Added for banner image URL
+  photoURL?: string; 
+  bannerURL?: string; 
   genre?: string;
   style?: string;
   motivations?: string;
@@ -41,6 +41,8 @@ export interface UserProfileData {
   fluxEvolutionPoints?: FluxEvolutionPoint[];
   createdAt?: Timestamp; 
   updatedAt?: Timestamp; 
+  followersCount?: number;
+  followingCount?: number;
 }
 
 export async function saveUserProfile(userId: string, data: Partial<UserProfileData>): Promise<{ success: boolean; message?: string }> {
@@ -52,7 +54,7 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
     const profileSnapshot = await getDoc(userProfileRef);
 
     const dataToSave: Partial<UserProfileData> = { ...data };
-    // Clean up undefined fields from data before saving, Firestore doesn't like `undefined`
+    
     Object.keys(dataToSave).forEach(key => {
       if (dataToSave[key as keyof UserProfileData] === undefined) {
         delete dataToSave[key as keyof UserProfileData];
@@ -66,15 +68,16 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         updatedAt: serverTimestamp(),
       });
     } else {
-      // For new profiles, ensure all necessary fields including new ones are considered
       await setDoc(userProfileRef, {
         uid: userId,
         email: data.email ?? null,
         photoURL: data.photoURL ?? null,
         bannerURL: data.bannerURL ?? null,
         isPremium: data.isPremium ?? false,
-        fluxSignature: data.fluxSignature ?? { dominantColors: [], keywords: [] }, // Initialize if not provided
-        fluxEvolutionPoints: data.fluxEvolutionPoints ?? [], // Initialize if not provided
+        fluxSignature: data.fluxSignature ?? { dominantColors: [], keywords: [] }, 
+        fluxEvolutionPoints: data.fluxEvolutionPoints ?? [], 
+        followersCount: data.followersCount ?? 0,
+        followingCount: data.followingCount ?? 0,
         ...dataToSave,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -96,13 +99,13 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     const userProfileRef = doc(db, 'users', userId);
     const docSnap = await getDoc(userProfileRef);
     if (docSnap.exists()) {
-      // Explicitly cast to UserProfileData to ensure type safety
       const profile = docSnap.data() as UserProfileData;
-      // Ensure fluxSignature and fluxEvolutionPoints are at least empty objects/arrays if not present
       profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
       profile.fluxEvolutionPoints = profile.fluxEvolutionPoints ?? [];
       profile.photoURL = profile.photoURL ?? undefined;
       profile.bannerURL = profile.bannerURL ?? undefined;
+      profile.followersCount = profile.followersCount ?? 0;
+      profile.followingCount = profile.followingCount ?? 0;
       return profile;
     } else {
       console.log("No such user profile!");

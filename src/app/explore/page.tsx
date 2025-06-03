@@ -1,29 +1,99 @@
 
 "use client"; 
 
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Compass, Search, Users } from "lucide-react"; 
+import { Compass, Search, Users, UserPlus, UserCheck, Loader2 } from "lucide-react"; 
 import NextImage from "next/image"; 
 import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAppState } from '@/context/AppStateContext';
+import { useToast } from "@/hooks/use-toast";
+import { followUser, unfollowUser, isFollowing, getFollowerIds, getFollowingIds } from '@/actions/connectionActions'; // Assuming you create this
+import { getUserProfile, type UserProfileData } from '@/actions/userProfile'; // To fetch user details if needed
 
 const exploreItems = [
   { id: "e1", type: "image", src: "https://placehold.co/400x400.png", alt: "Abstract digital art", dataAiHint: "abstract digital art" },
   { id: "e2", type: "image", src: "https://placehold.co/400x600.png", alt: "Surreal landscape photography", dataAiHint: "surreal landscape" },
   { id: "e3", type: "video", src: "https://placehold.co/400x400.png", alt: "Generative art loop", dataAiHint: "generative art loop" },
   { id: "e4", type: "image", src: "https://placehold.co/600x400.png", alt: "Detailed character illustration", dataAiHint: "character illustration" },
-  { id: "e5", type: "image", src: "https://placehold.co/400x400.png", alt: "Minimalist sculpture", dataAiHint: "minimalist sculpture" },
-  { id: "e6", type: "image", src: "https://placehold.co/400x500.png", alt: "Vibrant street art", dataAiHint: "street art vibrant" },
-  { id: "e7", type: "image", src: "https://placehold.co/500x400.png", alt: "Concept art environment", dataAiHint: "concept art environment" },
-  { id: "e8", type: "video", src: "https://placehold.co/400x400.png", alt: "Art process timelapse", dataAiHint: "art timelapse video" },
-  { id: "e9", type: "image", src: "https://placehold.co/400x400.png", alt: "Charis Art Hub community highlight", dataAiHint: "community event photo" },
-  { id: "e10", type: "image", src: "https://placehold.co/400x300.png", alt: "Featured new artist", dataAiHint: "new artist spotlight" },
-  { id: "e11", type: "image", src: "https://placehold.co/300x400.png", alt: "Trending art style", dataAiHint: "trending art style" },
-  { id: "e12", type: "image", src: "https://placehold.co/400x400.png", alt: "AI generated artwork", dataAiHint: "ai generated art" },
 ];
 
+// Mock User Data for Follow/Unfollow Demo
+// In a real app, these UIDs would come from actual users.
+const mockUsersForDemo: Array<Partial<UserProfileData> & { uid: string, isMock?: boolean }> = [
+  { uid: "mockUser1", fullName: "Elena Vortex", username: "elena_vortex", photoURL: "https://placehold.co/60x60.png?text=EV", bio: "Painter of cosmic dreams.", isMock: true },
+  { uid: "mockUser2", fullName: "Marcus Rune", username: "marcus_rune", photoURL: "https://placehold.co/60x60.png?text=MR", bio: "Sculptor of digital forms.", isMock: true },
+  { uid: "mockUser3", fullName: "Anya Spectra", username: "anya_spectra", photoURL: "https://placehold.co/60x60.png?text=AS", bio: "Weaver of light and sound.", isMock: true },
+];
+
+
 export default function ExplorePage() { 
+  const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
+  const { toast } = useToast();
+  const [followingStatus, setFollowingStatus] = useState<Record<string, boolean>>({});
+  const [processingFollow, setProcessingFollow] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkInitialFollowStatus = async () => {
+      if (isAuthenticated && currentUser) {
+        const statusPromises = mockUsersForDemo.map(async (targetUser) => {
+          if (targetUser.uid === currentUser.uid) return { [targetUser.uid]: false }; // Can't follow self
+          const currentlyFollowing = await isFollowing(currentUser.uid, targetUser.uid);
+          return { [targetUser.uid]: currentlyFollowing };
+        });
+        const statusesArray = await Promise.all(statusPromises);
+        const newStatus = Object.assign({}, ...statusesArray);
+        setFollowingStatus(newStatus);
+      } else {
+        // Reset status if user logs out
+        const resetStatus: Record<string, boolean> = {};
+        mockUsersForDemo.forEach(user => resetStatus[user.uid] = false);
+        setFollowingStatus(resetStatus);
+      }
+    };
+
+    if (!isLoadingAuth) {
+      checkInitialFollowStatus();
+    }
+  }, [currentUser, isAuthenticated, isLoadingAuth]);
+
+  const handleFollowToggle = async (targetUserId: string) => {
+    if (!currentUser || !isAuthenticated) {
+      toast({ title: "Login Required", description: "Please log in to follow users.", variant: "destructive" });
+      return;
+    }
+    if (currentUser.uid === targetUserId) {
+      toast({ title: "Action Not Allowed", description: "You cannot follow yourself.", variant: "destructive" });
+      return;
+    }
+
+    setProcessingFollow(targetUserId);
+    const currentlyFollowing = followingStatus[targetUserId];
+    let result;
+
+    if (currentlyFollowing) {
+      result = await unfollowUser(currentUser.uid, targetUserId);
+      if (result.success) {
+        setFollowingStatus(prev => ({ ...prev, [targetUserId]: false }));
+        toast({ title: "Unfollowed", description: `You are no longer following this user.` });
+      } else {
+        toast({ title: "Error", description: result.message || "Failed to unfollow user.", variant: "destructive" });
+      }
+    } else {
+      result = await followUser(currentUser.uid, targetUserId);
+      if (result.success) {
+        setFollowingStatus(prev => ({ ...prev, [targetUserId]: true }));
+        toast({ title: "Followed!", description: `You are now following this user.` });
+      } else {
+        toast({ title: "Error", description: result.message || "Failed to follow user.", variant: "destructive" });
+      }
+    }
+    setProcessingFollow(null);
+  };
+
   return (
     <div className="space-y-8">
       <Card className="shadow-lg card-interactive-hover sticky top-[calc(var(--header-height,4rem)+1rem)] z-10 bg-background/80 backdrop-blur-md">
@@ -42,6 +112,45 @@ export default function ExplorePage() {
             </div>
         </CardContent>
       </Card>
+
+      {/* Mock Users Section for Follow/Unfollow Demo */}
+      <Card className="card-interactive-hover">
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Users className="text-accent"/> Discover Creators</CardTitle>
+            <CardDescription>Connect with other artists on Charis Art Hub. (Demo Follow System)</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mockUsersForDemo.map((user) => (
+            <div key={user.uid} className="flex items-center justify-between p-3 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={user.photoURL} alt={user.fullName || user.username} data-ai-hint="artist avatar" />
+                  <AvatarFallback>{(user.fullName || user.username || "U").substring(0,1).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold">{user.fullName || user.username}</p>
+                  <p className="text-xs text-muted-foreground">{user.bio || "An artist on Charis Art Hub."}</p>
+                </div>
+              </div>
+              {isAuthenticated && currentUser?.uid !== user.uid && (
+                <Button 
+                  variant={followingStatus[user.uid] ? "outline" : "default"} 
+                  size="sm"
+                  onClick={() => handleFollowToggle(user.uid)}
+                  disabled={processingFollow === user.uid || isLoadingAuth}
+                  className="transition-all w-[110px]"
+                >
+                  {processingFollow === user.uid ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                    followingStatus[user.uid] ? <><UserCheck className="mr-1.5 h-4 w-4" /> Following</> : <><UserPlus className="mr-1.5 h-4 w-4" /> Follow</>
+                  )}
+                </Button>
+              )}
+              {(!isAuthenticated && !isLoadingAuth) && <Button variant="outline" size="sm" asChild><Link href="/auth/login">Follow</Link></Button>}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
 
       <div className="masonry-grid">
         {exploreItems.map((item) => (
