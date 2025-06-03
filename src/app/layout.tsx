@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Toaster } from "@/components/ui/toaster";
 import { AppStateProvider } from '@/context/AppStateContext';
 import { InitialLoading } from '@/components/layout/InitialLoading';
+import { ThemeProvider } from "next-themes";
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -18,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ARTISAN',
+  title: 'Charis Art Hub',
   description: 'A dynamic platform for creative expression and connection.',
 };
 
@@ -28,16 +29,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning={true}>
-        <AppStateProvider>
-          <InitialLoading>
-            <AppLayout>
-              {children}
-            </AppLayout>
-          </InitialLoading>
-        </AppStateProvider>
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AppStateProvider>
+            <InitialLoading>
+              <AppLayout>
+                {children}
+              </AppLayout>
+            </InitialLoading>
+          </AppStateProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

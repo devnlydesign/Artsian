@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -26,7 +27,7 @@ type SymphonyFormValues = z.infer<typeof formSchema>;
 export default function ProcessSymphonyPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedSymphony, setGeneratedSymphony] = useState<ProcessSymphonyOutput | null>(null);
-  const [audioPlayerKey, setAudioPlayerKey] = useState(0); // To force re-render of audio element
+  const [audioPlayerKey, setAudioPlayerKey] = useState(0); 
   const { toast } = useToast();
 
   const form = useForm<SymphonyFormValues>({
@@ -45,7 +46,7 @@ export default function ProcessSymphonyPage() {
     try {
       const result = await generateProcessSymphony(data);
       setGeneratedSymphony(result);
-      setAudioPlayerKey(prev => prev + 1); // Update key to re-mount audio player
+      setAudioPlayerKey(prev => prev + 1); 
       toast({
         title: "Process Symphony Generated!",
         description: "Your unique ambient audio track is ready.",
@@ -62,7 +63,6 @@ export default function ProcessSymphonyPage() {
     }
   };
   
-  // Client-side state for slider values to display them
   const [typingSpeedValue, setTypingSpeedValue] = useState(form.getValues("typingSpeed"));
   const [brushStrokesValue, setBrushStrokesValue] = useState(form.getValues("brushStrokes"));
   const [musicalPhrasesValue, setMusicalPhrasesValue] = useState(form.getValues("musicalPhrases"));
@@ -74,15 +74,16 @@ export default function ProcessSymphonyPage() {
       setMusicalPhrasesValue(value.musicalPhrases ?? 10);
     });
     return () => subscription.unsubscribe();
-  }, [form.watch, form]);
+  }, [form]);
 
 
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg card-interactive-hover">
         <CardHeader className="text-center">
           <Music className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">AI Process Symphony</CardTitle>
+          <CardTitle className="text-3xl text-gradient-primary-accent">AI Process Symphony</CardTitle>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription>Generate a unique ambient audio track based on the rhythm, energy, and style of your work session.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -164,7 +165,7 @@ export default function ProcessSymphonyPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isLoading} className="w-full">
+              <Button type="submit" disabled={isLoading} className="w-full" variant="gradientPrimary">
                 {isLoading ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating Symphony...</>
                 ) : (
@@ -177,7 +178,7 @@ export default function ProcessSymphonyPage() {
       </Card>
 
       {generatedSymphony && generatedSymphony.audioTrackDataUri && (
-        <Card className="mt-8 shadow-lg">
+        <Card className="mt-8 shadow-lg card-interactive-hover">
           <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-2"><PlayCircle className="h-6 w-6 text-primary"/> Your Process Symphony</CardTitle>
           </CardHeader>

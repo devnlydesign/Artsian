@@ -6,7 +6,6 @@ import { Search as SearchIcon, TrendingUp, RotateCcw } from "lucide-react";
 import Image from "next/image";
 
 export default function SearchPage() {
-  // Placeholder data for search results or trending topics
   const searchCategories = [
     { name: "Trending Artists", dataAiHint: "popular artist spotlight" },
     { name: "Digital Painting", dataAiHint: "digital art tools" },
@@ -23,7 +22,7 @@ export default function SearchPage() {
 
   return (
     <div className="space-y-8">
-      <Card className="shadow-lg transition-shadow hover:shadow-xl">
+      <Card className="shadow-lg transition-shadow hover:shadow-xl card-interactive-hover">
         <CardHeader>
           <div className="relative w-full max-w-xl mx-auto">
             <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -35,9 +34,10 @@ export default function SearchPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <CardTitle className="text-2xl mb-4 text-center text-gradient-primary-accent">Discover & Explore</CardTitle>
-           <p className="text-muted-foreground text-center mb-6">
-            Find inspiration, connect with creators, or explore new creative avenues within the ARTISAN ecosystem.
+          <CardTitle className="text-2xl mb-1 text-center text-gradient-primary-accent">Discover & Explore</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5 text-center">Created by Charis</p>
+           <p className="text-muted-foreground text-center mb-6 mt-2">
+            Find inspiration, connect with creators, or explore new creative avenues within the Charis Art Hub ecosystem.
           </p>
         </CardContent>
       </Card>
@@ -76,7 +76,7 @@ export default function SearchPage() {
         <h2 className="text-xl font-semibold mb-4">Browse Categories</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {searchCategories.map((category) => (
-            <Card key={category.name} className="hover:shadow-xl transition-all duration-200 ease-in-out transform hover:scale-105 cursor-pointer aspect-square flex flex-col justify-between group overflow-hidden">
+            <Card key={category.name} className="hover:shadow-xl transition-all duration-200 ease-in-out transform hover:scale-105 cursor-pointer aspect-square flex flex-col justify-between group overflow-hidden card-interactive-hover">
               <CardContent className="p-0 flex-1 flex items-center justify-center relative">
                 <Image
                   src={`https://placehold.co/200x200.png`}

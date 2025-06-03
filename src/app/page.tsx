@@ -51,7 +51,7 @@ const placeholderPosts: Post[] = [
     id: "3",
     author: { name: "AI Muse", username: "aimuseofficial", avatarUrl: "https://placehold.co/40x40.png", dataAiHintAvatar: "robot face icon" },
     imageUrl: "https://placehold.co/600x400.png",
-    caption: "Generated this piece using my AI Idea Sparker! Prompt: 'A forest made of crystal'. Try it yourself on ARTISAN! #aiart #ideasparker #artisanplatform",
+    caption: "Generated this piece using my AI Idea Sparker! Prompt: 'A forest made of crystal'. Try it yourself on Charis Art Hub! #aiart #ideasparker #charisarthub",
     likes: 2345,
     comments: 150,
     timestamp: "3 days ago",
@@ -77,7 +77,6 @@ const suggestions = [
     { id: "u3", name: "SoundSculptor", avatar: "https://placehold.co/40x40.png", dataAiHint: "sound wave abstract", bio: "Crafting sonic landscapes." },
 ];
 
-// Stories Bar Component
 const StoriesBar = () => (
   <Card className="overflow-hidden transition-shadow hover:shadow-md mb-6 md:mb-8">
     <CardContent className="p-0">
@@ -102,12 +101,10 @@ const StoriesBar = () => (
 
 export default function HomePage() {
   return (
-    <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 py-0 md:py-6"> {/* Reduced py for mobile to give more space */}
-      {/* Main Feed Content (Left/Center for larger screens) */}
+    <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 py-0 md:py-6"> 
       <div className="lg:col-span-2 space-y-6 md:space-y-8">
         <StoriesBar />
 
-        {/* Posts */}
         {placeholderPosts.map((post) => (
           <Card key={post.id} className="overflow-hidden shadow-lg card-interactive-hover">
             <CardHeader className="flex flex-row items-center justify-between p-3">
@@ -126,7 +123,7 @@ export default function HomePage() {
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="relative w-full aspect-[4/5] bg-muted"> {/* Common Instagram aspect ratio */}
+              <div className="relative w-full aspect-[4/5] bg-muted"> 
                 <Image
                   src={post.imageUrl}
                   alt={`Post by ${post.author.name}`}
@@ -139,7 +136,7 @@ export default function HomePage() {
             </CardContent>
             <CardFooter className="flex flex-col items-start p-3 space-y-2">
               <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-1 sm:gap-2"> {/* Reduced gap for smaller screens */}
+                <div className="flex items-center gap-1 sm:gap-2"> 
                   <Button variant="ghost" size="icon" className="hover:text-red-500 transition-colors active:scale-90">
                     <Heart className="h-6 w-6" />
                   </Button>
@@ -173,7 +170,6 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Sidebar (Right for larger screens) */}
       <aside className="lg:col-span-1 space-y-6 sticky top-20 h-fit hidden lg:block">
         <Card className="card-interactive-hover">
           <CardHeader>
@@ -219,7 +215,7 @@ export default function HomePage() {
             <Link href="#" className="hover:underline">Privacy</Link>
             <Link href="#" className="hover:underline">Terms</Link>
         </div>
-        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} ARTISAN Platform</p>
+        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Charis Art Hub</p>
       </aside>
     </div>
   );

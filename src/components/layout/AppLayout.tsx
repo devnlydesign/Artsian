@@ -5,7 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette, LogOut, Users as UsersIcon, Star
+  Home, Search, Compass, Clapperboard, MessagesSquare, Heart, PlusSquare, UserCircle, Settings, Sparkles, Gem, Lightbulb, GitBranch, Music, ShieldCheck, BarChartBig, Zap, CalendarClock, ShoppingCart, Bot, Palette, LogOut, Users as UsersIcon, Star, Sun, Moon
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -21,7 +21,7 @@ import {
   SidebarSeparator,
   SidebarGroupLabel
 } from '@/components/ui/sidebar';
-import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
+import { CharisArtHubLogo } from '@/components/icons/CharisArtHubLogo';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,13 +29,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAppState } from '@/context/AppStateContext';
 import { MobileBottomNav } from './MobileBottomNav';
+import { useTheme } from "next-themes";
 
 const mainNavItems = [
   { href: "/", label: "Home Feed", icon: Home, tooltip: "Your Home Feed" },
   { href: "/explore", label: "Explore Content", icon: Compass, tooltip: "Explore Art & Creators" },
   { href: "/reels", label: "Reels", icon: Clapperboard, tooltip: "View Short Videos" },
   { href: "/messages", label: "Chat", icon: MessagesSquare, tooltip: "Your Chats" },
-  { href: "/communities", label: "Communities", icon: UsersIcon, tooltip: "Join Artist Groups" }, // Updated label
+  { href: "/communities", label: "Communities", icon: UsersIcon, tooltip: "Join Artist Groups" },
   { href: "/create", label: "Create New", icon: PlusSquare, tooltip: "Create New Content" },
 ];
 
@@ -43,7 +44,7 @@ const userSpecificNavItems = [
   { href: "/profile", label: "My Profile", icon: UserCircle, tooltip: "Your Profile Page" },
   { href: "/notifications", label: "My Activity", icon: Heart, tooltip: "Your Notifications" },
   { href: "/settings", label: "Settings", icon: Settings, tooltip: "App & Account Settings" },
-  { href: "/premium", label: "Get Premium", icon: Star, tooltip: "ARTISAN Premium Benefits" },
+  { href: "/premium", label: "Get Premium", icon: Star, tooltip: "Charis Art Hub Premium Benefits" },
 ];
 
 const artisanToolsNavItems = [
@@ -65,6 +66,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMobile = useIsMobile();
   const { isAuthenticated, showWelcome, logoutUser, currentUser } = useAppState();
+  const { theme, setTheme } = useTheme();
 
   if (showWelcome || pathname.startsWith('/auth/') || pathname.startsWith('/onboarding')) {
     return <>{children}</>;
@@ -73,7 +75,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const getPageTitle = () => {
     const allNavItems = [...mainNavItems, ...userSpecificNavItems, ...artisanToolsNavItems];
     const currentItem = allNavItems.find(item => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)));
-    return currentItem?.label || "Artisan";
+    return currentItem?.label || "Charis Art Hub";
   }
 
   return (
@@ -81,8 +83,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar variant="sidebar" side="left" className="border-r border-sidebar-border hidden md:flex">
         <SidebarHeader className="p-4">
           <Link href="/" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-            <ArtisanLogo className="h-8 w-8 text-sidebar-primary block group-data-[collapsible=expanded]:hidden" />
-            <span className="font-bold text-2xl text-sidebar-foreground hidden group-data-[collapsible=expanded]:block italic">Artisan</span>
+            <CharisArtHubLogo className="h-8 w-8 text-sidebar-primary block group-data-[collapsible=expanded]:hidden" />
+            <span className="font-bold text-2xl text-sidebar-foreground hidden group-data-[collapsible=expanded]:block italic">Charis Art Hub</span>
           </Link>
         </SidebarHeader>
         <SidebarContent asChild>
@@ -154,8 +156,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuLabel>User Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
-              <DropdownMenuItem>Your Activity Log</DropdownMenuItem>
-              <DropdownMenuItem>Saved Content</DropdownMenuItem>
+               <DropdownMenuLabel>Theme</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setTheme("light")}>
+                  <Sun className="mr-2 h-4 w-4" /> Light
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>
+                  <Moon className="mr-2 h-4 w-4" /> Dark
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("system")}>
+                  <Settings className="mr-2 h-4 w-4" /> System
+                </DropdownMenuItem>
               <DropdownMenuSeparator />
               {isAuthenticated ? (
                 <DropdownMenuItem onClick={logoutUser} className="text-destructive focus:bg-destructive/20 focus:text-destructive">
@@ -177,8 +188,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-4">
               {isMobile && <SidebarTrigger />} 
                <Link href="/" className="flex items-center gap-2 md:hidden"> 
-                 <ArtisanLogo className="h-7 w-7 text-primary" />
-                 <span className="font-semibold text-xl text-gradient-primary-accent">Artisan</span>
+                 <CharisArtHubLogo className="h-7 w-7 text-primary" />
+                 <span className="font-semibold text-xl text-gradient-primary-accent">Charis Art Hub</span>
                </Link>
                <h1 className="text-xl font-semibold text-gradient-primary-accent hidden md:block"> 
                 {getPageTitle()}
@@ -200,6 +211,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
 function UserMenu() {
   const { logoutUser, isAuthenticated, currentUser } = useAppState();
+  const { theme, setTheme } = useTheme();
   
   const userName = currentUser?.displayName || currentUser?.email?.split('@')[0] || "Artist";
   const userEmail = currentUser?.email || "No email";
@@ -231,6 +243,18 @@ function UserMenu() {
             <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href="/premium">Get Premium</Link></DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuLabel>Theme</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setTheme("light")}>
+              <Sun className="mr-2 h-4 w-4" /> Light
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("dark")}>
+              <Moon className="mr-2 h-4 w-4" /> Dark
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("system")}>
+              <Settings className="mr-2 h-4 w-4" /> System
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logoutUser} className="text-destructive focus:bg-destructive/20 focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4"/>Log out
             </DropdownMenuItem>
@@ -253,5 +277,3 @@ function UserMenu() {
     </DropdownMenu>
   );
 }
-
-    

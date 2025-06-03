@@ -15,7 +15,7 @@ interface ScheduledItem {
   id: string;
   title: string;
   type: "New Artwork" | "Process Update" | "Biome Announcement";
-  bloomId?: string; // Link to Crystalline Bloom
+  bloomId?: string; 
   scheduledDate: Date;
   status: "Scheduled" | "Published" | "Draft";
   thumbnailUrl: string;
@@ -36,7 +36,7 @@ export default function SchedulingPage() {
 
   const itemsForSelectedDate = selectedDate 
     ? scheduledItems.filter(item => format(item.scheduledDate, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd"))
-    : scheduledItems.sort((a,b) => a.scheduledDate.getTime() - b.scheduledDate.getTime()); // Show all sorted if no date selected
+    : scheduledItems.sort((a,b) => a.scheduledDate.getTime() - b.scheduledDate.getTime());
 
   return (
     <div className="space-y-8">
@@ -44,6 +44,7 @@ export default function SchedulingPage() {
         <CardHeader className="text-center">
           <CalendarClock className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Creative Bloom Cycles</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription>Schedule new artwork, process updates, or announcements. Pre-program when Crystalline Blooms visually emerge.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">

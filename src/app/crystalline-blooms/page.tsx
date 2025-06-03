@@ -5,12 +5,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowRight, Maximize2, Eye, Gem, Loader2, PlusCircle, FileText } from "lucide-react"; // Added FileText
+import { Maximize2, Eye, Gem, Loader2, PlusCircle, FileText } from "lucide-react"; 
 import Image from "next/image";
 import { Badge } from '@/components/ui/badge'; 
 import Link from 'next/link';
 import { useAppState } from '@/context/AppStateContext';
-import { getArtworksByUserId, type ArtworkData, type LayerData } from '@/actions/artworkActions'; // Added LayerData
+import { getArtworksByUserId, type ArtworkData, type LayerData } from '@/actions/artworkActions'; 
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -42,10 +42,11 @@ export default function CrystallineBloomsPage() {
   if (isLoadingAuth || isLoadingArtworks) {
     return (
       <div className="space-y-8">
-        <Card className="shadow-lg">
+        <Card className="shadow-lg card-interactive-hover">
           <CardHeader className="text-center">
             <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
-            <CardTitle className="text-3xl">My Artworks</CardTitle>
+            <CardTitle className="text-3xl text-gradient-primary-accent">My Artworks</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
             <CardDescription>Explore your collection of artworks, process videos, sketches, and multimedia creations.</CardDescription>
           </CardHeader>
         </Card>
@@ -60,10 +61,11 @@ export default function CrystallineBloomsPage() {
   if (!isAuthenticated) {
     return (
       <div className="space-y-8 text-center py-10">
-         <Card className="shadow-lg max-w-md mx-auto">
+         <Card className="shadow-lg max-w-md mx-auto card-interactive-hover">
           <CardHeader className="text-center">
             <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
-            <CardTitle className="text-3xl">My Artworks</CardTitle>
+            <CardTitle className="text-3xl text-gradient-primary-accent">My Artworks</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">Please log in to view and manage your artworks.</p>
@@ -83,6 +85,7 @@ export default function CrystallineBloomsPage() {
         <CardHeader className="text-center">
           <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">My Artworks</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription>Explore your collection of artworks, process videos, sketches, and multimedia creations.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">
@@ -150,7 +153,7 @@ export default function CrystallineBloomsPage() {
                   <DialogDescription>Type: {selectedBloom.type} {selectedBloom.createdAt && `| Created: ${formatDistanceToNow(selectedBloom.createdAt.toDate(), { addSuffix: true })}`}</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[70vh]">
-                  <div className="pr-6"> {/* Padding for scrollbar */}
+                  <div className="pr-6"> 
                     <div className="my-4 relative aspect-video rounded-md overflow-hidden bg-muted">
                       <Image 
                         src={selectedBloom.imageUrl || "https://placehold.co/800x450.png"} 
@@ -173,7 +176,6 @@ export default function CrystallineBloomsPage() {
                             {layer.type === 'text' && layer.content && (
                               <p className="text-sm text-foreground whitespace-pre-wrap">{layer.content}</p>
                             )}
-                            {/* Placeholder for other layer types like image, video, audio */}
                             {(layer.type === 'image' || layer.type === 'video' || layer.type === 'audio') && layer.url && (
                                <a href={layer.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
                                  View {layer.type} layer content
@@ -184,15 +186,6 @@ export default function CrystallineBloomsPage() {
                         ))}
                       </div>
                     )}
-                    
-                    {/* Example of how fullContentUrl was handled previously, can be removed or adapted for specific layer types if needed */}
-                    {/* {selectedBloom.fullContentUrl && ( 
-                      <Button asChild className="mt-4">
-                        <a href={selectedBloom.fullContentUrl} target="_blank" rel="noopener noreferrer">
-                          <Maximize2 className="mr-2 h-4 w-4" /> View Full Size
-                        </a>
-                      </Button>
-                    )} */}
                   </div>
                 </ScrollArea>
               </DialogContent>

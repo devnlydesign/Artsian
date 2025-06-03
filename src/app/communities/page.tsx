@@ -4,13 +4,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Users, Search, PlusCircle, MessageSquareHeart, Palette, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ import {
   getUserCommunityMemberships,
   type CommunityData
 } from '@/actions/communityActions';
+import { cn } from '@/lib/utils';
 
 const createCommunitySchema = z.object({
   name: z.string().min(3, "Community name must be at least 3 characters.").max(50, "Name too long."),
@@ -37,8 +38,8 @@ export default function CommunitiesPage() {
   const [communities, setCommunities] = useState<CommunityData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [isJoiningOrLeaving, setIsJoiningOrLeaving] = useState<string | null>(null); // Stores ID of community being actioned
-  const [userMemberships, setUserMemberships] = useState<string[]>([]); // Array of community IDs user is member of
+  const [isJoiningOrLeaving, setIsJoiningOrLeaving] = useState<string | null>(null);
+  const [userMemberships, setUserMemberships] = useState<string[]>([]); 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const { toast } = useToast();
@@ -100,7 +101,7 @@ export default function CommunitiesPage() {
         toast({ title: "Community Created!", description: `'${data.name}' is now live.` });
         form.reset();
         setIsCreateDialogOpen(false);
-        await fetchCommunitiesAndMemberships(); // Refresh list
+        await fetchCommunitiesAndMemberships(); 
       } else {
         toast({ title: "Creation Failed", description: result.message || "Could not create community.", variant: "destructive" });
       }
@@ -129,7 +130,7 @@ export default function CommunitiesPage() {
       }
 
       if (result.success) {
-        await fetchCommunitiesAndMemberships(); // Refresh list and memberships
+        await fetchCommunitiesAndMemberships(); 
       } else {
         toast({ title: "Action Failed", description: result.message || "Could not update membership.", variant: "destructive" });
       }
@@ -156,6 +157,7 @@ export default function CommunitiesPage() {
         <CardHeader className="text-center">
           <Users className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Communities</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription>Discover and join communities of artists. Share your passion, collaborate, and grow together.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
@@ -300,5 +302,3 @@ export default function CommunitiesPage() {
     </div>
   );
 }
-
-    

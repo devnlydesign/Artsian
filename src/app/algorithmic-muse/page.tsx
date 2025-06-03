@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react"; // Added useEffect
+import { useState, useEffect } from "react"; 
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,13 +11,13 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, Loader2, Sparkles, History, Brain } from "lucide-react"; // Added History, Brain
+import { Lightbulb, Loader2, Sparkles, History, Brain } from "lucide-react"; 
 import { generateMusePrompt, type GenerateMusePromptInput, type GenerateMusePromptOutput } from "@/ai/flows/algorithmic-muse-prompt";
-import { getMuseIdeasByUserId, type MuseIdeaData } from "@/actions/museIdeasActions"; // Added import
-import { useAppState } from "@/context/AppStateContext"; // Added import
-import { formatDistanceToNow } from 'date-fns'; // For formatting timestamps
-import { ScrollArea } from "@/components/ui/scroll-area"; // Added import
-import { Badge } from "@/components/ui/badge"; // Added import
+import { getMuseIdeasByUserId, type MuseIdeaData } from "@/actions/museIdeasActions"; 
+import { useAppState } from "@/context/AppStateContext"; 
+import { formatDistanceToNow } from 'date-fns'; 
+import { ScrollArea } from "@/components/ui/scroll-area"; 
+import { Badge } from "@/components/ui/badge"; 
 
 const formSchema = z.object({
   artistCreativeHistory: z.string().min(30, "Please describe your creative history (min 30 characters).").max(2000, "Creative history is too long (max 2000 characters)."),
@@ -75,7 +75,6 @@ export default function AlgorithmicMusePage() {
         title: "Idea Generated!",
         description: "Your AI Idea Sparker has delivered inspiration. It's also saved to your history.",
       });
-      // Refresh history
       if (currentUser?.uid) {
         const ideas = await getMuseIdeasByUserId(currentUser.uid);
         setPastIdeas(ideas);
@@ -98,6 +97,7 @@ export default function AlgorithmicMusePage() {
         <CardHeader className="text-center">
           <Lightbulb className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">AI Idea Sparker</CardTitle>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription className="text-md">Let AI help ignite your creativity. Share some context and get a unique idea prompt tailored to you.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -243,4 +243,3 @@ export default function AlgorithmicMusePage() {
     </div>
   );
 }
-

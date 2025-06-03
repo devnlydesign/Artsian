@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, Users, Lock, PlusCircle, Settings } from "lucide-react";
 import Image from "next/image";
 
-// Placeholder data for biomes
 const biomesData = [
   { id: "1", name: "Inner Circle", description: "A private space for patrons and close collaborators.", members: 12, access: "Paid Tier", privacy: "Invite-Only", dataAiHint: "exclusive community" },
   { id: "2", name: "Sketchbook Collective", description: "A space for sharing works-in-progress and getting feedback.", members: 45, access: "Free Tier", privacy: "Members-Only", dataAiHint: "collaborative art" },
@@ -14,10 +13,11 @@ const biomesData = [
 export default function BiomesPage() {
   return (
     <div className="space-y-8">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg card-interactive-hover">
         <CardHeader className="text-center">
           <ShieldCheck className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">My Private Spaces</CardTitle>
+          <CardTitle className="text-3xl text-gradient-primary-accent">My Private Spaces</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription>Manage your secure spaces. Control access, share exclusive content, and build your communities.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">

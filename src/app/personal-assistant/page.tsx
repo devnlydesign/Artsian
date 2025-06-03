@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input"; // Keep for potential future use, though not in current form
+import { Input } from "@/components/ui/input"; 
 import { useToast } from "@/hooks/use-toast";
 import { Bot, Loader2, Sparkles, HelpCircle } from "lucide-react";
 import { personalizeApp, type PersonalizeAppInput, type PersonalizeAppOutput } from "@/ai/flows/personalization-assistant-flow";
@@ -61,7 +61,8 @@ export default function PersonalAssistantPage() {
         <CardHeader className="text-center">
           <Bot className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Your Personal AI Assistant</CardTitle>
-          <CardDescription>Need help tailoring ARTISAN? Describe what you'd like to change, or how you're feeling, and I'll provide suggestions for app personalization!</CardDescription>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <CardDescription>Need help tailoring Charis Art Hub? Describe what you'd like to change, or how you're feeling, and I'll provide suggestions for app personalization!</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -71,7 +72,7 @@ export default function PersonalAssistantPage() {
                 name="userRequest"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>How can I help you personalize ARTISAN?</FormLabel>
+                    <FormLabel>How can I help you personalize Charis Art Hub?</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="e.g., 'I want a theme that feels calm and introspective', 'Suggest a layout for my profile page', 'I feel energetic, suggest a vibrant dark theme!'"

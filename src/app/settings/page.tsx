@@ -7,19 +7,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, UserCircle, Shield, Bell, Palette, HelpCircle, LogOut, Save, Loader2, UploadCloud, Image as ImageIcon } from "lucide-react"; // Added UploadCloud, ImageIcon
+import { DollarSign, UserCircle, Shield, Bell, Palette, HelpCircle, LogOut, Save, Loader2, UploadCloud, Image as ImageIcon, Sun, Moon, Settings as SettingsIcon } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useAppState } from '@/context/AppStateContext';
 import { saveUserProfile, getUserProfile, type UserProfileData } from '@/actions/userProfile';
 import { Textarea } from '@/components/ui/textarea';
-import NextImage from "next/image"; // Renamed to avoid conflict
+import NextImage from "next/image";
 import { storage } from '@/lib/firebase';
 import { ref as storageRefSdk, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"; // Added this line
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useTheme } from "next-themes";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 async function deleteFileFromFirebaseStorage(url: string | undefined | null): Promise<void> {
   if (!url || !url.startsWith('https://firebasestorage.googleapis.com/')) {
-    // Not a firebase storage URL or no URL, so nothing to delete
     return;
   }
   try {
@@ -39,6 +46,7 @@ async function deleteFileFromFirebaseStorage(url: string | undefined | null): Pr
 export default function SettingsPage() {
   const { toast } = useToast();
   const { currentUser, logoutUser } = useAppState();
+  const { theme, setTheme } = useTheme();
 
   const [profileData, setProfileData] = useState<Partial<UserProfileData>>({});
   const [isMonetizationEnabled, setIsMonetizationEnabled] = useState(false);
@@ -104,7 +112,7 @@ export default function SettingsPage() {
 
     try {
       if (profileImageFile) {
-        await deleteFileFromFirebaseStorage(profileData.photoURL); // Delete old one
+        await deleteFileFromFirebaseStorage(profileData.photoURL); 
         const profileFilePath = `users/${currentUser.uid}/profile_${Date.now()}_${profileImageFile.name}`;
         const profileFileRef = storageRefSdk(storage, profileFilePath);
         await uploadBytes(profileFileRef, profileImageFile);
@@ -113,7 +121,7 @@ export default function SettingsPage() {
       }
 
       if (bannerImageFile) {
-        await deleteFileFromFirebaseStorage(profileData.bannerURL); // Delete old one
+        await deleteFileFromFirebaseStorage(profileData.bannerURL); 
         const bannerFilePath = `users/${currentUser.uid}/banner_${Date.now()}_${bannerImageFile.name}`;
         const bannerFileRef = storageRefSdk(storage, bannerFilePath);
         await uploadBytes(bannerFileRef, bannerImageFile);
@@ -134,9 +142,8 @@ export default function SettingsPage() {
           title: "Settings Saved",
           description: "Your preferences have been updated.",
         });
-        setProfileImageFile(null); // Reset file states after successful save
+        setProfileImageFile(null); 
         setBannerImageFile(null);
-         // Re-fetch profile to ensure previews are updated if URL didn't change but content did (though unlikely with timestamp)
         const updatedData = await getUserProfile(currentUser.uid);
         if (updatedData) {
             setProfileData(updatedData);
@@ -173,10 +180,34 @@ export default function SettingsPage() {
     <div className="space-y-8 max-w-3xl mx-auto">
       <Card className="shadow-lg card-interactive-hover">
         <CardHeader>
-          <UserCircle className="h-10 w-10 text-primary mb-2" />
-          <CardTitle className="text-3xl">Account Settings</CardTitle>
-          <CardDescription>Manage your profile information, preferences, and platform settings.</CardDescription>
+          <SettingsIcon className="h-10 w-10 text-primary mb-2" />
+          <CardTitle className="text-3xl">Settings</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <CardDescription>Manage your profile information, preferences, and platform settings for Charis Art Hub.</CardDescription>
         </CardHeader>
+      </Card>
+
+      <Card className="card-interactive-hover">
+        <CardHeader>
+          <CardTitle className="text-xl flex items-center gap-2"><Palette className="h-5 w-5 text-primary"/> Appearance</CardTitle>
+          <CardDescription>Customize the look and feel of the application.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <Label htmlFor="theme">Theme</Label>
+            <Select value={theme} onValueChange={setTheme}>
+              <SelectTrigger id="theme" className="w-[180px]">
+                <SelectValue placeholder="Select theme" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light"><Sun className="inline-block mr-2 h-4 w-4"/>Light</SelectItem>
+                <SelectItem value="dark"><Moon className="inline-block mr-2 h-4 w-4"/>Dark</SelectItem>
+                <SelectItem value="system"><SettingsIcon className="inline-block mr-2 h-4 w-4"/>System</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Choose your preferred theme or let it follow your system settings.</p>
+          </div>
+        </CardContent>
       </Card>
 
       <Card className="card-interactive-hover">
@@ -185,7 +216,6 @@ export default function SettingsPage() {
           <CardDescription>Update your public profile details.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Profile Picture Upload */}
           <div className="space-y-2">
             <Label htmlFor="profilePicture">Profile Picture</Label>
             <div className="flex items-center gap-4">
@@ -209,7 +239,6 @@ export default function SettingsPage() {
             {profileImageFile && <p className="text-xs text-muted-foreground">New: {profileImageFile.name}</p>}
           </div>
 
-          {/* Banner Image Upload */}
           <div className="space-y-2">
             <Label htmlFor="bannerImage">Banner Image</Label>
             <div className="aspect-[16/5] w-full bg-muted rounded-md overflow-hidden relative group">
@@ -277,7 +306,7 @@ export default function SettingsPage() {
       <Card className="card-interactive-hover">
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2"><DollarSign className="text-green-500" /> Monetization</CardTitle>
-          <CardDescription>Manage how you earn with ARTISAN. (Currently a placeholder for future integration)</CardDescription>
+          <CardDescription>Manage how you earn with Charis Art Hub. (Currently a placeholder for future integration)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
@@ -301,7 +330,7 @@ export default function SettingsPage() {
                 <Label htmlFor="emailNotifications" className="flex flex-col space-y-1">
                     <span>Email Notifications</span>
                     <span className="font-normal leading-snug text-muted-foreground">
-                        Receive important updates, news, and special offers from ARTISAN at {currentUser?.email}.
+                        Receive important updates, news, and special offers from Charis Art Hub at {currentUser?.email}.
                     </span>
                 </Label>
                 <Switch id="emailNotifications" checked={emailNotifications} onCheckedChange={setEmailNotifications} disabled={isSaving}/>
@@ -322,7 +351,6 @@ export default function SettingsPage() {
         <CardHeader><CardTitle className="text-xl">More Options</CardTitle></CardHeader>
         <CardContent className="space-y-2">
             <Button variant="ghost" className="w-full justify-start" disabled><Shield className="mr-2 h-5 w-5"/> Security & Privacy (Coming Soon)</Button>
-            <Button variant="ghost" className="w-full justify-start" disabled><Palette className="mr-2 h-5 w-5"/> Appearance (Theme) (Coming Soon)</Button>
             <Button variant="ghost" className="w-full justify-start" disabled><HelpCircle className="mr-2 h-5 w-5"/> Help & Support (Coming Soon)</Button>
             <Button variant="ghost" onClick={logoutUser} className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10" disabled={isSaving}><LogOut className="mr-2 h-5 w-5"/> Log Out</Button>
         </CardContent>

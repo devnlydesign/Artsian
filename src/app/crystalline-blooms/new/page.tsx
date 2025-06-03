@@ -14,8 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/context/AppStateContext';
-import { createArtwork, type LayerData } from '@/actions/artworkActions'; // Added LayerData
-import { Gem, Loader2, PlusCircle, UploadCloud, FileText } from 'lucide-react'; // Added FileText
+import { createArtwork, type LayerData } from '@/actions/artworkActions'; 
+import { Gem, Loader2, PlusCircle, UploadCloud, FileText } from 'lucide-react'; 
 import NextImage from "next/image";
 import { storage } from '@/lib/firebase';
 import { ref as storageRefSdk, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -25,7 +25,7 @@ const artworkFormSchema = z.object({
   type: z.enum(["Artwork", "Process Chronicle", "Sketch", "Multimedia", "Other"]),
   description: z.string().min(10, "Description must be at least 10 characters.").max(1000, "Description is too long."),
   dataAiHint: z.string().min(2, "AI hint must be at least 2 characters.").max(50, "AI hint is too long (max 2 words recommended).").optional(),
-  primaryTextContent: z.string().max(5000, "Primary text content is too long.").optional().or(z.literal('')), // New field for text layer
+  primaryTextContent: z.string().max(5000, "Primary text content is too long.").optional().or(z.literal('')), 
 });
 
 type ArtworkFormValues = z.infer<typeof artworkFormSchema>;
@@ -74,30 +74,27 @@ export default function NewCrystallineBloomPage() {
     const newLayers: LayerData[] = [];
 
     try {
-      // 1. Upload cover image to Firebase Storage
       const artworkFilePath = `artworks/${currentUser.uid}/${Date.now()}_${artworkImageFile.name}`;
       const artworkFileRef = storageRefSdk(storage, artworkFilePath);
       await uploadBytes(artworkFileRef, artworkImageFile);
       uploadedImageUrl = await getDownloadURL(artworkFileRef);
       toast({ title: "Cover Image Uploaded", description: "Artwork cover image successfully uploaded." });
 
-      // 2. Prepare text layer if content exists
       if (data.primaryTextContent && data.primaryTextContent.trim() !== "") {
         newLayers.push({
-          id: `text-${Date.now()}`, // Simple unique ID for the layer
+          id: `text-${Date.now()}`, 
           type: "text",
           content: data.primaryTextContent,
           order: 1,
-          title: "Main Content" // Optional title for the text layer
+          title: "Main Content" 
         });
       }
 
-      // 3. Create artwork document in Firestore
       const artworkDetailsToSave = {
         title: data.title,
         type: data.type,
         description: data.description,
-        imageUrl: uploadedImageUrl, // Use the uploaded cover image URL
+        imageUrl: uploadedImageUrl, 
         dataAiHint: data.dataAiHint || data.title.toLowerCase().split(" ").slice(0,2).join(" ") || "abstract art",
         layers: newLayers,
       };
@@ -144,7 +141,8 @@ export default function NewCrystallineBloomPage() {
         <CardHeader className="text-center">
           <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Create New Artwork</CardTitle>
-          <CardDescription>Add a new piece to your ARTISAN collection. Fill in the details below.</CardDescription>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <CardDescription>Add a new piece to your Charis Art Hub collection. Fill in the details below.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

@@ -10,14 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
-import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
+import { CharisArtHubLogo } from '@/components/icons/CharisArtHubLogo';
 import { LogIn, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
-// No need to import useRouter explicitly if AppStateContext handles navigation
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(1, { message: "Password is required." }), // Firebase requires at least 6 chars for new passwords, but existing can be less if migrated
+  password: z.string().min(1, { message: "Password is required." }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -37,7 +36,6 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     await loginUser(data.email, data.password);
-    // Navigation is handled by AppStateContext after successful Firebase login (via onAuthStateChanged)
     setIsLoading(false);
   };
 
@@ -48,8 +46,8 @@ export default function LoginPage() {
       </Button>
       <Card className="w-full max-w-md shadow-2xl transition-shadow hover:shadow-primary/20">
         <CardHeader className="text-center">
-          <ArtisanLogo className="mx-auto h-16 w-16 text-primary mb-3" />
-          <CardTitle className="text-3xl font-bold text-gradient-primary-accent">Log In to ARTISAN</CardTitle>
+          <CharisArtHubLogo className="mx-auto h-16 w-16 text-primary mb-3" />
+          <CardTitle className="text-3xl font-bold text-gradient-primary-accent">Log In to Charis Art Hub</CardTitle>
           <CardDescription className="text-md text-muted-foreground mt-1">
             Welcome back! Access your creative dashboard.
           </CardDescription>
@@ -97,8 +95,7 @@ export default function LoginPage() {
           </p>
            <p className="mt-2 text-center text-xs text-muted-foreground">
             <Link href="#" className="hover:underline">
-              Forgot password? {/* Placeholder -
- Add actual forgot password flow later */}
+              Forgot password?
             </Link>
           </p>
         </CardContent>

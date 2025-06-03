@@ -1,14 +1,14 @@
 
-"use client"; // Required for useState, useEffect, and client-side actions
+"use client"; 
 
-import React, { useState } from 'react'; // Added useState
+import React, { useState } from 'react'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Sparkles, Star, TrendingUp, Zap, Gift, Rocket, Loader2 } from "lucide-react"; // Added Loader2
+import { CheckCircle, Sparkles, Star, TrendingUp, Zap, Gift, Rocket, Loader2 } from "lucide-react"; 
 import Link from "next/link";
-import { useAppState } from '@/context/AppStateContext'; // Added
-import { saveUserProfile } from '@/actions/userProfile'; // Added
-import { useToast } from '@/hooks/use-toast'; // Added
+import { useAppState } from '@/context/AppStateContext'; 
+import { saveUserProfile } from '@/actions/userProfile'; 
+import { useToast } from '@/hooks/use-toast'; 
 
 const basicFeatures = [
   "Create & Share Artworks (Crystalline Blooms)",
@@ -23,7 +23,7 @@ const premiumFeatures = [
   "Everything in Basic, plus:",
   "**Exclusive Premium Badge / Checkmark** on Profile",
   "**Unlimited links** on your profile",
-  "**Create a custom portfolio website** directly on ARTISAN",
+  "**Create a custom portfolio website** directly on Charis Art Hub",
   "**Enhanced Discovery & Visibility** (e.g., priority in Amplify Flux Pulse)",
   "**Create & Host Broadcasting Channels**",
   "Access to advanced AI tools & insights (e.g., deeper Energy Flow Patterns)",
@@ -48,7 +48,6 @@ export default function PremiumPage() {
       const result = await saveUserProfile(currentUser.uid, { isPremium: true });
       if (result.success) {
         toast({ title: "Mock Premium Activated!", description: "Premium features are now simulated for your account. Refresh profile to see changes." });
-        // Optionally, you could update the AppStateContext or re-fetch profile here if needed immediately
       } else {
         toast({ title: "Activation Failed", description: result.message || "Could not activate mock premium.", variant: "destructive" });
       }
@@ -65,8 +64,6 @@ export default function PremiumPage() {
       return;
     }
     setIsStartingTrial(true);
-    // In a real app, this would redirect to Stripe or a payment flow.
-    // For now, we can also just activate the mock premium status.
     try {
       const result = await saveUserProfile(currentUser.uid, { isPremium: true });
       if (result.success) {
@@ -87,7 +84,8 @@ export default function PremiumPage() {
       <Card className="shadow-lg card-interactive-hover text-center">
         <CardHeader>
           <Star className="mx-auto h-16 w-16 text-amber-400 mb-3 animate-pulse" />
-          <CardTitle className="text-4xl font-bold text-gradient-primary-accent">ARTISAN Premium</CardTitle>
+          <CardTitle className="text-4xl font-bold text-gradient-primary-accent">Charis Art Hub Premium</CardTitle>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription className="text-xl text-muted-foreground mt-2">
             Elevate your creative journey and unlock exclusive benefits.
           </CardDescription>
@@ -107,7 +105,7 @@ export default function PremiumPage() {
             {isStartingTrial ? <Loader2 className="mr-2 h-6 w-6 animate-spin"/> : <Gift className="mr-2 h-6 w-6"/>}
             {isStartingTrial ? "Starting Trial..." : "Start Your 3-Month Free Trial"}
           </Button>
-          <p className="text-xs text-muted-foreground mt-2">Then KMW200.00/month ZMW. Cancel anytime.</p>
+          <p className="text-xs text-muted-foreground mt-2">Then $9.99/month. Cancel anytime.</p>
         </CardContent>
       </Card>
 
@@ -138,8 +136,8 @@ export default function PremiumPage() {
             <CardTitle className="text-2xl flex items-center gap-2">
                 <Rocket className="h-7 w-7 text-primary"/>Premium Plan
             </CardTitle>
-            <CardDescription>Unlock the full power of ARTISAN.</CardDescription>
-            <p className="text-3xl font-bold text-primary pt-2">ZMW200.00 <span className="text-sm font-normal text-muted-foreground">/ month (after trial)</span></p>
+            <CardDescription>Unlock the full power of Charis Art Hub.</CardDescription>
+            <p className="text-3xl font-bold text-primary pt-2">$9.99 <span className="text-sm font-normal text-muted-foreground">/ month (after trial)</span></p>
           </CardHeader>
           <CardContent className="space-y-3">
             {premiumFeatures.map((feature, index) => (

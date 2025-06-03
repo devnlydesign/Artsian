@@ -13,16 +13,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { GitFork, Loader2, PlusCircle, Trash2, FileText, Image as ImageIcon, History, Brain } from "lucide-react";
 import { generateGenesisTrail, type GenerateGenesisTrailWithUserInput, type GenesisTrailInput, type GenesisTrailOutput } from "@/ai/flows/genesis-trail-generation";
-import { useAppState } from "@/context/AppStateContext"; // Added
-import { getGenesisTrailsByUserId, type GenesisTrailStorageData } from "@/actions/genesisTrailActions"; // Added
-import { ScrollArea } from "@/components/ui/scroll-area"; // Added
-import { formatDistanceToNow } from 'date-fns'; // Added
+import { useAppState } from "@/context/AppStateContext"; 
+import { getGenesisTrailsByUserId, type GenesisTrailStorageData } from "@/actions/genesisTrailActions"; 
+import { ScrollArea } from "@/components/ui/scroll-area"; 
+import { formatDistanceToNow } from 'date-fns'; 
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion" // Added
+} from "@/components/ui/accordion" 
 
 
 const creationEventSchema = z.object({
@@ -41,10 +41,10 @@ type GenesisTrailFormValues = z.infer<typeof formSchema>;
 export default function GenesisTrailsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedTrail, setGeneratedTrail] = useState<GenesisTrailOutput | null>(null);
-  const [pastTrails, setPastTrails] = useState<GenesisTrailStorageData[]>([]); // Added
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true); // Added
+  const [pastTrails, setPastTrails] = useState<GenesisTrailStorageData[]>([]); 
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true); 
   const { toast } = useToast();
-  const { currentUser, isAuthenticated, isLoadingAuth } = useAppState(); // Added
+  const { currentUser, isAuthenticated, isLoadingAuth } = useAppState(); 
 
   const form = useForm<GenesisTrailFormValues>({
     resolver: zodResolver(formSchema),
@@ -97,12 +97,11 @@ export default function GenesisTrailsPage() {
       };
 
       const result = await generateGenesisTrail(inputForFlow);
-      setGeneratedTrail(result); // Display the newly generated trail
+      setGeneratedTrail(result); 
       toast({
         title: "Project Story Generated!",
         description: "Your project's history is now visualized and saved.",
       });
-      // Refresh history
       if (currentUser?.uid) {
         const trails = await getGenesisTrailsByUserId(currentUser.uid);
         setPastTrails(trails);
@@ -155,6 +154,7 @@ export default function GenesisTrailsPage() {
         <CardHeader className="text-center">
           <GitFork className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Create Project Story</CardTitle>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription>Visualize the creation history of your projects. This will be saved to your account.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -344,4 +344,3 @@ export default function GenesisTrailsPage() {
     </div>
   );
 }
-

@@ -31,7 +31,7 @@ export default function AmplifyFluxPage() {
   const form = useForm<AmplifyFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      artistId: "artist-default-id", // Placeholder
+      artistId: "artist-default-id", 
       fluxSignatureId: "", 
       crystallineBloomId: "",
       promotionGoal: "",
@@ -66,6 +66,7 @@ export default function AmplifyFluxPage() {
         <CardHeader className="text-center">
           <Zap className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Boost Your Art</CardTitle>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription className="text-md">Get AI-powered tips to promote your art and reach a wider audience.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -87,7 +88,7 @@ export default function AmplifyFluxPage() {
               />
               <FormField
                 control={form.control}
-                name="fluxSignatureId" // This field now broadly represents the item to promote
+                name="fluxSignatureId" 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Artwork/Series ID to Promote</FormLabel>

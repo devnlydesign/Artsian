@@ -10,14 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
-import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
+import { CharisArtHubLogo } from '@/components/icons/CharisArtHubLogo';
 import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
-// No need for useRouter here, AppStateContext handles navigation
 
 const signupSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }), // Firebase default minimum
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -41,10 +40,7 @@ export default function SignupPage() {
 
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
-    const user = await signupUser(data.email, data.password);
-    // If user is created, onAuthStateChanged in AppStateContext will handle
-    // setting isAuthenticated and redirecting to /onboarding.
-    // If user is null, signupUser in context already showed a toast.
+    await signupUser(data.email, data.password);
     setIsLoading(false);
   };
 
@@ -55,10 +51,10 @@ export default function SignupPage() {
       </Button>
       <Card className="w-full max-w-md shadow-2xl transition-shadow hover:shadow-primary/20">
         <CardHeader className="text-center">
-          <ArtisanLogo className="mx-auto h-16 w-16 text-primary mb-3" />
+          <CharisArtHubLogo className="mx-auto h-16 w-16 text-primary mb-3" />
           <CardTitle className="text-3xl font-bold text-gradient-primary-accent">Create Account</CardTitle>
           <CardDescription className="text-md text-muted-foreground mt-1">
-            Join ARTISAN and unleash your creativity.
+            Join Charis Art Hub and unleash your creativity.
           </CardDescription>
         </CardHeader>
         <CardContent>

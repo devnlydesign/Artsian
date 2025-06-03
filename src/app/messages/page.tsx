@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessagesSquare, Send, Paperclip, Search } from "lucide-react";
 import { cn } from '@/lib/utils';
-import type { SVGProps } from 'react'; // Image not used, removed Image import
-import { Badge } from "@/components/ui/badge"; // Added import
+import type { SVGProps } from 'react'; 
+import { Badge } from "@/components/ui/badge"; 
 
 interface Message {
   id: string;
@@ -71,14 +71,14 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem-3.5rem)] flex flex-col"> {/* Adjust height based on header and padding */}
-      <Card className="flex-1 flex overflow-hidden shadow-lg transition-shadow hover:shadow-xl">
-        {/* Contacts List */}
+    <div className="h-[calc(100vh-var(--header-height,4rem)-3.5rem)] flex flex-col"> {/* Adjust height based on header and padding */}
+      <Card className="flex-1 flex overflow-hidden shadow-lg transition-shadow hover:shadow-xl card-interactive-hover">
         <div className="w-1/3 border-r border-border flex flex-col">
           <CardHeader className="p-4 border-b">
             <div className="flex items-center justify-between">
-                <CardTitle className="text-xl flex items-center gap-2"><MessagesSquare className="h-6 w-6 text-primary" /> Chats</CardTitle>
+                <CardTitle className="text-xl flex items-center gap-2"><MessagesSquare className="h-6 w-6 text-primary" /> Chat</CardTitle>
             </div>
+             <p className="text-xs text-muted-foreground mt-0.5">Created by Charis</p>
             <div className="relative mt-2">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search chats..." className="pl-8 h-9" />
@@ -113,7 +113,6 @@ export default function MessagesPage() {
           </ScrollArea>
         </div>
 
-        {/* Chat Area */}
         <div className="w-2/3 flex flex-col bg-background">
           {selectedContact ? (
             <>
@@ -125,7 +124,6 @@ export default function MessagesPage() {
                     </Avatar>
                     <CardTitle className="text-lg">{selectedContact.name}</CardTitle>
                 </div>
-                {/* Add more actions like video call, info etc. here */}
               </CardHeader>
               <ScrollArea className="flex-1 p-4 space-y-4 bg-background">
                 {messages.map((msg) => (
@@ -187,5 +185,3 @@ export default function MessagesPage() {
     </div>
   );
 }
-
-    

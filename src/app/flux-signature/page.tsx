@@ -40,7 +40,7 @@ export default function FluxSignaturePage() {
         setProfileData(data);
         setIsLoadingProfile(false);
       } else if (!isLoadingAuth) {
-        setIsLoadingProfile(false); // Not authenticated or auth check finished
+        setIsLoadingProfile(false); 
       }
     }
     if (!isLoadingAuth) {
@@ -55,7 +55,6 @@ export default function FluxSignaturePage() {
     const currentSignature = profileData.fluxSignature || { ...defaultFluxSignature };
     const currentEvolutionPoints = profileData.fluxEvolutionPoints || [...defaultEvolutionPoints];
 
-    // Example update: add a new keyword and a new evolution point
     const newKeywords = [...(currentSignature.keywords || []), `Update-${Math.floor(Math.random() * 100)}`];
     const newDominantColors = [...(currentSignature.dominantColors || []), `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`].slice(-4);
 
@@ -81,7 +80,6 @@ export default function FluxSignaturePage() {
 
     if (result.success) {
       toast({ title: "Signature Updated!", description: "Your Flux Signature has been mock updated." });
-      // Refresh profile data
       const data = await getUserProfile(currentUser.uid);
       setProfileData(data);
     } else {
@@ -126,6 +124,7 @@ export default function FluxSignaturePage() {
             <Palette className="h-10 w-10 md:h-12 md:w-12" />
             <div>
               <CardTitle className="text-3xl md:text-4xl">My Artistic Style</CardTitle>
+               <p className="text-xs text-primary-foreground/70 mt-0.5">Created by Charis</p>
               <CardDescription className="text-primary-foreground/80 text-md md:text-lg">A dynamic look at your unique creative fingerprint.</CardDescription>
             </div>
           </div>
@@ -206,7 +205,7 @@ export default function FluxSignaturePage() {
         <CardContent>
           {fluxEvolutionPoints.length > 0 ? (
             <ul className="space-y-4">
-              {fluxEvolutionPoints.slice().reverse().map((point, index) => ( // Display newest first
+              {fluxEvolutionPoints.slice().reverse().map((point, index) => ( 
                 <li key={index} className="border-l-2 border-primary pl-4 py-2 relative hover:bg-muted/30 rounded-r-md transition-colors">
                   <div className="absolute -left-[0.30rem] top-3.5 h-2.5 w-2.5 rounded-full bg-primary" />
                   <p className="font-semibold text-xs text-muted-foreground">{new Date(point.date).toLocaleDateString()}</p>
@@ -222,4 +221,3 @@ export default function FluxSignaturePage() {
     </div>
   );
 }
-

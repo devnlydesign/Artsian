@@ -1,8 +1,9 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChartBig, Zap, Users, TrendingUp, Percent } from "lucide-react";
+import { BarChartBig, Zap, Users, TrendingUp, Percent, ShieldCheck } from "lucide-react"; // Added ShieldCheck
 import Image from "next/image";
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'; // Renamed BarChart to RechartsBarChart
 
 const attentionData = [
   { source: 'Crystalline Blooms', attention: 45, fill: 'hsl(var(--chart-1))' },
@@ -34,16 +35,17 @@ const chartConfig = {
 export default function InsightsPage() {
   return (
     <div className="space-y-8">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg card-interactive-hover">
         <CardHeader className="text-center">
           <BarChartBig className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">Energy Flow Patterns</CardTitle>
+          <CardTitle className="text-3xl text-gradient-primary-accent">Energy Flow Patterns</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription>Analyze attention pooling and network growth velocity around your Flux Signature and Private Biomes.</CardDescription>
         </CardHeader>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="card-interactive-hover">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Zap className="h-5 w-5 text-accent" /> Attention Pooling</CardTitle>
             <CardDescription>Where your audience's attention is currently focused.</CardDescription>
@@ -65,26 +67,26 @@ export default function InsightsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-interactive-hover">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-accent" /> Network Growth Velocity</CardTitle>
             <CardDescription>How quickly your connected network is expanding.</CardDescription>
           </CardHeader>
           <CardContent>
              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <BarChart data={growthData} accessibilityLayer>
+              <RechartsBarChart data={growthData} accessibilityLayer>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
                 <YAxis />
                 <ChartTooltip content={<ChartTooltipContent indicator="dashed" />} />
                 <Bar dataKey="growth" fill="var(--color-growth)" radius={4} />
-              </BarChart>
+              </RechartsBarChart>
             </ChartContainer>
           </CardContent>
         </Card>
       </div>
       
-      <Card>
+      <Card className="card-interactive-hover">
         <CardHeader>
             <CardTitle>Key Metrics</CardTitle>
         </CardHeader>
@@ -112,7 +114,7 @@ export default function InsightsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="card-interactive-hover">
         <CardHeader>
           <CardTitle>Detailed Energy Flow Visualization</CardTitle>
           <CardDescription>An interactive map showing connections and energy intensity.</CardDescription>

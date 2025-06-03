@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview An AI assistant to help users personalize the ARTISAN app.
+ * @fileOverview An AI assistant to help users personalize the Charis Art Hub app.
  *
  * - personalizeApp - A function that takes a user's request and returns personalization suggestions.
  * - PersonalizeAppInput - The input type for the personalizeApp function.
@@ -37,13 +37,14 @@ const personalizationPrompt = ai.definePrompt({
   name: 'personalizationAssistantPrompt',
   input: {schema: PersonalizeAppInputSchema},
   output: {schema: PersonalizeAppOutputSchema},
-  prompt: `You are a friendly and highly skilled AI assistant integrated within the ARTISAN application. ARTISAN is a creative platform built with Next.js, React, ShadCN UI components, Tailwind CSS, and Genkit for AI features. The app is currently in dark mode by default.
+  prompt: `You are a friendly and highly skilled AI assistant integrated within the Charis Art Hub application. Charis Art Hub is a creative platform built with Next.js, React, ShadCN UI components, Tailwind CSS, and Genkit for AI features. The app can adapt to system theme (light/dark) and users can set a preference.
 
-Your role is to help the user personalize their experience with the ARTISAN app.
+Your role is to help the user personalize their experience with the Charis Art Hub app.
 Based on the user's request, provide actionable suggestions.
 
 If the user describes a mood or feeling and asks for a theme change, translate that into a color palette and suggest specific HSL CSS variable changes for 'src/app/globals.css'.
-Focus on the dark theme variables within the '.dark {}' selector. The key variables are:
+You should suggest changes for BOTH the light theme (variables directly under ':root {}') AND the dark theme (variables within the '.dark {}' selector).
+The key variables are:
 --background: HSL value (e.g., 220 20% 7%)
 --foreground: HSL value (e.g., 220 15% 88%)
 --card: HSL value (e.g., 220 20% 10%)
@@ -57,17 +58,27 @@ Focus on the dark theme variables within the '.dark {}' selector. The key variab
 
 User's Request: {{{userRequest}}}
 
-Provide your suggestions in a clear, concise, and helpful manner. Present CSS variable changes clearly.
+Provide your suggestions in a clear, concise, and helpful manner. Present CSS variable changes clearly for both :root and .dark selectors.
 For example, if the user says "I'm feeling creative and energetic and want a theme that reflects that, with purples and bright blues":
-"To achieve an energetic theme with purples and bright blues for your dark mode, you could try these HSL values in your 'src/app/globals.css' within the '.dark {}' block:
+"To achieve an energetic theme with purples and bright blues, you could try these HSL values in your 'src/app/globals.css':
+
+For Light Mode (within :root { ... }):
+:root {
+  --background: 250 60% 97%; /* Very Light Lavender */
+  --foreground: 260 40% 20%; /* Deep Indigo Text */
+  --primary: 220 90% 55%;   /* Vibrant Blue */
+  --accent: 280 90% 60%;    /* Electric Purple */
+  /* ... other light mode variables ... */
+}
+
+For Dark Mode (within .dark { ... }):
 .dark {
-  --background: 260 30% 8%; /* Deep Indigo */
-  --foreground: 250 50% 90%; /* Light Lavender */
+  --background: 260 30% 8%; /* Deep Indigo Background */
+  --foreground: 250 50% 90%; /* Light Lavender Text */
   --card: 260 30% 12%;
   --primary: 220 90% 60%;   /* Vibrant Blue */
   --accent: 280 90% 65%;    /* Electric Purple */
-  --secondary: 260 20% 25%;
-  /* ... other variables can be adjusted to complement ... */
+  /* ... other dark mode variables ... */
 }
 Remember to review all HSL variables for consistency. You (or another AI assistant) can make these changes by editing the 'src/app/globals.css' file."
 
@@ -79,7 +90,7 @@ If the user asks for "ideas for a futuristic art style", you could suggest:
 Consider using metallic textures, glowing lines, and a cool color palette (like blues and purples) with vibrant highlights (like electric pink or lime green)."
 
 Be specific and actionable. The user is looking for concrete advice.
-Focus on providing guidance for customizing THIS specific ARTISAN app.
+Focus on providing guidance for customizing THIS specific Charis Art Hub app.
 `,
 });
 

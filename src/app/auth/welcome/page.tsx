@@ -5,7 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArtisanLogo } from '@/components/icons/ArtisanLogo';
+import { CharisArtHubLogo } from '@/components/icons/CharisArtHubLogo';
 import { ArrowRight, LogIn, UserPlus, Compass } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
 import { useRouter } from 'next/navigation';
@@ -16,7 +16,7 @@ export default function WelcomePage() {
   const router = useRouter();
 
   const handleExplore = () => {
-    setShowWelcome(false); // Ensure welcome doesn't re-appear if they navigate back
+    setShowWelcome(false); 
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('hasSeenWelcome', 'true');
     }
@@ -35,8 +35,8 @@ export default function WelcomePage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
-          <ArtisanLogo className="mx-auto h-20 w-20 text-primary mb-4" />
-          <CardTitle className="text-4xl font-bold">Welcome to ARTISAN</CardTitle>
+          <CharisArtHubLogo className="mx-auto h-20 w-20 text-primary mb-4" />
+          <CardTitle className="text-4xl font-bold">Welcome to Charis Art Hub</CardTitle>
           <CardDescription className="text-lg text-muted-foreground mt-2">
             Your dynamic platform for creative expression and connection.
           </CardDescription>

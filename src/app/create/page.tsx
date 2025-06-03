@@ -1,13 +1,13 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusSquare, UploadCloud, Sparkles, PenTool, Music, Film, Gem } from "lucide-react"; // Added Gem
+import { PlusSquare, UploadCloud, Sparkles, PenTool, Music, Film, Gem } from "lucide-react"; 
 import Link from "next/link";
 
 const creationOptions = [
-  { title: "New Artwork", description: "Upload or create a new artwork, sketch, or multimedia piece.", icon: Gem, href: "/crystalline-blooms/new", dataAiHint: "gemstone sparkle" }, // Updated title and icon
-  { title: "Start Project Story", description: "Document the creation process of a new project.", icon: PenTool, href: "/genesis-trails/new", dataAiHint: "drawing hand" }, // Updated title
-  { title: "Generate Creative Soundtrack", description: "Create ambient audio from your work session data.", icon: Music, href: "/process-symphony", dataAiHint: "sound wave abstract" }, // Updated title
+  { title: "New Artwork", description: "Upload or create a new artwork, sketch, or multimedia piece.", icon: Gem, href: "/crystalline-blooms/new", dataAiHint: "gemstone sparkle" }, 
+  { title: "Start Project Story", description: "Document the creation process of a new project.", icon: PenTool, href: "/genesis-trails/new", dataAiHint: "drawing hand" }, 
+  { title: "Generate Creative Soundtrack", description: "Create ambient audio from your work session data.", icon: Music, href: "/process-symphony", dataAiHint: "sound wave abstract" }, 
   { title: "Post a Reel", description: "Share a short video update or insight.", icon: Film, href: "/reels/new", dataAiHint: "video play button" },
   { title: "Write a Post", description: "Share an update, thought, or announcement to your feed.", icon: PlusSquare, href: "/posts/new", dataAiHint: "text document" },
 ];
@@ -19,7 +19,8 @@ export default function CreatePage() {
         <CardHeader className="text-center">
           <PlusSquare className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Create New Content</CardTitle>
-          <CardDescription>What would you like to bring into existence on ARTISAN today?</CardDescription>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <CardDescription>What would you like to bring into existence on Charis Art Hub today?</CardDescription>
         </CardHeader>
       </Card>
 

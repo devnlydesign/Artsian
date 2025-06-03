@@ -18,16 +18,16 @@ interface ShopItem {
   id: string;
   name: string;
   description: string;
-  price: number; // Price in dollars
+  price: number; 
   imageUrl: string;
-  category: string; // e.g., "Prints", "Original Artwork", "Merchandise"
-  bloomLink?: string; // Link to a Crystalline Bloom
+  category: string; 
+  bloomLink?: string; 
   dataAiHint: string;
 }
 
 const shopItems: ShopItem[] = [
   { id: "s1", name: "Cosmic Dance - Limited Edition Print", description: "High-quality giclée print of the 'Cosmic Dance' artwork. Limited to 50 editions, signed and numbered.", price: 150, imageUrl: "https://placehold.co/400x400.png", category: "Prints", bloomLink: "/crystalline-blooms/1", dataAiHint: "galaxy art print" },
-  { id: "s2", name: "ARTISAN Signature Tee", description: "Comfortable organic cotton t-shirt with an abstract Flux Signature design. Available in S, M, L, XL.", price: 35, imageUrl: "https://placehold.co/400x400.png", category: "Merchandise", dataAiHint: "violet abstract tshirt" },
+  { id: "s2", name: "Charis Art Hub Signature Tee", description: "Comfortable organic cotton t-shirt with an abstract Flux Signature design. Available in S, M, L, XL.", price: 35, imageUrl: "https://placehold.co/400x400.png", category: "Merchandise", dataAiHint: "violet abstract tshirt" },
   { id: "s3", name: "Ephemeral Streams - Interactive License", description: "License to use the 'Ephemeral Streams' multimedia piece for personal non-commercial projects.", price: 75, imageUrl: "https://placehold.co/400x400.png", category: "Digital Goods", bloomLink: "/crystalline-blooms/4", dataAiHint: "software digital license" },
   { id: "s4", name: "Original Sketch: Cyber Flora Study", description: "One-of-a-kind original pencil sketch from the 'Cybernetic Flora' series. Framed.", price: 450, imageUrl: "https://placehold.co/400x400.png", category: "Original Artwork", bloomLink: "/crystalline-blooms/3", dataAiHint: "framed pencil sketch" },
 ];
@@ -49,8 +49,8 @@ export default function ShopPage() {
       const response = await createCheckoutSession({
         itemName: item.name,
         itemDescription: item.description,
-        itemImage: item.imageUrl, // Ensure this is an absolute URL or one Stripe can access
-        itemPriceInCents: Math.round(item.price * 100), // Convert dollars to cents
+        itemImage: item.imageUrl, 
+        itemPriceInCents: Math.round(item.price * 100), 
         quantity: 1,
         itemId: item.id,
       });
@@ -84,6 +84,7 @@ export default function ShopPage() {
         <CardHeader className="text-center">
           <ShoppingCart className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Artist Shop</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
           <CardDescription>Acquire prints, original works, merchandise, and digital goods directly from the artist. Look for the 'Material Origin Link' on Artworks.</CardDescription>
         </CardHeader>
       </Card>

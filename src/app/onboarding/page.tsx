@@ -70,7 +70,7 @@ const onboardingSteps: OnboardingStep[] = [
   {
     id: 5,
     title: "Stay Updated!",
-    description: "Get the latest news, tips, and community highlights from ARTISAN.",
+    description: "Get the latest news, tips, and community highlights from Charis Art Hub.",
     icon: Mail,
     isFinalStep: true,
   }
@@ -131,7 +131,7 @@ export default function OnboardingPage() {
         website: formData.website || "",
         socialMedia: formData.socialMedia || "",
         emailOptIn: formData.emailOptIn ?? false,
-        isPremium: false, // Default to false on initial onboarding
+        isPremium: false, 
       };
       
       const result = await saveUserProfile(currentUser.uid, profileDataToSave);
@@ -139,7 +139,7 @@ export default function OnboardingPage() {
       if (result.success) {
         toast({
           title: "Onboarding Complete!",
-          description: "Welcome to ARTISAN! You're all set to explore.",
+          description: "Welcome to Charis Art Hub! You're all set to explore.",
         });
         router.push('/');
       } else {
@@ -195,7 +195,7 @@ export default function OnboardingPage() {
                 {stepData?.description}
                 </CardDescription>
             </div>
-            <div className={currentStep === 1 ? "w-[88px]" : "w-[88px]"}> {/* Placeholder */}
+            <div className={currentStep === 1 ? "w-[88px]" : "w-[88px]"}> 
             </div>
           </div>
           <Progress value={(currentStep / totalSteps) * 100} className="w-full mt-4" />
@@ -246,7 +246,7 @@ export default function OnboardingPage() {
                         htmlFor="emailOptIn"
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                        Yes, I'd like to receive email updates, news, and special offers from ARTISAN.
+                        Yes, I'd like to receive email updates, news, and special offers from Charis Art Hub.
                         </label>
                         <p className="text-xs text-muted-foreground">
                         Emails will be sent from devnlydesign@gmail.com. You can unsubscribe at any time.

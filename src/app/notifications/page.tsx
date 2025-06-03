@@ -31,14 +31,14 @@ const getIconForType = (type: NotificationItem["type"]) => {
 };
 
 export default function NotificationsPage() {
-  // In a real app, you'd manage read state and potentially fetch new notifications
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
-      <Card className="shadow-lg transition-shadow hover:shadow-xl">
+      <Card className="shadow-lg transition-shadow hover:shadow-xl card-interactive-hover">
         <CardHeader className="text-center">
           <Bell className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle className="text-3xl">Notifications</CardTitle>
-          <CardDescription>Stay updated with the latest activity related to your ARTISAN presence.</CardDescription>
+          <CardTitle className="text-3xl text-gradient-primary-accent">Notifications</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <CardDescription>Stay updated with the latest activity related to your Charis Art Hub presence.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-end p-4 border-t">
             <Button variant="outline" size="sm">
