@@ -8,13 +8,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Users, Search, PlusCircle, MessageSquareHeart, Palette, Loader2 } from "lucide-react";
+import { Users, Search, PlusCircle, MessageSquareHeart, Palette, Loader2, ArrowRight } from "lucide-react"; // Added ArrowRight
 import Image from "next/image";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAppState } from '@/context/AppStateContext';
+import Link from 'next/link'; // Import Next.js Link
 import { 
   createCommunity, 
   getAllPublicCommunities, 
@@ -251,39 +252,45 @@ export default function CommunitiesPage() {
               const isMember = userMemberships.includes(community.id);
               return (
                 <Card key={community.id} className="card-interactive-hover group flex flex-col">
-                  <CardHeader className="p-0">
-                    <div className="relative aspect-[16/9] rounded-t-lg overflow-hidden">
-                        <Image 
-                            src={community.imageUrl || "https://placehold.co/400x200.png"} 
-                            alt={community.name} 
-                            layout="fill" 
-                            objectFit="cover"
-                            data-ai-hint={community.dataAiHint || community.name.toLowerCase().split(" ").slice(0,2).join(" ") || "community group"}
-                            className="transition-transform duration-300 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 flex-1">
-                    <CardTitle className="text-xl mb-1 group-hover:text-primary transition-colors">{community.name}</CardTitle>
-                    <CardDescription className="text-sm line-clamp-3 h-16">{community.description}</CardDescription>
-                     <p className="text-xs text-muted-foreground mt-1">Created by: {community.creatorName}</p>
-                  </CardContent>
+                  <Link href={`/communities/${community.id}`} legacyBehavior passHref>
+                    <a className="flex flex-col flex-1 cursor-pointer">
+                      <CardHeader className="p-0">
+                        <div className="relative aspect-[16/9] rounded-t-lg overflow-hidden">
+                            <Image 
+                                src={community.imageUrl || "https://placehold.co/400x200.png"} 
+                                alt={community.name} 
+                                layout="fill" 
+                                objectFit="cover"
+                                data-ai-hint={community.dataAiHint || community.name.toLowerCase().split(" ").slice(0,2).join(" ") || "community group"}
+                                className="transition-transform duration-300 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 flex-1">
+                        <CardTitle className="text-xl mb-1 group-hover:text-primary transition-colors">{community.name}</CardTitle>
+                        <CardDescription className="text-sm line-clamp-3 h-16">{community.description}</CardDescription>
+                        <p className="text-xs text-muted-foreground mt-1">Created by: {community.creatorName}</p>
+                      </CardContent>
+                    </a>
+                  </Link>
                   <CardFooter className="p-4 border-t flex justify-between items-center">
                     <div className="text-sm text-muted-foreground flex items-center">
                         <Users className="mr-1.5 h-4 w-4 text-primary" /> {community.memberCount || 0} members
                     </div>
-                    {isAuthenticated && (
+                    {isAuthenticated ? (
                     <Button 
                         variant={isMember ? "outline" : "default"} 
                         size="sm" 
-                        className={cn("group-hover:bg-accent group-hover:text-accent-foreground transition-colors", isMember && "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive")}
+                        className={cn("transition-colors", isMember ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : "group-hover:bg-accent group-hover:text-accent-foreground")}
                         onClick={() => handleJoinLeave(community.id, community.name, isMember)}
                         disabled={isJoiningOrLeaving === community.id}
                     >
-                      {isJoiningOrLeaving === community.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      {isJoiningOrLeaving === community.id ? (isMember ? 'Leaving...' : 'Joining...') : (isMember ? 'Leave' : 'Join Community')}
+                      {isJoiningOrLeaving === community.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isMember ? null : <ArrowRight className="mr-2 h-4 w-4"/>)}
+                      {isJoiningOrLeaving === community.id ? (isMember ? 'Leaving...' : 'Joining...') : (isMember ? 'Leave' : 'Join')}
                     </Button>
+                    ) : (
+                      <Button asChild size="sm"><Link href="/auth/login">Join</Link></Button>
                     )}
                   </CardFooter>
                 </Card>
@@ -302,3 +309,5 @@ export default function CommunitiesPage() {
     </div>
   );
 }
+
+    
