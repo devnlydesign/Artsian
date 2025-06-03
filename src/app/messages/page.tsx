@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessagesSquare, Send, Paperclip, Search } from "lucide-react";
 import { cn } from '@/lib/utils';
 import type { SVGProps } from 'react'; // Image not used, removed Image import
+import { Badge } from "@/components/ui/badge"; // Added import
 
 interface Message {
   id: string;
