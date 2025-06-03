@@ -1,104 +1,140 @@
 
-"use client"; // Added "use client" directive
+"use client";
 
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Compass, Search, Users } from "lucide-react"; // Removed ImageIcon, Palette as they are not used directly here
-import NextImage from "next/image"; 
+import { Compass, Search, Users, Palette, Sparkles, Loader2 } from "lucide-react";
+import NextImage from "next/image";
 import Link from "next/link";
+import { getPublicFluxSignatures, type StratosphereItemData } from '@/actions/stratosphereActions';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
-// Placeholder data for explore content
-const exploreItems = [
-  { id: "e1", type: "image", src: "https://placehold.co/400x400.png", alt: "Abstract digital art", dataAiHint: "abstract digital art" },
-  { id: "e2", type: "image", src: "https://placehold.co/400x600.png", alt: "Surreal landscape photography", dataAiHint: "surreal landscape" },
-  { id: "e3", type: "video", src: "https://placehold.co/400x400.png", alt: "Generative art loop", dataAiHint: "generative art loop" },
-  { id: "e4", type: "image", src: "https://placehold.co/600x400.png", alt: "Detailed character illustration", dataAiHint: "character illustration" },
-  { id: "e5", type: "image", src: "https://placehold.co/400x400.png", alt: "Minimalist sculpture", dataAiHint: "minimalist sculpture" },
-  { id: "e6", type: "image", src: "https://placehold.co/400x500.png", alt: "Vibrant street art", dataAiHint: "street art vibrant" },
-  { id: "e7", type: "image", src: "https://placehold.co/500x400.png", alt: "Concept art environment", dataAiHint: "concept art environment" },
-  { id: "e8", type: "video", src: "https://placehold.co/400x400.png", alt: "Art process timelapse", dataAiHint: "art timelapse video" },
-  { id: "e9", type: "image", src: "https://placehold.co/400x400.png", alt: "Artisan community highlight", dataAiHint: "community event photo" },
-  { id: "e10", type: "image", src: "https://placehold.co/400x300.png", alt: "Featured new artist", dataAiHint: "new artist spotlight" },
-  { id: "e11", type: "image", src: "https://placehold.co/300x400.png", alt: "Trending art style", dataAiHint: "trending art style" },
-  { id: "e12", type: "image", src: "https://placehold.co/400x400.png", alt: "AI generated artwork", dataAiHint: "ai generated art" },
-];
+export default function CreativeStratospherePage() {
+  const [stratosphereItems, setStratosphereItems] = useState<StratosphereItemData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-export default function ExplorePage() { // Renamed from CreativeStratospherePage
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      const items = await getPublicFluxSignatures();
+      setStratosphereItems(items);
+      setIsLoading(false);
+    }
+    fetchData();
+  }, []);
+
   return (
     <div className="space-y-8">
       <Card className="shadow-lg card-interactive-hover sticky top-[calc(var(--header-height,4rem)+1rem)] z-10 bg-background/80 backdrop-blur-md">
         <CardHeader className="pb-4">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-1">
             <Compass className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl">Explore Art & Creators</CardTitle>
+            <CardTitle className="text-3xl text-gradient-primary-accent">Creative Stratosphere</CardTitle>
           </div>
-          <CardDescription>Discover new artworks, talented artists, and vibrant communities on ARTISAN.</CardDescription>
+          <p className="text-xs text-muted-foreground ml-10">Created by Charis</p>
+          <CardDescription className="ml-10 mt-1">Discover the vibrant pulse of Charis Art Hub. Explore active Flux Signatures and trending creative energies.</CardDescription>
         </CardHeader>
         <CardContent>
            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input type="search" placeholder="Search for art, artists, styles, or communities..." className="pl-10 h-11" />
+              <Input type="search" placeholder="Search the Stratosphere (artists, styles...)" className="pl-10 h-11" />
             </div>
         </CardContent>
       </Card>
 
-      <div className="masonry-grid">
-        {exploreItems.map((item) => (
-          <div key={item.id} className="masonry-item mb-4 card-interactive-hover rounded-lg overflow-hidden shadow-md">
-            <NextImage 
-              src={item.src} 
-              alt={item.alt} 
-              width={400} // Base width, aspect ratio will determine height
-              height={item.id === 'e2' ? 600 : item.id === 'e4' ? 267 : item.id === 'e6' ? 500 : item.id === 'e7' ? 300 : item.id === 'e10' ? 300 : item.id === 'e11' ? 533 : 400} // Varied heights for masonry
-              className="object-cover w-full h-auto" 
-              data-ai-hint={item.dataAiHint}
-            />
-          </div>
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center min-h-[300px]">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4 text-muted-foreground">Loading the Stratosphere...</p>
+        </div>
+      ) : stratosphereItems.length === 0 ? (
+        <Card className="text-center py-10 card-interactive-hover">
+            <Palette className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+            <CardTitle className="text-xl">The Stratosphere is Quiet</CardTitle>
+            <CardDescription className="mt-2">No public Flux Signatures found at the moment. Be the first to shine!</CardDescription>
+        </Card>
+      ) : (
+        <div className="masonry-grid">
+          {stratosphereItems.map((item) => (
+            <Link key={item.userId} href={`/profile/${item.userId}`} legacyBehavior passHref>
+              <a className="masonry-item mb-4 block card-interactive-hover rounded-lg overflow-hidden shadow-md group">
+                <Card className="h-full flex flex-col">
+                  <div className="relative w-full aspect-[16/9] bg-muted">
+                    <NextImage
+                      src={item.fluxSignature.visualRepresentation || "https://placehold.co/800x400.png"}
+                      alt={`${item.fullName || item.username}'s Flux Signature Visual`}
+                      layout="fill"
+                      objectFit="cover"
+                      data-ai-hint={item.fluxSignature.dataAiHintVisual || "abstract art"}
+                      className="transition-transform duration-300 group-hover:scale-105"
+                    />
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  </div>
+                  <CardContent className="p-3 flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={item.photoURL} alt={item.fullName || item.username} data-ai-hint="artist avatar" />
+                        <AvatarFallback>{(item.fullName || item.username || "A").substring(0,1).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{item.fullName || item.username}</p>
+                        {item.username && <p className="text-xs text-muted-foreground truncate">@{item.username}</p>}
+                      </div>
+                    </div>
+                    {item.fluxSignature.keywords && item.fluxSignature.keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {item.fluxSignature.keywords.slice(0,3).map(keyword => (
+                          <Badge key={keyword} variant="secondary" className="text-xs">{keyword}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.fluxSignature.style || "Evolving Artist"}</p>
+                  </CardContent>
+                </Card>
+              </a>
+            </Link>
+          ))}
+        </div>
+      )}
       <style jsx global>{`
         .masonry-grid {
-          column-count: 2; /* default for small screens */
+          column-count: 1; 
           column-gap: 1rem;
         }
         .masonry-item {
           break-inside: avoid;
         }
-        @media (min-width: 640px) { /* sm */
+        @media (min-width: 640px) { 
+          .masonry-grid {
+            column-count: 2;
+          }
+        }
+        @media (min-width: 1024px) { 
           .masonry-grid {
             column-count: 3;
           }
         }
-        @media (min-width: 1024px) { /* lg */
+         @media (min-width: 1280px) { 
           .masonry-grid {
             column-count: 4;
-          }
-        }
-         @media (min-width: 1280px) { /* xl */
-          .masonry-grid {
-            column-count: 5;
           }
         }
       `}</style>
 
       <Card className="card-interactive-hover">
         <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Users className="text-accent"/> Explore Communities</CardTitle>
-            <CardDescription>Find your tribe. Connect with artists sharing your interests.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Sparkles className="text-accent"/> Trending Creative Storms</CardTitle>
+            <CardDescription>Hotspots of creative energy and collaboration. (Feature coming soon)</CardDescription>
         </CardHeader>
-        <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {["Digital Artists United", "Painters' Hub", "AI Art Explorers", "Sculpture Network"].map(name => (
-                    <Button key={name} variant="secondary" className="h-auto py-3 transition-transform hover:scale-105" asChild>
-                        <Link href="/communities">{name}</Link>
-                    </Button>
-                ))}
-            </div>
+        <CardContent className="text-center text-muted-foreground py-8">
+            <p>This section will highlight trending themes, artists, and collaborations based on platform activity.</p>
         </CardContent>
          <CardFooter>
-            <Button variant="outline" className="w-full" asChild>
-                <Link href="/communities">View All Communities <Compass className="ml-2 h-4 w-4"/></Link>
+            <Button variant="outline" className="w-full" disabled>
+                View All Creative Storms <Compass className="ml-2 h-4 w-4"/>
             </Button>
         </CardFooter>
       </Card>

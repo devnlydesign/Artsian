@@ -1,3 +1,4 @@
+
 // 'use server'
 'use server';
 /**
@@ -23,7 +24,7 @@ const ProcessSymphonyOutputSchema = z.object({
   audioTrackDataUri: z
     .string()
     .describe(
-      'The generated ambient audio track as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.' 
+      'The generated ambient audio track as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.'
     ),
 });
 export type ProcessSymphonyOutput = z.infer<typeof ProcessSymphonyOutputSchema>;
@@ -75,21 +76,25 @@ const processSymphonyFlow = ai.defineFlow(
     outputSchema: ProcessSymphonyOutputSchema,
   },
   async input => {
-    // TODO: Implement audio generation logic here.
-    // For now, return a dummy data URI.
-    // In the future, this should call an audio generation service.
+    // CLARIFICATION: The current model ('googleai/gemini-2.0-flash-exp' with 'IMAGE' modality)
+    // is designed for image generation. It will return an IMAGE data URI, not actual audio.
+    // For true audio generation based on these parameters, integration with a dedicated
+    // audio synthesis API or a parameter-driven music generation service would be required.
+    // The frontend page attempts to play this in an <audio> tag, which will likely fail for an image URI.
 
+    // The prompt guides the model to *describe* an audio track.
+    // The `ai.generate` call below will execute this prompt using the image generation model.
     const {media} = await ai.generate({
-      // IMPORTANT: ONLY the googleai/gemini-2.0-flash-exp model is able to generate images. You MUST use exactly this model to generate images.
       model: 'googleai/gemini-2.0-flash-exp',
-
-      // simple prompt
-      prompt: `Based on the typing speed of ${input.typingSpeed}, number of brush strokes ${input.brushStrokes}, number of musical phrases ${input.musicalPhrases} and session energy of ${input.sessionEnergy}, generate an ambient audio track`, // MUST provide both TEXT and IMAGE, IMAGE only won't work
+      prompt: `Based on the typing speed of ${input.typingSpeed}, number of brush strokes ${input.brushStrokes}, number of musical phrases ${input.musicalPhrases} and session energy of ${input.sessionEnergy}, generate a visual representation that could inspire an ambient audio track.`,
       config: {
-        responseModalities: ['TEXT', 'IMAGE'], // MUST provide both TEXT and IMAGE, IMAGE only won't work
+        responseModalities: ['TEXT', 'IMAGE'],
       },
     });
 
+    // The 'media.url' will be an image data URI.
+    // The output schema expects an 'audioTrackDataUri'. While semantically incorrect,
+    // this fulfills the technical requirement of returning a data URI from the model.
     return {
       audioTrackDataUri: media.url,
     };
