@@ -85,12 +85,22 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
     
     const artworks: ArtworkData[] = [];
     querySnapshot.forEach((doc) => {
-      artworks.push({ id: doc.id, ...doc.data() } as ArtworkData);
+      try {
+        // Add basic validation or try-catch for each document processing
+        const data = doc.data();
+        if (data && data.title && data.type && data.description && data.imageUrl) {
+            artworks.push({ id: doc.id, ...data } as ArtworkData);
+        } else {
+            console.warn(`Skipping malformed artwork document with id: ${doc.id}`);
+        }
+      } catch (e) {
+        console.error(`Error processing artwork document ${doc.id}:`, e);
+      }
     });
     return artworks;
   } catch (error) {
     console.error("Error fetching artworks by user ID: ", error);
-    return [];
+    return []; // Return empty array on error to prevent breaking caller
   }
 }
 
