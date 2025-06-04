@@ -22,10 +22,8 @@ export interface ArtworkData {
   title: string;
   type: "Artwork" | "Process Chronicle" | "Sketch" | "Multimedia" | "Other";
   description: string;
-  imageUrl: string; // Primary display image URL (e.g., a thumbnail)
-  imageUrlOriginal?: string; // URL of the original uploaded image
-  // imageUrl_thumbnail_200x200?: string; // Example if Resize Extension creates this
-  // imageUrl_thumbnail_600x600?: string; // Example
+  imageUrl: string; 
+  imageUrlOriginal?: string; 
   dataAiHint: string;
   layers?: LayerData[];
   tags?: string[];
@@ -47,7 +45,7 @@ export interface ArtworkData {
 
 export async function createArtwork(
   userId: string,
-  artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished' | 'status' | 'isAmplified' | 'amplifiedAt' | 'moderationStatus' | 'moderationInfo' | 'imageUrlOriginal'> & { isPublished?: boolean; scheduledPublishTime?: Timestamp | null; imageUrlOriginal?: string; }
+  artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished' | 'status' | 'isAmplified' | 'amplifiedAt' | 'moderationStatus' | 'moderationInfo' | 'imageUrlOriginal'> & { isPublished?: boolean; scheduledPublishTime?: Timestamp | null; imageUrlOriginal?: string; layers?: LayerData[] }
 ): Promise<{ success: boolean; artworkId?: string; message?: string }> {
   if (!userId) {
     const msg = '[createArtwork] Missing userId.';
@@ -71,23 +69,35 @@ export async function createArtwork(
       currentStatus = 'scheduled';
       published = false;
       console.info(`[createArtwork] Artwork "${artworkDetails.title}" is scheduled for publishing at ${artworkDetails.scheduledPublishTime.toDate().toISOString()}`);
+    } else if (artworkDetails.isPublished === true && (!artworkDetails.scheduledPublishTime || artworkDetails.scheduledPublishTime.toDate() <= new Date())) {
+      // If explicitly set to published and not scheduled for future, set to pending_moderation.
+      // Actual publishing will happen post-moderation or via scheduled job.
+      currentStatus = 'pending_moderation'; 
+      published = false; 
+      console.info(`[createArtwork] Artwork "${artworkDetails.title}" marked for publishing, will go to moderation first.`);
     } else {
+      currentStatus = 'draft'; // Default to draft if not explicitly published or scheduled.
       published = false;
-      currentStatus = 'pending_moderation';
-      console.info(`[createArtwork] Artwork "${artworkDetails.title}" to be processed for moderation before publishing.`);
+      console.info(`[createArtwork] Artwork "${artworkDetails.title}" saved as draft.`);
     }
+    
+    // Ensure moderation is pending if not draft
+    if (currentStatus !== 'draft') {
+        currentStatus = 'pending_moderation';
+    }
+
 
     const docRef = await addDoc(artworksCollectionRef, {
       ...artworkDetails,
       userId: userId,
       layers: artworkDetails.layers || [],
-      isPublished: published,
+      isPublished: published, // isPublished is false initially, will be set true by moderation/scheduler
       status: currentStatus,
       scheduledPublishTime: artworkDetails.scheduledPublishTime || null,
-      imageUrlOriginal: artworkDetails.imageUrlOriginal || artworkDetails.imageUrl, // Store original URL
+      imageUrlOriginal: artworkDetails.imageUrlOriginal || artworkDetails.imageUrl, 
       isAmplified: false,
       amplifiedAt: null,
-      moderationStatus: 'pending',
+      moderationStatus: 'pending', // All new non-draft content goes to pending moderation
       moderationInfo: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -112,10 +122,6 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
 
   try {
     const artworksCollectionRef = collection(db, 'artworks');
-    // PERFORMANCE & SCALABILITY:
-    // 1. Ensure composite index on (userId, createdAt desc) and (userId, status, createdAt desc) etc.
-    // 2. For production, implement pagination (e.g., using limit() and startAfter()).
-    // CONTENT MODERATION: Consider adding where("moderationStatus", "==", "approved") when fetching for public display.
     const q = query(artworksCollectionRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
 
@@ -127,7 +133,8 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
             artworks.push({
               id: doc.id,
               ...data,
-              imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, // Fallback
+              layers: Array.isArray(data.layers) ? data.layers : [], // Ensure layers is always an array
+              imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, 
               isPublished: data.isPublished ?? (data.status === 'published'),
               status: data.status ?? 'draft',
               scheduledPublishTime: data.scheduledPublishTime ?? null,
@@ -166,15 +173,13 @@ export async function getArtworkById(artworkId: string): Promise<ArtworkData | n
     const docSnap = await getDoc(artworkDocRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // CONTENT MODERATION: Consider if unapproved content should be directly accessible by ID.
-      // if (data.moderationStatus !== 'approved' && data.status !== 'published') return null;
       const layers = Array.isArray(data.layers) ? data.layers : [];
       // console.info(`[getArtworkById] Found artworkId: ${artworkId}`);
       return {
         id: docSnap.id,
         ...data,
         layers,
-        imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, // Fallback
+        imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, 
         isPublished: data.isPublished ?? (data.status === 'published'),
         status: data.status ?? 'draft',
         scheduledPublishTime: data.scheduledPublishTime ?? null,
@@ -218,6 +223,7 @@ export async function updateArtworkStatus(
     }
     
     await updateDoc(artworkRef, updateData);
+    console.info(`[updateArtworkStatus] Successfully updated artwork ${artworkId} status to ${newStatus}.`);
     return { success: true, message: `Artwork ${artworkId} status updated to ${newStatus}.` };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
