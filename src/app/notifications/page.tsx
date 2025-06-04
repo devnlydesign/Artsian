@@ -10,9 +10,9 @@ import Link from "next/link";
 import { useAppState } from '@/context/AppStateContext';
 import { useToast } from '@/hooks/use-toast';
 import {
-  getUserNotifications,
-  markNotificationAsRead,
-  markAllNotificationsAsRead,
+  getUserPlatformNotifications, // Updated import
+  markPlatformNotificationAsRead, // Updated import
+  markAllPlatformNotificationsAsRead, // Updated import
   type NotificationData,
 } from '@/actions/notificationActions';
 import { formatDistanceToNow } from 'date-fns';
@@ -41,7 +41,7 @@ export default function NotificationsPage() {
     if (currentUser?.uid) {
       setIsLoadingNotifications(true);
       try {
-        const fetchedNotifications = await getUserNotifications(currentUser.uid);
+        const fetchedNotifications = await getUserPlatformNotifications(currentUser.uid); // Updated function call
         setNotifications(fetchedNotifications);
       } catch (error) {
         toast({ title: "Error", description: "Could not load notifications.", variant: "destructive" });
@@ -64,7 +64,7 @@ export default function NotificationsPage() {
   const handleMarkAsRead = async (notificationId: string) => {
     if (!currentUser?.uid) return;
     setIsProcessing(true);
-    const result = await markNotificationAsRead(currentUser.uid, notificationId);
+    const result = await markPlatformNotificationAsRead(currentUser.uid, notificationId); // Updated function call
     if (result.success) {
       setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n));
     } else {
@@ -76,7 +76,7 @@ export default function NotificationsPage() {
   const handleMarkAllAsRead = async () => {
     if (!currentUser?.uid) return;
     setIsProcessing(true);
-    const result = await markAllNotificationsAsRead(currentUser.uid);
+    const result = await markAllPlatformNotificationsAsRead(currentUser.uid); // Updated function call
     if (result.success) {
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       toast({ title: "Success", description: `${result.count || 0} notifications marked as read.` });
