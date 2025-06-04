@@ -1,0 +1,79 @@
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Default deny all for safety
+    // match /{allPaths=**} {
+    //   allow read, write: if false;
+    // }
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // User profile pictures & banners:
+    // Path format: users/{userId}/profile_{timestamp}_{filename} or users/{userId}/banner_{timestamp}_{filename}
+    match /users/{userId}/{imageType}_{timestamp}_{filename} {
+      allow read: if true; // Profile pictures and banners are generally public
+      allow write: if isAuthenticated() && request.auth.uid == userId &&
+                      (imageType == 'profile' || imageType == 'banner') &&
+                      request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                      request.resource.contentType.matches('image/.*'); // Only images
+    }
+
+    // Artwork images/media:
+    // Path format: artworks/{userId}/{timestamp}_{filename}
+    match /artworks/{userId}/{timestamp}_{filename} {
+      allow read: if true; // Publicly readable artworks
+      allow write: if isAuthenticated() && request.auth.uid == userId &&
+                      request.resource.size < 20 * 1024 * 1024 && // Max 20MB for artworks (adjust as needed)
+                      request.resource.contentType.matches('image/.*|video/.*|audio/.*'); // Allow images, video, audio
+    }
+    
+    // Shop item images:
+    // Path format: shopItems/{artistId}/{timestamp}_{filename}
+    match /shopItems/{artistId}/{timestamp}_{filename} {
+      allow read: if true; // Publicly readable shop item images
+      allow write: if isAuthenticated() && request.auth.uid == artistId &&
+                      request.resource.size < 10 * 1024 * 1024 && // Max 10MB
+                      request.resource.contentType.matches('image/.*');
+    }
+
+    // Community cover images (if communities have direct image uploads for covers)
+    // Path format: communities/{communityId}/cover_{filename}
+    // match /communities/{communityId}/cover_{filename} {
+    //   allow read: if true;
+    //   allow write: if isAuthenticated() && 
+    //                   get(/databases/$(database)/documents/communities/$(communityId)).data.creatorId == request.auth.uid &&
+    //                   request.resource.size < 5 * 1024 * 1024 &&
+    //                   request.resource.contentType.matches('image/.*');
+    // }
+
+    // Community post images
+    // Path format: communities/{communityId}/posts/{postId}/{filename}
+    // match /communities/{communityId}/posts/{postId}/{filename} {
+    //   allow read: if true; // Assuming posts are public once community is accessible
+    //   allow write: if isAuthenticated() && 
+    //                   (get(/databases/$(database)/documents/communities/$(communityId)/posts/$(postId)).data.creatorId == request.auth.uid ||
+    //                    /* add community admin/moderator check here if they can upload images to posts */ ) &&
+    //                   request.resource.size < 10 * 1024 * 1024 &&
+    //                   request.resource.contentType.matches('image/.*');
+    // }
+    
+    // Chat message images (if you implement image sending in chat):
+    // Path format: chatChannels/{channelId}/messages/{messageId}/{filename}
+    // This rule depends on your Firestore structure for chat channels to verify membership.
+    // match /chatChannels/{channelId}/messages/{messageId}/{filename} {
+    //   allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chatChannels/$(channelId)).data.members;
+    //   allow write: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chatChannels/$(channelId)).data.members &&
+    //                   request.resource.size < 5 * 1024 * 1024 &&
+    //                   request.resource.contentType.matches('image/.*');
+    // }
+
+  }
+}
+
+    
