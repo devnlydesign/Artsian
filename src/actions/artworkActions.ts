@@ -3,40 +3,46 @@
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, serverTimestamp, orderBy, Timestamp, doc, getDoc } from 'firebase/firestore';
-import type { UserProfileData } from './userProfile'; 
+import type { UserProfileData } from './userProfile';
 
 export interface LayerData {
-  id: string; 
+  id: string;
   type: "text" | "image" | "video" | "audio";
   title?: string;
   description?: string;
-  content?: string; 
-  url?: string;     
-  dataAiHint?: string; 
-  order: number;    
+  content?: string;
+  url?: string;
+  dataAiHint?: string;
+  order: number;
 }
 
 export interface ArtworkData {
   id: string;
-  userId: string; 
+  userId: string;
   title: string;
   type: "Artwork" | "Process Chronicle" | "Sketch" | "Multimedia" | "Other";
-  description: string; 
-  imageUrl: string; 
-  dataAiHint: string; 
-  layers?: LayerData[]; 
-  tags?: string[]; 
-  isPublished?: boolean; 
+  description: string;
+  imageUrl: string;
+  dataAiHint: string;
+  layers?: LayerData[];
+  tags?: string[];
+  isPublished?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  isAmplified?: boolean; 
-  amplifiedAt?: Timestamp | null; 
+  isAmplified?: boolean;
+  amplifiedAt?: Timestamp | null;
+  moderationStatus?: 'pending' | 'approved' | 'rejected' | 'escalated';
+  moderationInfo?: {
+    checkedAt?: Timestamp;
+    reason?: string;
+    autoModerated?: boolean;
+  };
 }
 
 
 export async function createArtwork(
   userId: string,
-  artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished' | 'isAmplified' | 'amplifiedAt'> & { isPublished?: boolean }
+  artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished' | 'isAmplified' | 'amplifiedAt' | 'moderationStatus' | 'moderationInfo'> & { isPublished?: boolean }
 ): Promise<{ success: boolean; artworkId?: string; message?: string }> {
   if (!userId) {
     console.warn('[createArtwork] Missing userId.');
@@ -53,14 +59,18 @@ export async function createArtwork(
     const docRef = await addDoc(artworksCollectionRef, {
       ...artworkDetails,
       userId: userId,
-      layers: artworkDetails.layers || [], 
-      isPublished: artworkDetails.isPublished ?? true, 
+      layers: artworkDetails.layers || [],
+      isPublished: artworkDetails.isPublished ?? true,
       isAmplified: false,
       amplifiedAt: null,
+      moderationStatus: 'pending', // Default moderation status
+      moderationInfo: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     console.info(`[createArtwork] Successfully created artworkId: ${docRef.id} for userId: ${userId}`);
+    // TODO: Trigger content moderation Cloud Function here for the new artwork (docRef.id)
+    // This function would analyze artworkDetails.description, artworkDetails.title, and artworkDetails.imageUrl
     return { success: true, artworkId: docRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -74,23 +84,29 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
     console.warn('[getArtworksByUserId] Missing userId.');
     return [];
   }
-  // console.info(`[getArtworksByUserId] Fetching for userId: ${userId}`); // Can be too noisy, enable if needed
+  // console.info(`[getArtworksByUserId] Fetching for userId: ${userId}`);
 
   try {
     const artworksCollectionRef = collection(db, 'artworks');
+    // PERFORMANCE & SCALABILITY:
+    // 1. Ensure composite index on (userId, createdAt) if not automatically created.
+    // 2. For production, implement pagination (e.g., using limit() and startAfter()).
+    // 3. CONTENT MODERATION: Add where("moderationStatus", "==", "approved") if only approved content should be shown.
     const q = query(artworksCollectionRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
-    
+
     const artworks: ArtworkData[] = [];
     querySnapshot.forEach((doc) => {
       try {
         const data = doc.data();
         if (data && data.title && data.type && data.description && data.imageUrl) {
-            artworks.push({ 
-              id: doc.id, 
+            artworks.push({
+              id: doc.id,
               ...data,
               isAmplified: data.isAmplified ?? false,
               amplifiedAt: data.amplifiedAt ?? null,
+              moderationStatus: data.moderationStatus ?? 'approved', // Default to approved if not set for display
+              moderationInfo: data.moderationInfo ?? null,
             } as ArtworkData);
         } else {
             console.warn(`[getArtworksByUserId] Skipping malformed artwork document with id: ${doc.id} for userId: ${userId}`);
@@ -105,7 +121,7 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     console.error(`[getArtworksByUserId] Error fetching artworks for userId: ${userId}: ${errorMessage}`, error);
-    return []; 
+    return [];
   }
 }
 
@@ -121,14 +137,18 @@ export async function getArtworkById(artworkId: string): Promise<ArtworkData | n
     const docSnap = await getDoc(artworkDocRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
+      // CONTENT MODERATION: Consider if unapproved content should be directly accessible by ID.
+      // if (data.moderationStatus !== 'approved') return null; // Or handle differently based on roles
       const layers = Array.isArray(data.layers) ? data.layers : [];
       // console.info(`[getArtworkById] Found artworkId: ${artworkId}`);
-      return { 
-        id: docSnap.id, 
-        ...data, 
+      return {
+        id: docSnap.id,
+        ...data,
         layers,
         isAmplified: data.isAmplified ?? false,
         amplifiedAt: data.amplifiedAt ?? null,
+        moderationStatus: data.moderationStatus ?? 'approved',
+        moderationInfo: data.moderationInfo ?? null,
       } as ArtworkData;
     } else {
       console.warn(`[getArtworkById] No artwork found with artworkId: ${artworkId}`);

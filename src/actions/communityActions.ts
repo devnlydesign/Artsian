@@ -2,15 +2,15 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  serverTimestamp, 
-  Timestamp, 
-  doc, 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+  Timestamp,
+  doc,
   getDoc,
   writeBatch,
   increment,
@@ -24,20 +24,22 @@ export interface CommunityData {
   name: string;
   description: string;
   creatorId: string;
-  creatorName: string; 
+  creatorName: string;
   imageUrl?: string;
   dataAiHint?: string;
   memberCount: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  // No moderation fields needed for community details itself currently,
+  // but posts within a community will have them.
 }
 
 export interface CommunityMembershipData {
-  id: string; 
+  id: string;
   userId: string;
   communityId: string;
   joinedAt: Timestamp;
-  role?: 'member' | 'admin' | 'moderator'; 
+  role?: 'member' | 'admin' | 'moderator';
 }
 
 export interface CommunityPostData {
@@ -47,10 +49,16 @@ export interface CommunityPostData {
   creatorName: string;
   creatorAvatarUrl?: string | null;
   content: string;
-  imageUrl?: string; 
+  imageUrl?: string;
   dataAiHintImageUrl?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  moderationStatus?: 'pending' | 'approved' | 'rejected' | 'escalated';
+  moderationInfo?: {
+    checkedAt?: Timestamp;
+    reason?: string;
+    autoModerated?: boolean;
+  };
 }
 
 export async function createCommunity(
@@ -58,14 +66,15 @@ export async function createCommunity(
   creatorName: string,
   name: string,
   description: string,
-  imageUrl: string = "https://placehold.co/400x200.png", 
-  dataAiHint: string = "community group" 
+  imageUrl: string = "https://placehold.co/400x200.png",
+  dataAiHint: string = "community group"
 ): Promise<{ success: boolean; communityId?: string; message?: string }> {
   if (!creatorId || !name || !description) {
     console.warn(`[createCommunity] Missing required fields. creatorId: ${creatorId}, name: ${name}`);
     return { success: false, message: "Creator ID, name, and description are required." };
   }
   console.info(`[createCommunity] Attempting for creatorId: ${creatorId}, name: ${name}`);
+  // TODO: Community name and description could be moderated here or via Cloud Function trigger if needed.
 
   try {
     const communitiesCollectionRef = collection(db, 'communities');
@@ -76,7 +85,7 @@ export async function createCommunity(
       creatorName,
       imageUrl,
       dataAiHint,
-      memberCount: 1, 
+      memberCount: 1,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -86,7 +95,7 @@ export async function createCommunity(
       userId: creatorId,
       communityId: docRef.id,
       joinedAt: serverTimestamp(),
-      role: 'admin', 
+      role: 'admin',
     });
 
     console.info(`[createCommunity] Successfully created communityId: ${docRef.id} by creatorId: ${creatorId}`);
@@ -99,12 +108,15 @@ export async function createCommunity(
 }
 
 export async function getAllPublicCommunities(): Promise<CommunityData[]> {
-  // console.info("[getAllPublicCommunities] Fetching all public communities."); // Can be noisy
+  // console.info("[getAllPublicCommunities] Fetching all public communities.");
   try {
     const communitiesCollectionRef = collection(db, 'communities');
-    const q = query(communitiesCollectionRef, orderBy("createdAt", "desc")); 
+    // PERFORMANCE & SCALABILITY:
+    // 1. For production, implement pagination (e.g., using limit() and startAfter()).
+    // 2. Ensure composite index on (createdAt desc) if not automatically created.
+    const q = query(communitiesCollectionRef, orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
-    
+
     const communities: CommunityData[] = [];
     querySnapshot.forEach((doc) => {
       communities.push({ id: doc.id, ...doc.data() } as CommunityData);
@@ -155,7 +167,7 @@ export async function joinCommunity(
     const batch = writeBatch(db);
     const membershipId = `${userId}_${communityId}`;
     const membershipDocRef = doc(db, 'communityMemberships', membershipId);
-    
+
     const membershipSnap = await getDoc(membershipDocRef);
     if (membershipSnap.exists()) {
       console.info(`[joinCommunity] User ${userId} is already a member of community ${communityId}.`);
@@ -199,7 +211,7 @@ export async function leaveCommunity(
     const batch = writeBatch(db);
     const membershipId = `${userId}_${communityId}`;
     const membershipDocRef = doc(db, 'communityMemberships', membershipId);
-    
+
     const membershipSnap = await getDoc(membershipDocRef);
     if (!membershipSnap.exists()) {
       console.warn(`[leaveCommunity] User ${userId} is not a member of community ${communityId}.`);
@@ -213,7 +225,7 @@ export async function leaveCommunity(
       memberCount: increment(-1),
       updatedAt: serverTimestamp()
     });
-    
+
     await batch.commit();
     console.info(`[leaveCommunity] User ${userId} successfully left community ${communityId}.`);
     return { success: true };
@@ -232,9 +244,10 @@ export async function getUserCommunityMemberships(userId: string): Promise<Commu
   // console.info(`[getUserCommunityMemberships] Fetching for userId: ${userId}`);
   try {
     const membershipsCollectionRef = collection(db, 'communityMemberships');
+    // PERFORMANCE & SCALABILITY: Ensure composite index on (userId, joinedAt) if sorting/filtering by join date.
     const q = query(membershipsCollectionRef, where("userId", "==", userId));
     const querySnapshot = await getDocs(q);
-    
+
     const memberships: CommunityMembershipData[] = [];
     querySnapshot.forEach((doc) => {
       memberships.push({ id: doc.id, ...doc.data() } as CommunityMembershipData);
@@ -299,10 +312,14 @@ export async function createCommunityPost(
       content,
       imageUrl: imageUrl || null,
       dataAiHintImageUrl: dataAiHintImageUrl || null,
+      moderationStatus: 'pending', // Default moderation status for new posts
+      moderationInfo: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    console.info(`[createCommunityPost] Post ${docRef.id} created by ${creatorId} in community ${communityId}.`);
+    console.info(`[createCommunityPost] Post ${docRef.id} created by ${creatorId} in community ${communityId}. Moderation status: pending.`);
+    // TODO: Trigger content moderation Cloud Function here for the new post (docRef.id)
+    // This function would analyze 'content' and 'imageUrl'
     return { success: true, postId: docRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -319,12 +336,22 @@ export async function getCommunityPosts(communityId: string): Promise<CommunityP
   // console.info(`[getCommunityPosts] Fetching posts for communityId: ${communityId}`);
   try {
     const postsCollectionRef = collection(db, 'communities', communityId, 'posts');
+    // PERFORMANCE & SCALABILITY:
+    // 1. Ensure composite index on (createdAt desc) if not automatically created.
+    // 2. For production, implement pagination (e.g., using limit() and startAfter()).
+    // 3. CONTENT MODERATION: Add where("moderationStatus", "==", "approved") if only approved posts should be shown.
     const q = query(postsCollectionRef, orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
-    
+
     const posts: CommunityPostData[] = [];
     querySnapshot.forEach((doc) => {
-      posts.push({ id: doc.id, ...doc.data() } as CommunityPostData);
+      const data = doc.data();
+      posts.push({
+        id: doc.id,
+        ...data,
+        moderationStatus: data.moderationStatus ?? 'approved', // Default to approved for display
+        moderationInfo: data.moderationInfo ?? null,
+      } as CommunityPostData);
     });
     // console.info(`[getCommunityPosts] Found ${posts.length} posts for communityId: ${communityId}`);
     return posts;
@@ -355,6 +382,7 @@ export async function deleteCommunityPost(
     }
 
     const postData = postSnap.data() as CommunityPostData;
+    // Add check for community admin/moderator role if implementing such roles
     if (postData.creatorId !== requestingUserId) {
       console.warn(`[deleteCommunityPost] User ${requestingUserId} not authorized to delete post ${postId}. Creator is ${postData.creatorId}.`);
       return { success: false, message: "You are not authorized to delete this post." };
@@ -371,7 +399,7 @@ export async function deleteCommunityPost(
 }
 
 async function setDocInternal(docRef: any, data: any, options?: { merge?: boolean }) { // Renamed from setDoc to setDocInternal
-  const { serverTimestamp: fsServerTimestamp } = await import('firebase/firestore'); 
+  const { serverTimestamp: fsServerTimestamp } = await import('firebase/firestore');
   const dataWithTimestamps = Object.keys(data).reduce((acc, key) => {
     if (data[key] === fsServerTimestamp()) { // Use aliased import
       acc[key] = fsServerTimestamp();

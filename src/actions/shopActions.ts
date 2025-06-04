@@ -22,21 +22,27 @@ import type { UserProfileData } from './userProfile';
 
 export interface ShopItemData {
   id: string;
-  artistId: string; 
-  artistName?: string; 
+  artistId: string;
+  artistName?: string;
   name: string;
   description: string;
-  priceInCents: number; 
+  priceInCents: number;
   imageUrl: string;
   dataAiHint?: string;
   category?: string;
-  crystallineBloomId?: string | null; 
-  stock?: number | null; 
-  isDigital?: boolean; 
+  crystallineBloomId?: string | null;
+  stock?: number | null;
+  isDigital?: boolean;
   tags?: string[];
   isPublished?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  moderationStatus?: 'pending' | 'approved' | 'rejected' | 'escalated';
+  moderationInfo?: {
+    checkedAt?: Timestamp;
+    reason?: string;
+    autoModerated?: boolean;
+  };
 }
 
 export interface OrderItemData {
@@ -44,26 +50,26 @@ export interface OrderItemData {
   name: string;
   priceInCents: number;
   quantity: number;
-  imageUrl?: string; 
+  imageUrl?: string;
   crystallineBloomId?: string | null;
 }
 
 export interface OrderData {
   id: string;
-  userId: string; 
-  userEmail?: string; 
+  userId: string;
+  userEmail?: string;
   items: OrderItemData[];
   totalAmountInCents: number;
   status: 'pending' | 'paid' | 'shipped' | 'fulfilled' | 'cancelled' | 'refunded';
   stripeCheckoutSessionId: string;
-  shippingAddress?: any; 
+  shippingAddress?: any;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 export async function createShopItem(
   artistId: string,
-  itemDetails: Omit<ShopItemData, 'id' | 'artistId' | 'createdAt' | 'updatedAt' | 'isPublished'> & {isPublished?: boolean}
+  itemDetails: Omit<ShopItemData, 'id' | 'artistId' | 'artistName' | 'createdAt' | 'updatedAt' | 'isPublished' | 'moderationStatus' | 'moderationInfo'> & {isPublished?: boolean}
 ): Promise<{ success: boolean; itemId?: string; message?: string }> {
   if (!artistId) {
     console.warn('[createShopItem] Missing artistId.');
@@ -73,7 +79,7 @@ export async function createShopItem(
     console.warn(`[createShopItem] Missing required fields for artistId: ${artistId}, name: ${itemDetails.name}`);
     return { success: false, message: "Item name, price, and image URL are required." };
   }
-  if (itemDetails.priceInCents < 50) { 
+  if (itemDetails.priceInCents < 50) {
     console.warn(`[createShopItem] Price too low for artistId: ${artistId}, name: ${itemDetails.name}, price: ${itemDetails.priceInCents}`);
     return { success: false, message: "Price must be at least $0.50." };
   }
@@ -94,10 +100,14 @@ export async function createShopItem(
       isDigital: itemDetails.isDigital ?? false,
       crystallineBloomId: itemDetails.crystallineBloomId || null,
       tags: itemDetails.tags || [],
+      moderationStatus: 'pending', // Default moderation status
+      moderationInfo: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    console.info(`[createShopItem] Successfully created itemId: ${docRef.id} for artistId: ${artistId}`);
+    console.info(`[createShopItem] Successfully created itemId: ${docRef.id} for artistId: ${artistId}. Moderation status: pending.`);
+    // TODO: Trigger content moderation Cloud Function here for the new shop item (docRef.id)
+    // This function would analyze itemDetails.name, itemDetails.description, and itemDetails.imageUrl
     return { success: true, itemId: docRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -125,10 +135,23 @@ export async function updateShopItem(
       return { success: false, message: "Shop item not found or you do not have permission to update it." };
     }
 
-    await updateDoc(itemDocRef, {
-      ...itemDetails,
-      updatedAt: serverTimestamp(),
-    });
+    const updateData: Partial<ShopItemData> = { ...itemDetails, updatedAt: serverTimestamp() };
+
+    // If relevant fields are changing, reset moderation status
+    const existingData = itemSnap.data() as ShopItemData;
+    if (
+      (itemDetails.name && itemDetails.name !== existingData.name) ||
+      (itemDetails.description && itemDetails.description !== existingData.description) ||
+      (itemDetails.imageUrl && itemDetails.imageUrl !== existingData.imageUrl)
+    ) {
+      updateData.moderationStatus = 'pending';
+      updateData.moderationInfo = null;
+      // TODO: Trigger content moderation Cloud Function here for the updated shop item (itemId)
+      console.info(`[updateShopItem] Shop item ${itemId} fields changed, resetting moderationStatus to pending.`);
+    }
+
+
+    await updateDoc(itemDocRef, updateData);
     console.info(`[updateShopItem] Successfully updated itemId: ${itemId} for artistId: ${artistId}`);
     return { success: true };
   } catch (error) {
@@ -189,9 +212,22 @@ export async function getArtistShopItems(artistId: string): Promise<ShopItemData
   }
   // console.info(`[getArtistShopItems] Fetching for artistId: ${artistId}`);
   try {
+    // PERFORMANCE & SCALABILITY:
+    // 1. Ensure composite index on (artistId, createdAt) if not automatically created.
+    // 2. For production, implement pagination.
+    // 3. CONTENT MODERATION: When artist views their own items, show all statuses.
+    //    If this were a public view of an artist's shop, you'd add where("moderationStatus", "==", "approved").
     const q = query(collection(db, 'shopItems'), where("artistId", "==", artistId), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
-    const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShopItemData));
+    const items = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            moderationStatus: data.moderationStatus ?? 'approved', // Default if not set
+            moderationInfo: data.moderationInfo ?? null,
+        } as ShopItemData
+    });
     // console.info(`[getArtistShopItems] Found ${items.length} items for artistId: ${artistId}`);
     return items;
   } catch (error) {
@@ -204,10 +240,29 @@ export async function getArtistShopItems(artistId: string): Promise<ShopItemData
 export async function getAllShopItems(): Promise<ShopItemData[]> {
   // console.info("[getAllShopItems] Fetching all published shop items.");
   try {
-    const q = query(collection(db, 'shopItems'), where("isPublished", "==", true), orderBy("createdAt", "desc"));
+    // PERFORMANCE & SCALABILITY:
+    // 1. Ensure composite index on (isPublished, moderationStatus, createdAt) if not automatically created.
+    // 2. For production, implement pagination.
+    // 3. CONTENT MODERATION: Only show published AND approved items.
+    const q = query(collection(db, 'shopItems'),
+                    where("isPublished", "==", true),
+                    // where("moderationStatus", "==", "approved"), // Add this line once moderation system is active
+                    orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
-    const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShopItemData));
-    // console.info(`[getAllShopItems] Found ${items.length} published items.`);
+    const items = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Only return items that are approved, or if moderationStatus is not set (legacy items)
+        if (data.moderationStatus === 'approved' || data.moderationStatus === undefined) {
+            return {
+                id: doc.id,
+                ...data,
+                moderationStatus: data.moderationStatus ?? 'approved',
+                moderationInfo: data.moderationInfo ?? null,
+            } as ShopItemData;
+        }
+        return null;
+    }).filter(item => item !== null) as ShopItemData[];
+    // console.info(`[getAllShopItems] Found ${items.length} published and approved items.`);
     return items;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -225,12 +280,20 @@ export async function getShopItemById(itemId: string): Promise<ShopItemData | nu
   try {
     const itemDocRef = doc(db, 'shopItems', itemId);
     const docSnap = await getDoc(itemDocRef);
-    if (docSnap.exists() && docSnap.data()?.isPublished) {
-      // console.info(`[getShopItemById] Found published itemId: ${itemId}`);
-      return { id: docSnap.id, ...docSnap.data() } as ShopItemData;
-    }
-    if (docSnap.exists() && !docSnap.data()?.isPublished) {
-      console.warn(`[getShopItemById] Item found but not published: ${itemId}`);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      // CONTENT MODERATION: Only return if published AND approved.
+      if (data.isPublished && (data.moderationStatus === 'approved' || data.moderationStatus === undefined)) {
+        // console.info(`[getShopItemById] Found published and approved itemId: ${itemId}`);
+        return {
+            id: docSnap.id,
+            ...data,
+            moderationStatus: data.moderationStatus ?? 'approved',
+            moderationInfo: data.moderationInfo ?? null,
+        } as ShopItemData;
+      }
+      console.warn(`[getShopItemById] Item ${itemId} found but is not published or not approved. Published: ${data.isPublished}, Moderation: ${data.moderationStatus}`);
+      return null; // Item exists but is not suitable for public display
     } else {
       console.warn(`[getShopItemById] Item not found: ${itemId}`);
     }
@@ -276,7 +339,7 @@ export async function updateOrderStatus(
   try {
     await updateDoc(orderDocRef, {
       status,
-      ...(trackingNumber && { trackingNumber }), 
+      ...(trackingNumber && { trackingNumber }),
       updatedAt: serverTimestamp(),
     });
     console.info(`[updateOrderStatus] Successfully updated orderId: ${orderId} to status: ${status}`);
