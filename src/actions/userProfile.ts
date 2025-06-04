@@ -22,23 +22,23 @@ export interface FluxEvolutionPoint {
 export interface UserProfileData {
   uid: string;
   email?: string | null;
-  fullName?: string;
-  username?: string;
+  fullName?: string; // Used for display names
+  username?: string; // Unique identifier, can be used for @mentions or profile URLs
   bio?: string;
-  photoURL?: string; 
-  bannerURL?: string; 
-  genre?: string;
-  style?: string;
+  photoURL?: string | null; // Profile picture URL
+  bannerURL?: string | null; // Profile banner image URL
+  genre?: string; // Main art genre
+  style?: string; // Artistic style description
   motivations?: string;
   inspirations?: string;
   website?: string;
-  socialMedia?: string;
+  socialMedia?: string; // Could be a single link or an object for multiple platforms
   location?: string;
-  portfolioLink?: string;
+  portfolioLink?: string; // Link to an external portfolio
   emailOptIn?: boolean;
   isPremium?: boolean;
-  stripeCustomerId?: string;
-  premiumSubscriptionId?: string; // Stripe Subscription ID for app premium
+  stripeCustomerId?: string | null;
+  premiumSubscriptionId?: string | null; // Stripe Subscription ID for app premium
   premiumSubscriptionEndsAt?: Timestamp | null; // When the current premium period ends
   fluxSignature?: FluxSignature;
   fluxEvolutionPoints?: FluxEvolutionPoint[];
@@ -78,6 +78,8 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       await setDoc(userProfileRef, {
         uid: userId,
         email: data.email ?? null,
+        fullName: data.fullName ?? '', // Default to empty string
+        username: data.username ?? '', // Default to empty string
         photoURL: data.photoURL ?? null,
         bannerURL: data.bannerURL ?? null,
         isPremium: data.isPremium ?? false,
@@ -114,15 +116,17 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     if (docSnap.exists()) {
       const profile = docSnap.data() as UserProfileData;
       // Ensure all potentially undefined fields have sensible defaults if needed by calling code
+      profile.fullName = profile.fullName ?? '';
+      profile.username = profile.username ?? '';
       profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
       profile.fluxEvolutionPoints = profile.fluxEvolutionPoints ?? [];
-      profile.photoURL = profile.photoURL ?? undefined;
-      profile.bannerURL = profile.bannerURL ?? undefined;
+      profile.photoURL = profile.photoURL ?? null;
+      profile.bannerURL = profile.bannerURL ?? null;
       profile.followersCount = profile.followersCount ?? 0;
       profile.followingCount = profile.followingCount ?? 0;
-      profile.stripeCustomerId = profile.stripeCustomerId ?? undefined;
+      profile.stripeCustomerId = profile.stripeCustomerId ?? null;
       profile.isPremium = profile.isPremium ?? false;
-      profile.premiumSubscriptionId = profile.premiumSubscriptionId ?? undefined;
+      profile.premiumSubscriptionId = profile.premiumSubscriptionId ?? null;
       profile.premiumSubscriptionEndsAt = profile.premiumSubscriptionEndsAt ?? null;
       profile.emailOptIn = profile.emailOptIn ?? false;
       profile.isProfileAmplified = profile.isProfileAmplified ?? false;
