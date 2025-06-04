@@ -1,0 +1,164 @@
+
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
+
+// Initialize admin if not already done (typically in functions/src/index.ts)
+// if (admin.apps.length === 0) {
+//   admin.initializeApp();
+// }
+// const db = admin.firestore();
+// const storage = admin.storage(); // For deleting files
+
+/**
+ * Triggered on creation of a new document in /posts, /reels, /music, /otherArt.
+ * - Increments the respective count on the user's profile.
+ * - (Future) Send notifications to followers.
+ */
+export const onCreateContent = functions.firestore
+  .document("{contentType}/{contentId}")
+  .onCreate(async (snap, context) => {
+    const { contentType, contentId } = context.params;
+    const data = snap.data();
+
+    if (!data || !data.userId) {
+      functions.logger.error("onCreateContent: Missing data or userId for", contentId);
+      return null;
+    }
+
+    const userId = data.userId;
+    const userRef = admin.firestore().doc(`users/${userId}`);
+
+    let countFieldToIncrement: string | null = null;
+    switch (contentType) {
+      case "posts":
+        countFieldToIncrement = "postsCount"; // Assuming postsCount on UserProfileData
+        break;
+      case "reels":
+        countFieldToIncrement = "reelsCount"; // Add reelsCount to UserProfileData
+        break;
+      case "music":
+        countFieldToIncrement = "musicCount"; // Add musicCount to UserProfileData
+        break;
+      case "otherArt":
+        countFieldToIncrement = "otherArtCount"; // Add otherArtCount to UserProfileData
+        break;
+      // Stories count might be handled differently due to expiry or on a subcollection
+      case "stories":
+        countFieldToIncrement = "storiesCount"; // Assuming storiesCount on UserProfileData
+        break;
+      default:
+        functions.logger.info("onCreateContent: Unhandled contentType", contentType);
+        return null;
+    }
+
+    if (countFieldToIncrement) {
+      try {
+        await userRef.update({
+          [countFieldToIncrement]: admin.firestore.FieldValue.increment(1),
+        });
+        functions.logger.info(`Incremented ${countFieldToIncrement} for user ${userId}`);
+      } catch (error) {
+        functions.logger.error(
+          `Failed to increment ${countFieldToIncrement} for user ${userId}:`,
+          error
+        );
+      }
+    }
+    
+    // TODO: Implement follower notifications
+    // 1. Get followers of userId
+    // 2. Create notification documents for each follower
+
+    return null;
+  });
+
+/**
+ * Triggered on deletion of a document in /posts, /reels, /music, /otherArt.
+ * - Decrements the respective count on the user's profile.
+ * - Deletes associated media from Firebase Storage.
+ * - Deletes all related comments and likes for this content.
+ */
+export const onDeleteContent = functions.firestore
+  .document("{contentType}/{contentId}")
+  .onDelete(async (snap, context) => {
+    const { contentType, contentId } = context.params;
+    const deletedData = snap.data();
+
+    if (!deletedData || !deletedData.userId) {
+      functions.logger.error("onDeleteContent: Missing deletedData or userId for", contentId);
+      return null;
+    }
+
+    const userId = deletedData.userId;
+    const userRef = admin.firestore().doc(`users/${userId}`);
+
+    // 1. Decrement user's content count
+    let countFieldToDecrement: string | null = null;
+    switch (contentType) {
+      case "posts": countFieldToDecrement = "postsCount"; break;
+      case "reels": countFieldToDecrement = "reelsCount"; break;
+      case "music": countFieldToDecrement = "musicCount"; break;
+      case "otherArt": countFieldToDecrement = "otherArtCount"; break;
+      case "stories": countFieldToDecrement = "storiesCount"; break;
+    }
+    if (countFieldToDecrement) {
+      try {
+        await userRef.update({
+          [countFieldToDecrement]: admin.firestore.FieldValue.increment(-1),
+        });
+        functions.logger.info(`Decremented ${countFieldToDecrement} for user ${userId}`);
+      } catch (error) {
+        functions.logger.error(
+          `Failed to decrement ${countFieldToDecrement} for user ${userId}:`,
+          error
+        );
+      }
+    }
+
+    // 2. Delete associated media from Firebase Storage
+    // This requires knowing the storage path. Assuming convention like:
+    // /{contentType}/{userId}/{contentId}/{fileName} or from mediaUrl/contentUrl field
+    const mediaUrl = deletedData.mediaUrl || deletedData.contentUrl || deletedData.videoUrl || deletedData.audioUrl;
+    if (mediaUrl && mediaUrl.startsWith("gs://")) { // Check if it's a GCS URL
+        try {
+            const bucket = admin.storage().bucket(); // Default bucket
+            const path = mediaUrl.substring(`gs://${bucket.name}/`.length);
+            await bucket.file(path).delete();
+            functions.logger.info("Deleted media from Storage:", mediaUrl);
+        } catch (error) {
+            functions.logger.error("Error deleting media from Storage:", mediaUrl, error);
+        }
+    } else if (mediaUrl) {
+        functions.logger.warn("Media URL not a GCS path, cannot delete from Storage:", mediaUrl);
+    }
+
+
+    // 3. Delete related comments
+    const commentsRef = admin.firestore().collection("comments");
+    const commentsQuery = commentsRef
+      .where("contentId", "==", contentId)
+      .where("contentType", "==", contentType.slice(0, -1)); // Assuming contentType in comments is singular form
+    
+    const commentsSnapshot = await commentsQuery.get();
+    const batch = admin.firestore().batch();
+    commentsSnapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    
+    // 4. Delete related likes
+    const likesRef = admin.firestore().collection("likes");
+    const likesQuery = likesRef
+      .where("contentId", "==", contentId)
+      .where("contentType", "==", contentType.slice(0, -1));
+      
+    const likesSnapshot = await likesQuery.get();
+    likesSnapshot.docs.forEach((doc) => batch.delete(doc.ref));
+
+    try {
+        await batch.commit();
+        functions.logger.info(`Deleted ${commentsSnapshot.size} comments and ${likesSnapshot.size} likes for ${contentType}/${contentId}`);
+    } catch (error) {
+        functions.logger.error(`Error in batch delete for ${contentType}/${contentId}:`, error);
+    }
+
+    return null;
+  });
+    

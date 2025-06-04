@@ -1,0 +1,59 @@
+
+/**
+ * This is an example root index.ts file for your Firebase Cloud Functions.
+ * You would import your trigger functions and any HTTP/callable functions here.
+ */
+
+import * as admin from "firebase-admin";
+admin.initializeApp();
+
+// Import trigger functions (conceptual paths)
+// You'll need to ensure these files exist and export the functions correctly.
+// import * as contentTriggers from "./triggers/contentTriggers";
+// import * as interactionTriggers from "./triggers/interactionTriggers";
+// import * as stripeWebhookHandler from "./stripeWebhookHandler"; // For shop payments
+// import * as stripeSubscriptionWebhookHandler from "./stripeSubscriptionWebhookHandler"; // For premium subscriptions
+// import * as websiteRenderer from "./generateArtistWebsiteRenderer";
+
+// Export them so Firebase can discover them
+// export const { onCreateContent, onDeleteContent } = contentTriggers;
+// export const { onCreateLike, onDeleteLike, onCreateComment, onDeleteComment, onFollowUser, onUnfollowUser } = interactionTriggers;
+// export const { handleShopPayments } = stripeWebhookHandler;
+// export const { handleSubscriptionPaymentsZMW } = stripeSubscriptionWebhookHandler;
+// export const { generateArtistWebsiteRenderer } = websiteRenderer;
+
+
+// Example HTTP function (if you had one)
+// import * as functions from "firebase-functions";
+// export const helloWorld = functions.https.onRequest((request, response) => {
+//   functions.logger.info("Hello logs!", {structuredData: true});
+//   response.send("Hello from Firebase!");
+// });
+
+// If you create callable functions for product CRUD as originally requested for e-commerce
+// (though current approach uses Next.js server actions for that), they would be defined and exported here.
+// Example:
+// export const createArtistProductCallable = functions.https.onCall(async (data, context) => {
+//   if (!context.auth) {
+//     throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+//   }
+//   const uid = context.auth.uid;
+//   // ... logic to create product in Firestore, ensuring uid matches artistId ...
+//   // return { productId: 'newProductId' };
+// });
+
+// IMPORTANT:
+// 1. Place your actual trigger files (contentTriggers.ts, interactionTriggers.ts, etc.)
+//    in a 'triggers' subfolder or organize as you see fit within functions/src.
+// 2. Ensure you install necessary npm packages in your 'functions' directory:
+//    cd functions
+//    npm install firebase-admin firebase-functions
+//    npm install stripe # if using stripe webhooks
+//    cd ..
+// 3. Deploy functions using `firebase deploy --only functions`.
+// 4. The `.example` suffix on filenames means these are templates. Rename them and
+//    integrate into your actual `functions/src/index.ts`.
+
+// Minimal content for now to avoid build errors if no actual functions are present yet:
+export {}; 
+      

@@ -13,13 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { useAppState } from '@/context/AppStateContext';
 import { useToast } from '@/hooks/use-toast';
 import {
-  getOrCreateChatChannel,
-  sendMessage,
-  getUserChatChannels,
-  type ChatChannelData,
-  type ChatMessageData,
+  getOrCreateConversation, // Updated import
+  sendMessageToConversation, // Updated import
+  getUserConversations, // Updated import
+  type ConversationData, // Updated import
+  type MessageData, // Updated import
 } from '@/actions/messageActions';
-import { getUserProfile, type UserProfileData } from '@/actions/userProfile'; // Import getUserProfile
+import { getUserProfile, type UserProfileData } from '@/actions/userProfile';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, Unsubscribe } from 'firebase/firestore';
 import Link from 'next/link';
@@ -38,12 +38,12 @@ export default function MessagesPage() {
   const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
   const { toast } = useToast();
 
-  const [chatChannels, setChatChannels] = useState<ChatChannelData[]>([]);
-  const [selectedChannel, setSelectedChannel] = useState<ChatChannelData | null>(null);
-  const [messages, setMessages] = useState<ChatMessageData[]>([]);
+  const [conversations, setConversations] = useState<ConversationData[]>([]); // Renamed and typed
+  const [selectedConversation, setSelectedConversation] = useState<ConversationData | null>(null); // Renamed and typed
+  const [messages, setMessages] = useState<MessageData[]>([]); // Typed
   const [newMessage, setNewMessage] = useState("");
   
-  const [isLoadingChannels, setIsLoadingChannels] = useState(true);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true); // Renamed
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
 
@@ -60,46 +60,47 @@ export default function MessagesPage() {
     }
   }, [messages, scrollToBottom]);
 
-  // Fetch user's chat channels
+  // Fetch user's conversations
   useEffect(() => {
     if (currentUser?.uid && isAuthenticated) {
-      setIsLoadingChannels(true);
-      getUserChatChannels(currentUser.uid)
-        .then(setChatChannels)
+      setIsLoadingConversations(true);
+      getUserConversations(currentUser.uid) // Updated function call
+        .then(setConversations)
         .catch(err => {
-          console.error("Failed to fetch chat channels:", err);
+          console.error("Failed to fetch conversations:", err);
           toast({ title: "Error", description: "Could not load your chats.", variant: "destructive" });
         })
-        .finally(() => setIsLoadingChannels(false));
+        .finally(() => setIsLoadingConversations(false));
     } else if (!isLoadingAuth && !isAuthenticated) {
-      setIsLoadingChannels(false);
-      setChatChannels([]);
+      setIsLoadingConversations(false);
+      setConversations([]);
     }
   }, [currentUser, isAuthenticated, isLoadingAuth, toast]);
 
-  // Listener for messages in the selected channel
+  // Listener for messages in the selected conversation
   useEffect(() => {
-    // Clean up previous listener
     if (messageListenerUnsubscribeRef.current) {
       messageListenerUnsubscribeRef.current();
       messageListenerUnsubscribeRef.current = null;
     }
 
-    if (selectedChannel?.id && currentUser?.uid) {
+    if (selectedConversation?.id && currentUser?.uid) {
       setIsLoadingMessages(true);
-      const messagesRef = collection(db, 'chatChannels', selectedChannel.id, 'messages');
+      // Path updated to 'conversations/{id}/chat'
+      const messagesRef = collection(db, 'conversations', selectedConversation.id, 'chat'); 
       const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const newMessages: ChatMessageData[] = [];
+        const newMessages: MessageData[] = [];
         querySnapshot.forEach((doc) => {
-          newMessages.push({ id: doc.id, channelId: selectedChannel.id, ...doc.data() } as ChatMessageData);
+          // MessageData no longer needs channelId/conversationId within its structure for Firestore
+          newMessages.push({ id: doc.id, ...doc.data() } as MessageData);
         });
         setMessages(newMessages);
         setIsLoadingMessages(false);
-        // Mark channel as read (basic version, could be more sophisticated)
+        // Basic unread marking (can be improved)
         // if (newMessages.length > 0 && newMessages[newMessages.length - 1].senderId !== currentUser.uid) {
-        //   markChannelAsRead(selectedChannel.id, currentUser.uid);
+        //   markConversationAsRead(selectedConversation.id, currentUser.uid); // Assuming you have this function
         // }
       }, (error) => {
         console.error("Error fetching messages in real-time:", error);
@@ -108,7 +109,7 @@ export default function MessagesPage() {
       });
       messageListenerUnsubscribeRef.current = unsubscribe;
     } else {
-      setMessages([]); // Clear messages if no channel selected
+      setMessages([]);
     }
 
     return () => {
@@ -116,41 +117,32 @@ export default function MessagesPage() {
         messageListenerUnsubscribeRef.current();
       }
     };
-  }, [selectedChannel, currentUser, toast]);
+  }, [selectedConversation, currentUser, toast]);
 
 
-  const handleSelectChannel = async (channel: ChatChannelData | { otherUserId: string; otherUserName?: string; otherUserAvatar?: string | null }) => {
+  const handleSelectConversation = async (channelOrUser: ConversationData | { otherUserId: string; otherUserName?: string; otherUserAvatar?: string | null }) => {
     if (!currentUser) return;
 
-    if ('members' in channel) { // Existing channel
-        setSelectedChannel(channel as ChatChannelData);
+    if ('participants' in channelOrUser) { // Existing conversation
+        setSelectedConversation(channelOrUser as ConversationData);
     } else { // Initiating new chat with a mock/other user
         setIsLoadingMessages(true);
         try {
-            const otherUserSnapshot = await getDoc(doc(db, "users", channel.otherUserId));
-            let otherUserProfileData: UserProfileData | null = null;
-            if(otherUserSnapshot.exists()){
-                otherUserProfileData = otherUserSnapshot.data() as UserProfileData;
-            }
-
-            const { channelData } = await getOrCreateChatChannel(
+            const { conversationData } = await getOrCreateConversation( // Updated function call
                 currentUser.uid, 
-                channel.otherUserId,
-                { fullName: currentUser.displayName, username: currentUser.email?.split('@')[0], photoURL: currentUser.photoURL },
-                { fullName: otherUserProfileData?.fullName, username: otherUserProfileData?.username, photoURL: otherUserProfileData?.photoURL }
+                [channelOrUser.otherUserId] // Pass otherUserId as an array
             );
-            setSelectedChannel(channelData);
+            setSelectedConversation(conversationData);
             
-            // Add to local list if new and not present
-            setChatChannels(prev => {
-                if (!prev.find(c => c.id === channelData.id)) {
-                    return [channelData, ...prev];
+            setConversations(prev => {
+                if (!prev.find(c => c.id === conversationData.id)) {
+                    return [conversationData, ...prev];
                 }
                 return prev;
             });
 
         } catch (error) {
-            console.error("Error creating/getting chat channel:", error);
+            console.error("Error creating/getting conversation:", error);
             toast({ title: "Chat Error", description: "Could not start or find chat.", variant: "destructive"});
         } finally {
             setIsLoadingMessages(false);
@@ -161,18 +153,19 @@ export default function MessagesPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === "" || !selectedChannel || !currentUser) return;
+    if (newMessage.trim() === "" || !selectedConversation || !currentUser) return;
 
     setIsSendingMessage(true);
     const tempMessageId = `temp_${Date.now()}`;
-    const optimisticMessage: ChatMessageData = {
+    const optimisticMessage: MessageData = { // Type updated
         id: tempMessageId,
-        channelId: selectedChannel.id,
         senderId: currentUser.uid,
         senderName: currentUser.displayName || currentUser.email?.split('@')[0],
         senderAvatar: currentUser.photoURL,
-        text: newMessage,
-        timestamp: Timestamp.now(), // Use Firestore Timestamp for optimistic update
+        messageText: newMessage,
+        timestamp: Timestamp.now(), 
+        readBy: [currentUser.uid],
+        isDeleted: false,
     };
 
     setMessages(prev => [...prev, optimisticMessage]);
@@ -181,37 +174,44 @@ export default function MessagesPage() {
     scrollToBottom();
 
     try {
-      const result = await sendMessage(
-        selectedChannel.id, 
+      const result = await sendMessageToConversation( // Updated function call
+        selectedConversation.id, 
         currentUser.uid, 
-        currentMessageText,
-        currentUser.displayName || currentUser.email?.split('@')[0],
-        currentUser.photoURL
+        currentMessageText
+        // Sender name/avatar are now fetched/handled by sendMessageToConversation or denormalized from UserProfile
       );
       if (!result.success) {
         toast({ title: "Send Error", description: result.message || "Failed to send message.", variant: "destructive" });
-        setMessages(prev => prev.filter(m => m.id !== tempMessageId)); // Remove optimistic message on failure
-      } else {
-        // Optimistic message will be replaced by real-time listener update
+        setMessages(prev => prev.filter(m => m.id !== tempMessageId)); 
       }
     } catch (error) {
       toast({ title: "Send Error", description: "An unexpected error occurred.", variant: "destructive" });
-      setMessages(prev => prev.filter(m => m.id !== tempMessageId)); // Revert on error
+      setMessages(prev => prev.filter(m => m.id !== tempMessageId)); 
     } finally {
       setIsSendingMessage(false);
     }
   };
 
-  const getOtherMemberInfo = (channel: ChatChannelData) => {
-    if (!currentUser || !channel.members) return { name: "Chat User", avatarUrl: undefined };
-    const otherUserId = channel.members.find(id => id !== currentUser.uid);
-    if (!otherUserId || !channel.memberInfo || !channel.memberInfo[otherUserId]) {
-      return { name: "Chat User", avatarUrl: "https://placehold.co/40x40.png" };
+  const getOtherParticipantInfo = (conversation: ConversationData) => { // Renamed and parameter type updated
+    if (!currentUser || !conversation.participants) return { name: "Chat User", avatarUrl: undefined };
+    const otherUserId = conversation.participants.find(id => id !== currentUser.uid);
+    
+    if (!otherUserId || !conversation.participantInfo || !conversation.participantInfo[otherUserId]) {
+      // Attempt to find the mock user info if it's a new chat not yet fully populated
+      const mockUser = mockContactsForNewChat.find(u => u.id === otherUserId);
+      if (mockUser) {
+          return {
+              name: mockUser.fullName || "Chat User",
+              avatarUrl: mockUser.photoURL || "https://placehold.co/40x40.png",
+              dataAiHint: mockUser.username || "user"
+          }
+      }
+      return { name: "Chat User", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "user" };
     }
     return {
-        name: channel.memberInfo[otherUserId]?.name || "Chat User",
-        avatarUrl: channel.memberInfo[otherUserId]?.avatarUrl || "https://placehold.co/40x40.png",
-        dataAiHint: channel.memberInfo[otherUserId]?.name?.split(" ")[0].toLowerCase() || "user"
+        name: conversation.participantInfo[otherUserId]?.name || "Chat User",
+        avatarUrl: conversation.participantInfo[otherUserId]?.avatarUrl || "https://placehold.co/40x40.png",
+        dataAiHint: conversation.participantInfo[otherUserId]?.name?.split(" ")[0].toLowerCase() || "user"
     };
   };
   
@@ -237,7 +237,6 @@ export default function MessagesPage() {
   return (
     <div className="h-[calc(100vh-var(--header-height,4rem)-3.5rem)] flex flex-col">
       <Card className="flex-1 flex overflow-hidden shadow-lg transition-shadow hover:shadow-xl card-interactive-hover">
-        {/* Sidebar for contacts/channels */}
         <div className="w-1/3 border-r border-border flex flex-col">
           <CardHeader className="p-4 border-b">
             <div className="flex items-center justify-between">
@@ -250,20 +249,20 @@ export default function MessagesPage() {
             </div>
           </CardHeader>
           <ScrollArea className="flex-1">
-            {isLoadingChannels ? (
+            {isLoadingConversations ? (
               <div className="p-4 text-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin inline mr-2"/>Loading chats...</div>
             ) : (
               <>
-                {chatChannels.map((channel) => {
-                  const otherMember = getOtherMemberInfo(channel);
+                {conversations.map((conv) => { // Use updated conversations state
+                  const otherMember = getOtherParticipantInfo(conv);
                   return (
                     <div
-                        key={channel.id}
+                        key={conv.id}
                         className={cn(
                         "flex items-center p-3 hover:bg-muted/50 cursor-pointer border-b border-border transition-colors",
-                        selectedChannel?.id === channel.id && "bg-muted"
+                        selectedConversation?.id === conv.id && "bg-muted"
                         )}
-                        onClick={() => handleSelectChannel(channel)}
+                        onClick={() => handleSelectConversation(conv)}
                     >
                         <Avatar className="h-10 w-10 mr-3">
                         <AvatarImage src={otherMember.avatarUrl} alt={otherMember.name} data-ai-hint={otherMember.dataAiHint || "user avatar"}/>
@@ -272,36 +271,34 @@ export default function MessagesPage() {
                         <div className="flex-1 min-w-0">
                         <p className="font-semibold truncate">{otherMember.name}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                            {channel.lastMessageSenderId === currentUser?.uid ? "You: " : ""}
-                            {channel.lastMessageText || "No messages yet."}
+                            {conv.lastMessageSenderId === currentUser?.uid ? "You: " : ""}
+                            {conv.lastMessageText || "No messages yet."}
                         </p>
                         </div>
                         <div className="text-right ml-2">
                         <p className="text-xs text-muted-foreground">
-                            {channel.lastMessageTimestamp ? formatDistanceToNow(channel.lastMessageTimestamp.toDate(), { addSuffix: true }) : ""}
+                            {conv.lastMessageTimestamp ? formatDistanceToNow(conv.lastMessageTimestamp.toDate(), { addSuffix: true }) : ""}
                         </p>
-                        {/* Basic unread badge - more complex logic needed for real unread counts */}
-                        {channel.unreadCounts && currentUser && channel.unreadCounts[currentUser.uid] > 0 && (
+                        {conv.unreadCounts && currentUser && (conv.unreadCounts[currentUser.uid] || 0) > 0 && (
                             <Badge className="mt-1 h-5 w-5 p-0 flex items-center justify-center bg-primary text-primary-foreground">
-                            {channel.unreadCounts[currentUser.uid]}
+                            {conv.unreadCounts[currentUser.uid]}
                             </Badge>
                         )}
                         </div>
                     </div>
                   );
                 })}
-                {/* Mock contacts for initiating new chats */}
                 <CardDescription className="p-2 text-xs text-muted-foreground">Start a new chat:</CardDescription>
-                {mockContactsForNewChat.filter(mock => !chatChannels.some(c => c.members.includes(mock.id))).map(mockContact => (
+                {mockContactsForNewChat.filter(mock => !conversations.some(c => c.participants.includes(mock.id))).map(mockContact => (
                      <div
                         key={mockContact.id}
                         className={cn(
                         "flex items-center p-3 hover:bg-muted/50 cursor-pointer border-b border-border transition-colors opacity-70 hover:opacity-100"
                         )}
-                        onClick={() => handleSelectChannel({ otherUserId: mockContact.id, otherUserName: mockContact.fullName, otherUserAvatar: mockContact.photoURL })}
+                        onClick={() => handleSelectConversation({ otherUserId: mockContact.id, otherUserName: mockContact.fullName, otherUserAvatar: mockContact.photoURL })}
                     >
                         <Avatar className="h-10 w-10 mr-3">
-                            <AvatarImage src={mockContact.photoURL} alt={mockContact.fullName} data-ai-hint={mockContact.username || "user avatar"} />
+                            <AvatarImage src={mockContact.photoURL} alt={mockContact.fullName || "User"} data-ai-hint={mockContact.username || "user avatar"} />
                             <AvatarFallback>{mockContact.fullName?.substring(0,1).toUpperCase() || "U"}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
@@ -310,7 +307,7 @@ export default function MessagesPage() {
                         </div>
                     </div>
                 ))}
-                 {chatChannels.length === 0 && !isLoadingChannels && (
+                 {conversations.length === 0 && !isLoadingConversations && (
                     <p className="p-4 text-center text-muted-foreground">No active chats. Start a new one!</p>
                 )}
               </>
@@ -318,24 +315,23 @@ export default function MessagesPage() {
           </ScrollArea>
         </div>
 
-        {/* Main chat area */}
         <div className="w-2/3 flex flex-col bg-background">
-          {selectedChannel && currentUser ? (
+          {selectedConversation && currentUser ? (
             <>
               <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
                 <div className="flex items-center">
                     <Avatar className="h-10 w-10 mr-3">
-                        <AvatarImage src={getOtherMemberInfo(selectedChannel).avatarUrl} alt={getOtherMemberInfo(selectedChannel).name} data-ai-hint={getOtherMemberInfo(selectedChannel).dataAiHint || "user avatar"} />
-                        <AvatarFallback>{getOtherMemberInfo(selectedChannel).name?.substring(0, 1).toUpperCase() || "U"}</AvatarFallback>
+                        <AvatarImage src={getOtherParticipantInfo(selectedConversation).avatarUrl} alt={getOtherParticipantInfo(selectedConversation).name} data-ai-hint={getOtherParticipantInfo(selectedConversation).dataAiHint || "user avatar"} />
+                        <AvatarFallback>{getOtherParticipantInfo(selectedConversation).name?.substring(0, 1).toUpperCase() || "U"}</AvatarFallback>
                     </Avatar>
-                    <CardTitle className="text-lg">{getOtherMemberInfo(selectedChannel).name}</CardTitle>
+                    <CardTitle className="text-lg">{getOtherParticipantInfo(selectedConversation).name}</CardTitle>
                 </div>
               </CardHeader>
               <ScrollArea className="flex-1 p-4 space-y-4 bg-background">
                 {isLoadingMessages && <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
                 {!isLoadingMessages && messages.map((msg) => {
                   const isUserSender = msg.senderId === currentUser.uid;
-                  const senderDisplayName = isUserSender ? (currentUser.displayName || currentUser.email?.split('@')[0]) : (msg.senderName || getOtherMemberInfo(selectedChannel).name);
+                  const senderDisplayName = isUserSender ? (currentUser.displayName || currentUser.email?.split('@')[0]) : (msg.senderName || getOtherParticipantInfo(selectedConversation).name);
                   const senderDisplayAvatar = isUserSender ? currentUser.photoURL : msg.senderAvatar;
 
                   return (
@@ -348,7 +344,7 @@ export default function MessagesPage() {
                   >
                     {!isUserSender && (
                        <Avatar className="h-8 w-8">
-                        <AvatarImage src={senderDisplayAvatar || undefined} alt={senderDisplayName} data-ai-hint="user avatar" />
+                        <AvatarImage src={senderDisplayAvatar || undefined} alt={senderDisplayName || "User"} data-ai-hint="user avatar" />
                         <AvatarFallback>{senderDisplayName?.substring(0,1).toUpperCase() || "U"}</AvatarFallback>
                       </Avatar>
                     )}
@@ -358,7 +354,7 @@ export default function MessagesPage() {
                         isUserSender ? "bg-primary text-primary-foreground rounded-br-none" : "bg-muted text-foreground rounded-bl-none"
                       )}
                     >
-                      <p className="text-sm">{msg.text}</p>
+                      <p className="text-sm">{msg.messageText}</p>
                       <p className={cn("text-xs mt-1", isUserSender ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground text-left')}>
                         {msg.timestamp instanceof Timestamp ? formatDistanceToNow(msg.timestamp.toDate(), { addSuffix: true}) : "Sending..."}
                       </p>
@@ -399,3 +395,5 @@ export default function MessagesPage() {
     </div>
   );
 }
+
+    
