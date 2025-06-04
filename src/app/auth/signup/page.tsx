@@ -11,8 +11,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { CharisMonogramLogo } from '@/components/icons/CharisMonogramLogo';
+import { GoogleIcon } from '@/components/icons/GoogleIcon'; // Added
 import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
+import { Separator } from '@/components/ui/separator'; // Added
 
 const signupSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -26,8 +28,9 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
-  const { signupUser } = useAppState();
+  const { signupUser, signInWithGoogle } = useAppState(); // Added signInWithGoogle
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false); // Added
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -41,7 +44,13 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
     await signupUser(data.email, data.password);
-    setIsLoading(false);
+    setIsLoading(false); // This will be set by onAuthStateChanged in context if successful
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    await signInWithGoogle();
+    setIsGoogleLoading(false); // This will be set by onAuthStateChanged
   };
 
   return (
@@ -67,7 +76,7 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="you@example.com" {...field} disabled={isLoading} />
+                      <Input type="email" placeholder="you@example.com" {...field} disabled={isLoading || isGoogleLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -80,7 +89,7 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} disabled={isLoading} />
+                      <Input type="password" placeholder="•••••••• (min. 6 characters)" {...field} disabled={isLoading || isGoogleLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -93,18 +102,30 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} disabled={isLoading} />
+                      <Input type="password" placeholder="••••••••" {...field} disabled={isLoading || isGoogleLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg" disabled={isLoading}>
+              <Button type="submit" variant="gradientPrimary" className="w-full text-lg py-3 transition-transform hover:scale-105 hover:shadow-lg" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5" />}
-                {isLoading ? 'Creating Account...' : 'Sign Up'}
+                {isLoading ? 'Creating Account...' : 'Sign Up with Email'}
               </Button>
             </form>
           </Form>
+
+          <div className="my-6 flex items-center">
+            <Separator className="flex-1" />
+            <span className="mx-4 text-xs text-muted-foreground uppercase">Or</span>
+            <Separator className="flex-1" />
+          </div>
+
+          <Button variant="outline" className="w-full text-md py-3 transition-transform hover:scale-105 hover:shadow-sm" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+            {isGoogleLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
+            {isGoogleLoading ? 'Signing Up...' : 'Sign Up with Google'}
+          </Button>
+
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
             <Link href="/auth/login" className="font-semibold text-primary hover:underline">
@@ -116,3 +137,5 @@ export default function SignupPage() {
     </div>
   );
 }
+
+    

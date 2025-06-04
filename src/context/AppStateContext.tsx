@@ -9,10 +9,12 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
+  GoogleAuthProvider, // Added
+  signInWithPopup,    // Added
   type User as FirebaseUser 
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { getUserProfile, type UserProfileData } from '@/actions/userProfile'; 
+import { getUserProfile, type UserProfileData, saveUserProfile } from '@/actions/userProfile'; 
 
 type AppStateContextType = {
   isLoadingAuth: boolean; 
@@ -21,6 +23,7 @@ type AppStateContextType = {
   currentUserProfile: UserProfileData | null; 
   loginUser: (email: string, password: string) => Promise<FirebaseUser | null>;
   signupUser: (email: string, password: string) => Promise<FirebaseUser | null>;
+  signInWithGoogle: () => Promise<FirebaseUser | null>; // Added
   logoutUser: () => Promise<void>;
   showWelcome: boolean;
   setShowWelcome: React.Dispatch<React.SetStateAction<boolean>>;
@@ -39,15 +42,35 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const { toast } = useToast();
 
-  const fetchAndSetUserProfile = async (user: FirebaseUser | null) => {
+  const fetchAndSetUserProfile = async (user: FirebaseUser | null, isNewGoogleUser: boolean = false) => {
     if (user) {
       try {
-        const userProfile = await getUserProfile(user.uid);
+        let userProfile = await getUserProfile(user.uid);
+        
+        // If it's a new Google user and their profile doesn't exist yet, create a basic one.
+        if (isNewGoogleUser && !userProfile) {
+          const basicProfile: Partial<UserProfileData> = {
+            uid: user.uid,
+            email: user.email,
+            fullName: user.displayName,
+            photoURL: user.photoURL,
+            // Initialize other fields as needed from your Step 2 requirements
+            username: user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
+            followersCount: 0,
+            followingCount: 0,
+            postsCount: 0,
+            storiesCount: 0,
+            moderationStatus: 'approved', // Or 'pending' if new Google user profiles need review
+          };
+          await saveUserProfile(user.uid, basicProfile);
+          userProfile = await getUserProfile(user.uid); // Re-fetch to get the saved profile
+        }
+        
         setCurrentUserProfile(userProfile);
         return userProfile;
       } catch (error) {
-        console.error("Error fetching user profile:", error);
-        toast({ title: "Profile Error", description: "Could not load your profile data.", variant: "destructive" });
+        console.error("Error fetching/creating user profile:", error);
+        toast({ title: "Profile Error", description: "Could not load or initialize your profile data.", variant: "destructive" });
         setCurrentUserProfile(null);
         return null;
       }
@@ -73,12 +96,17 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
         setShowWelcome(false); 
         sessionStorage.setItem('hasSeenWelcome', 'true');
         htmlElement.classList.remove('unauthenticated-theme');
-        // UserThemeInjector will handle applying user-specific or default app themes
-
+        
         const userProfileData = await fetchAndSetUserProfile(user);
 
-        if (!userProfileData) { 
-          if (pathname !== '/onboarding' && !pathname.startsWith('/auth/signup')) { 
+        // Check if it's an existing user by seeing if profile data implies onboarding was completed
+        // For simplicity, we assume if crucial profile fields like 'bio' or 'genre' (from your full spec) are missing, they need onboarding.
+        // Or, more simply, if they have a profile at all after fetchAndSetUserProfile.
+        const needsOnboarding = !userProfileData || (!userProfileData.bio && !userProfileData.fullName);
+
+
+        if (needsOnboarding) { 
+          if (pathname !== '/onboarding') { 
             router.push('/onboarding');
           }
         } else { 
@@ -104,7 +132,6 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       setIsLoadingAuth(false);
     });
 
-    // Initial check for unauthenticated theme if not loading and no user
     if (!isLoadingAuth && !auth.currentUser) {
         htmlElement.classList.add('unauthenticated-theme');
     }
@@ -143,6 +170,9 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
     setIsLoadingAuth(true); 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // After successful signup with email/password, a basic profile should also be created
+      // or they should be redirected to onboarding. fetchAndSetUserProfile will handle this.
+      await fetchAndSetUserProfile(userCredential.user, true);
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase signup error:", error);
@@ -154,6 +184,29 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       }
       toast({ title: "Signup Error", description: message, variant: "destructive" });
       setIsLoadingAuth(false); 
+      return null;
+    }
+  };
+
+  const signInWithGoogle = async (): Promise<FirebaseUser | null> => {
+    setIsLoadingAuth(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      // This will trigger the onAuthStateChanged listener, which will then call fetchAndSetUserProfile.
+      // We pass `true` for `isNewGoogleUser` to ensure profile creation if it's their first time.
+      await fetchAndSetUserProfile(result.user, true); 
+      return result.user;
+    } catch (error: any) {
+      console.error("Google sign-in error:", error);
+      let message = "Failed to sign in with Google. Please try again.";
+      if (error.code === 'auth/popup-closed-by-user') {
+        message = "Google Sign-In popup was closed before completion.";
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        message = "An account already exists with this email address using a different sign-in method.";
+      }
+      toast({ title: "Google Sign-In Error", description: message, variant: "destructive" });
+      setIsLoadingAuth(false);
       return null;
     }
   };
@@ -176,6 +229,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       currentUserProfile,
       loginUser, 
       signupUser, 
+      signInWithGoogle, // Added
       logoutUser, 
       showWelcome, 
       setShowWelcome,
@@ -193,3 +247,5 @@ export const useAppState = () => {
   }
   return context;
 };
+
+    
