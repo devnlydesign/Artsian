@@ -16,7 +16,7 @@ import {
   increment,
   Timestamp,
 } from 'firebase/firestore';
-import { createNotification } from './notificationActions';
+import { createPlatformNotification } from './notificationActions'; // Corrected import
 import { getUserProfile } from './userProfile';
 
 export interface ConnectionData {
@@ -75,7 +75,7 @@ export async function followUser(
     // Create notification for the followed user
     const followerProfile = await getUserProfile(currentUserId);
     if (followerProfile) {
-      await createNotification({
+      await createPlatformNotification({ // Corrected function call
         recipientId: targetUserId,
         type: 'new_follower',
         actorId: currentUserId,
