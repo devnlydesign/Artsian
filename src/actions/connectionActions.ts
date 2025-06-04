@@ -16,6 +16,8 @@ import {
   increment,
   Timestamp,
 } from 'firebase/firestore';
+import { createNotification } from './notificationActions';
+import { getUserProfile } from './userProfile';
 
 export interface ConnectionData {
   id: string; 
@@ -69,6 +71,23 @@ export async function followUser(
 
     await batch.commit();
     console.info(`[followUser] Success: ${currentUserId} now follows ${targetUserId}`);
+
+    // Create notification for the followed user
+    const followerProfile = await getUserProfile(currentUserId);
+    if (followerProfile) {
+      await createNotification({
+        recipientId: targetUserId,
+        type: 'new_follower',
+        actorId: currentUserId,
+        actorName: followerProfile.fullName || followerProfile.username,
+        actorAvatarUrl: followerProfile.photoURL,
+        message: `${followerProfile.fullName || followerProfile.username || 'Someone'} started following you.`,
+        linkTo: `/profile/${currentUserId}`, // Link to the follower's profile
+        entityId: currentUserId,
+        entityType: 'user_profile'
+      });
+    }
+
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
