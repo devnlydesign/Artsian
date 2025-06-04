@@ -1,14 +1,20 @@
 
 "use client"; 
 
-import React, { useState } from 'react'; 
+import React, { useState, useEffect } from 'react'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Sparkles, Star, TrendingUp, Zap, Gift, Rocket, Loader2 } from "lucide-react"; 
 import Link from "next/link";
 import { useAppState } from '@/context/AppStateContext'; 
-import { saveUserProfile } from '@/actions/userProfile'; 
+import { saveUserProfile, getUserProfile, type UserProfileData } from '@/actions/userProfile'; 
 import { useToast } from '@/hooks/use-toast'; 
+import { loadStripe } from '@stripe/stripe-js';
+import { createPremiumAppSubscriptionCheckoutSession } from '@/actions/stripe';
+import { useSearchParams } from 'next/navigation';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+
 
 const basicFeatures = [
   "Create & Share Artworks (Crystalline Blooms)",
@@ -32,10 +38,53 @@ const premiumFeatures = [
 ];
 
 export default function PremiumPage() {
-  const { currentUser, isAuthenticated } = useAppState();
+  const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
   const { toast } = useToast();
-  const [isActivatingPremium, setIsActivatingPremium] = useState(false);
-  const [isStartingTrial, setIsStartingTrial] = useState(false);
+  const searchParams = useSearchParams();
+
+  const [isActivatingMockPremium, setIsActivatingMockPremium] = useState(false);
+  const [isProcessingSubscription, setIsProcessingSubscription] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      if (currentUser?.uid) {
+        const data = await getUserProfile(currentUser.uid);
+        setUserProfile(data);
+      }
+    }
+    if (isAuthenticated) {
+      fetchProfile();
+    }
+  }, [currentUser, isAuthenticated]);
+
+  useEffect(() => {
+    const premiumStatus = searchParams.get('premium_status');
+    const sessionId = searchParams.get('session_id');
+
+    if (premiumStatus === 'success' && sessionId) {
+      toast({
+        title: "Payment Successful!",
+        description: "Your premium subscription is being processed. Please refresh in a moment to see changes.",
+        duration: 7000,
+      });
+      // Optionally, trigger a profile refresh here after a short delay
+      // Or rely on webhook to update profile and user re-navigates/refreshes
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, document.title, window.location.pathname); // Clean URL
+      }
+    } else if (premiumStatus === 'cancel') {
+      toast({
+        title: "Subscription Cancelled",
+        description: "Your attempt to subscribe to premium was cancelled.",
+        variant: "default",
+        duration: 7000,
+      });
+       if (typeof window !== 'undefined') {
+        window.history.replaceState({}, document.title, window.location.pathname); // Clean URL
+      }
+    }
+  }, [searchParams, toast]);
 
 
   const handleActivateMockPremium = async () => {
@@ -43,41 +92,70 @@ export default function PremiumPage() {
       toast({ title: "Login Required", description: "Please log in to activate premium features.", variant: "destructive" });
       return;
     }
-    setIsActivatingPremium(true);
+    setIsActivatingMockPremium(true);
     try {
       const result = await saveUserProfile(currentUser.uid, { isPremium: true });
       if (result.success) {
         toast({ title: "Mock Premium Activated!", description: "Premium features are now simulated for your account. Refresh profile to see changes." });
+        const updatedProfile = await getUserProfile(currentUser.uid); // Re-fetch profile
+        setUserProfile(updatedProfile);
       } else {
         toast({ title: "Activation Failed", description: result.message || "Could not activate mock premium.", variant: "destructive" });
       }
     } catch (error) {
       toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
     } finally {
-      setIsActivatingPremium(false);
+      setIsActivatingMockPremium(false);
     }
   };
   
-  const handleStartFreeTrial = async () => {
+  const handleSubscribeToPremium = async () => {
      if (!currentUser || !isAuthenticated) {
-      toast({ title: "Login Required", description: "Please log in to start your free trial.", variant: "destructive" });
+      toast({ title: "Login Required", description: "Please log in to subscribe.", variant: "destructive" });
       return;
     }
-    setIsStartingTrial(true);
+    setIsProcessingSubscription(true);
     try {
-      const result = await saveUserProfile(currentUser.uid, { isPremium: true });
-      if (result.success) {
-        toast({ title: "Free Trial Started!", description: "Your 3-month premium trial is now active! Refresh your profile to see changes." });
-      } else {
-        toast({ title: "Trial Activation Failed", description: result.message || "Could not start your free trial.", variant: "destructive" });
+      const stripe = await stripePromise;
+      if (!stripe) {
+        toast({ title: "Error", description: "Stripe.js failed to load.", variant: "destructive" });
+        setIsProcessingSubscription(false);
+        return;
       }
+
+      const result = await createPremiumAppSubscriptionCheckoutSession(
+        currentUser.uid, 
+        currentUser.email, 
+        currentUser.displayName
+      );
+
+      if ('error' in result || !result.sessionId) {
+        toast({ title: "Subscription Error", description: result.error || "Could not create subscription session.", variant: "destructive" });
+        setIsProcessingSubscription(false);
+        return;
+      }
+      
+      const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: result.sessionId });
+
+      if (stripeError) {
+        console.error("Stripe redirect error:", stripeError);
+        toast({ title: "Redirect Error", description: stripeError.message || "Failed to redirect to Stripe.", variant: "destructive" });
+      }
+      // If redirectToCheckout is successful, user is navigated away.
+      // setIsProcessingSubscription(false) will be effectively handled by navigation or if an error occurs before redirect.
+
     } catch (error) {
-      toast({ title: "Error", description: "An unexpected error occurred during trial activation.", variant: "destructive" });
-    } finally {
-      setIsStartingTrial(false);
-    }
+      console.error("Error starting premium subscription:", error);
+      const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+      toast({ title: "Subscription Error", description: message, variant: "destructive" });
+    } 
+    // Do not set isProcessingSubscription(false) here if redirect is expected.
+    // It will be set if an error occurs before redirect, or component unmounts.
+    // If redirect fails and code reaches here, then set to false.
+    if (!isProcessingSubscription) setIsProcessingSubscription(false); // Fallback
   };
 
+  const isAlreadyPremium = userProfile?.isPremium || false;
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -93,19 +171,26 @@ export default function PremiumPage() {
         <CardContent>
            <p className="text-lg mb-6">
             Supercharge your presence, connect more deeply, and stand out. <br/>
-            <span className="font-semibold text-primary">Try Premium free for 3 months!</span>
+            {isAlreadyPremium ? (
+                <span className="font-semibold text-green-500">You are currently a Premium Member!</span>
+            ) : (
+                <span className="font-semibold text-primary">Try Premium free for 3 months! (Via Stripe Test Mode)</span>
+            )}
           </p>
-           <Button 
-            size="lg" 
-            variant="gradientPrimary" 
-            className="text-xl py-4 px-8 transition-transform hover:scale-105"
-            onClick={handleStartFreeTrial}
-            disabled={isStartingTrial || !isAuthenticated}
+          {!isAlreadyPremium && (
+            <Button 
+                size="lg" 
+                variant="gradientPrimary" 
+                className="text-xl py-4 px-8 transition-transform hover:scale-105"
+                onClick={handleSubscribeToPremium}
+                disabled={isProcessingSubscription || !isAuthenticated || isLoadingAuth}
             >
-            {isStartingTrial ? <Loader2 className="mr-2 h-6 w-6 animate-spin"/> : <Gift className="mr-2 h-6 w-6"/>}
-            {isStartingTrial ? "Starting Trial..." : "Start Your 3-Month Free Trial"}
-          </Button>
-          <p className="text-xs text-muted-foreground mt-2">Then $9.99/month. Cancel anytime.</p>
+                {isProcessingSubscription ? <Loader2 className="mr-2 h-6 w-6 animate-spin"/> : <Gift className="mr-2 h-6 w-6"/>}
+                {isProcessingSubscription ? "Processing..." : "Subscribe to Premium"}
+            </Button>
+          )}
+          {!isAlreadyPremium && <p className="text-xs text-muted-foreground mt-2">Test with Stripe. Real Price ID needs setup. Webhook required for activation.</p>}
+          {isAlreadyPremium && <p className="text-xs text-muted-foreground mt-2">Manage your subscription via Stripe (external link placeholder).</p>}
         </CardContent>
       </Card>
 
@@ -124,7 +209,9 @@ export default function PremiumPage() {
             ))}
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full" disabled>Currently Active</Button>
+            <Button variant="outline" className="w-full" disabled={!isAlreadyPremium}>
+                {isAlreadyPremium ? "Your Current Plan (Free Tier)" : "Currently Active"}
+            </Button>
           </CardFooter>
         </Card>
 
@@ -137,7 +224,7 @@ export default function PremiumPage() {
                 <Rocket className="h-7 w-7 text-primary"/>Premium Plan
             </CardTitle>
             <CardDescription>Unlock the full power of Charis Art Hub.</CardDescription>
-            <p className="text-3xl font-bold text-primary pt-2">$9.99 <span className="text-sm font-normal text-muted-foreground">/ month (after trial)</span></p>
+            <p className="text-3xl font-bold text-primary pt-2">$9.99 <span className="text-sm font-normal text-muted-foreground">/ month (Placeholder Price)</span></p>
           </CardHeader>
           <CardContent className="space-y-3">
             {premiumFeatures.map((feature, index) => (
@@ -148,16 +235,28 @@ export default function PremiumPage() {
             ))}
           </CardContent>
           <CardFooter>
-             <Button 
-                size="lg" 
-                variant="gradientPrimary" 
-                className="w-full text-lg transition-transform hover:scale-105"
-                onClick={handleStartFreeTrial}
-                disabled={isStartingTrial || !isAuthenticated}
-                >
-                {isStartingTrial ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Gift className="mr-2 h-5 w-5"/>}
-                {isStartingTrial ? "Processing..." : "Start 3-Month Free Trial"}
-            </Button>
+            {!isAlreadyPremium && (
+                 <Button 
+                    size="lg" 
+                    variant="gradientPrimary" 
+                    className="w-full text-lg transition-transform hover:scale-105"
+                    onClick={handleSubscribeToPremium}
+                    disabled={isProcessingSubscription || !isAuthenticated || isLoadingAuth}
+                    >
+                    {isProcessingSubscription ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Gift className="mr-2 h-5 w-5"/>}
+                    {isProcessingSubscription ? "Processing..." : "Go Premium with Stripe"}
+                </Button>
+            )}
+            {isAlreadyPremium && (
+                 <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="w-full text-lg"
+                    disabled
+                    >
+                    <CheckCircle className="mr-2 h-5 w-5 text-green-500"/> Currently Premium
+                </Button>
+            )}
           </CardFooter>
         </Card>
       </div>
@@ -167,14 +266,14 @@ export default function PremiumPage() {
             <CardTitle>Development & Testing</CardTitle>
         </CardHeader>
         <CardContent>
-            <p className="text-muted-foreground mb-2">For testing purposes, you can simulate premium status for your account.</p>
+            <p className="text-muted-foreground mb-2">For testing purposes, you can simulate premium status for your account (requires manual profile refresh to see UI changes).</p>
             <Button 
                 variant="outline" 
                 onClick={handleActivateMockPremium} 
-                disabled={isActivatingPremium || !isAuthenticated}
+                disabled={isActivatingMockPremium || !isAuthenticated || isAlreadyPremium}
             >
-                {isActivatingPremium ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {isActivatingPremium ? "Activating..." : "Activate Mock Premium (Dev)"}
+                {isActivatingMockPremium ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                {isActivatingMockPremium ? "Activating..." : (isAlreadyPremium ? "Mock Premium is Active" : "Activate Mock Premium (Dev)")}
             </Button>
             {!isAuthenticated && <p className="text-xs text-destructive mt-1">Log in to test premium features.</p>}
         </CardContent>

@@ -38,6 +38,8 @@ export interface UserProfileData {
   emailOptIn?: boolean;
   isPremium?: boolean;
   stripeCustomerId?: string;
+  premiumSubscriptionId?: string; // Stripe Subscription ID for app premium
+  premiumSubscriptionEndsAt?: Timestamp | null; // When the current premium period ends
   fluxSignature?: FluxSignature;
   fluxEvolutionPoints?: FluxEvolutionPoint[];
   createdAt?: Timestamp; 
@@ -61,7 +63,7 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
     Object.keys(dataToSave).forEach(key => {
       const K = key as keyof UserProfileData;
       if (dataToSave[K] === undefined) {
-        delete dataToSave[K]; // Ensure undefined fields are removed if not explicitly set
+        delete dataToSave[K]; 
       }
     });
 
@@ -72,6 +74,7 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         updatedAt: serverTimestamp(),
       });
     } else {
+      // Defaults for new profiles
       await setDoc(userProfileRef, {
         uid: userId,
         email: data.email ?? null,
@@ -79,12 +82,15 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         bannerURL: data.bannerURL ?? null,
         isPremium: data.isPremium ?? false,
         stripeCustomerId: data.stripeCustomerId ?? null,
+        premiumSubscriptionId: data.premiumSubscriptionId ?? null,
+        premiumSubscriptionEndsAt: data.premiumSubscriptionEndsAt ?? null,
         fluxSignature: data.fluxSignature ?? { dominantColors: [], keywords: [] }, 
         fluxEvolutionPoints: data.fluxEvolutionPoints ?? [], 
         followersCount: data.followersCount ?? 0,
         followingCount: data.followingCount ?? 0,
         isProfileAmplified: data.isProfileAmplified ?? false,
         profileAmplifiedAt: data.profileAmplifiedAt ?? null,
+        emailOptIn: data.emailOptIn ?? false,
         ...dataToSave, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -116,6 +122,8 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.followingCount = profile.followingCount ?? 0;
       profile.stripeCustomerId = profile.stripeCustomerId ?? undefined;
       profile.isPremium = profile.isPremium ?? false;
+      profile.premiumSubscriptionId = profile.premiumSubscriptionId ?? undefined;
+      profile.premiumSubscriptionEndsAt = profile.premiumSubscriptionEndsAt ?? null;
       profile.emailOptIn = profile.emailOptIn ?? false;
       profile.isProfileAmplified = profile.isProfileAmplified ?? false;
       profile.profileAmplifiedAt = profile.profileAmplifiedAt ?? null;
