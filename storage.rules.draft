@@ -3,77 +3,102 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Default deny all for safety
+
+    // Default Deny: It's a good practice to start with denying all access
+    // and then explicitly grant permissions. However, for broad public read
+    // on most assets, we'll be more permissive on reads below.
     // match /{allPaths=**} {
     //   allow read, write: if false;
     // }
 
-    // Helper function to check if user is authenticated
+    // Helper function to check if the user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // User profile pictures & banners:
-    // Path format: users/{userId}/profile_{timestamp}_{filename} or users/{userId}/banner_{timestamp}_{filename}
+    // Helper function to check if the user is the owner of the resource
+    // Assumes the first part of the path after the collection name is the userId
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User Profile Pictures & Banners
+    // Path: users/{userId}/profile_{timestamp}_{filename}
+    // Path: users/{userId}/banner_{timestamp}_{filename}
     match /users/{userId}/{imageType}_{timestamp}_{filename} {
-      allow read: if true; // Profile pictures and banners are generally public
-      allow write: if isAuthenticated() && request.auth.uid == userId &&
+      // Allow public read for profile/banner images
+      allow read: if true;
+
+      // Allow write (create, update, delete) only by the authenticated owner of that path segment.
+      // Validate file type and size.
+      allow write: if isOwner(userId) &&
                       (imageType == 'profile' || imageType == 'banner') &&
                       request.resource.size < 5 * 1024 * 1024 && // Max 5MB
                       request.resource.contentType.matches('image/.*'); // Only images
     }
 
-    // Artwork images/media:
-    // Path format: artworks/{userId}/{timestamp}_{filename}
-    match /artworks/{userId}/{timestamp}_{filename} {
-      allow read: if true; // Publicly readable artworks
-      allow write: if isAuthenticated() && request.auth.uid == userId &&
-                      request.resource.size < 20 * 1024 * 1024 && // Max 20MB for artworks (adjust as needed)
+    // Artwork Images (Crystalline Blooms)
+    // Path: artworks/{userId}/{artworkIdMaybeTimestamp}_{filename}
+    // Using artworkId in the path makes rules simpler if artworkId is known at upload time.
+    // If artworkId is generated *after* upload, a more generic path like artworks/{userId}/{timestamp}_{filename} is used.
+    // The current client-side code uses: `artworks/${currentUser.uid}/${Date.now()}_${artworkImageFile.name}`
+    match /artworks/{userId}/{fileId}_{filename} {
+      allow read: if true; // Assuming artworks are generally public once processed
+
+      // Allow write only by the authenticated owner for their path.
+      allow write: if isOwner(userId) &&
+                      request.resource.size < 15 * 1024 * 1024 && // Max 15MB for artworks (can include various media)
                       request.resource.contentType.matches('image/.*|video/.*|audio/.*'); // Allow images, video, audio
     }
-    
-    // Shop item images:
-    // Path format: shopItems/{artistId}/{timestamp}_{filename}
-    match /shopItems/{artistId}/{timestamp}_{filename} {
+
+    // Shop Item Images
+    // Path: shopItems/{artistId}/{timestamp}_{filename}
+    match /shopItems/{artistId}/{fileId}_{filename} {
       allow read: if true; // Publicly readable shop item images
-      allow write: if isAuthenticated() && request.auth.uid == artistId &&
-                      request.resource.size < 10 * 1024 * 1024 && // Max 10MB
+
+      // Allow write only by the authenticated artist for their path.
+      allow write: if isOwner(artistId) &&
+                      request.resource.size < 5 * 1024 * 1024 && // Max 5MB
                       request.resource.contentType.matches('image/.*');
     }
 
-    // Community cover images (if communities have direct image uploads for covers)
-    // Path format: communities/{communityId}/cover_{filename}
-    // match /communities/{communityId}/cover_{filename} {
+    // Reels Media (Videos)
+    // Path: reels/{userId}/{reelId}/{filename} (assuming reelId is known or generated before final URL save)
+    // Or, more simply: reels/{userId}/{timestamp}_{filename} if reelId is post-upload.
+    // Let's assume the client will generate a unique name or use timestamp for initial upload.
+    match /reels/{userId}/{fileId}_{filename} {
+      allow read: if true; // Reels are typically public
+
+      // Allow write only by the authenticated owner for their path.
+      allow write: if isOwner(userId) &&
+                      request.resource.size < 100 * 1024 * 1024 && // Max 100MB for videos (adjust as needed)
+                      request.resource.contentType.matches('video/.*'); // Only videos
+    }
+
+    // Community related images (e.g., cover images, post images)
+    // Needs careful consideration of who can upload (creator, members for posts).
+    // Example: Community Cover Image
+    // match /communities/{communityId}/cover/{filename} {
     //   allow read: if true;
-    //   allow write: if isAuthenticated() && 
-    //                   get(/databases/$(database)/documents/communities/$(communityId)).data.creatorId == request.auth.uid &&
-    //                   request.resource.size < 5 * 1024 * 1024 &&
-    //                   request.resource.contentType.matches('image/.*');
+    //   allow write: if isAuthenticated() &&
+    //                   get(/databases/$(database)/documents/communities/$(communityId)).data.creatorId == request.auth.uid;
+    // }
+    // Example: Community Post Image
+    // match /communities/{communityId}/posts/{postId}/{filename} {
+    //    allow read: if true;
+    //    allow write: if isAuthenticated() &&
+    //                    exists(/databases/$(database)/documents/communityMemberships/$(request.auth.uid + '_' + communityId)); // User is a member
     // }
 
-    // Community post images
-    // Path format: communities/{communityId}/posts/{postId}/{filename}
-    // match /communities/{communityId}/posts/{postId}/{filename} {
-    //   allow read: if true; // Assuming posts are public once community is accessible
-    //   allow write: if isAuthenticated() && 
-    //                   (get(/databases/$(database)/documents/communities/$(communityId)/posts/$(postId)).data.creatorId == request.auth.uid ||
-    //                    /* add community admin/moderator check here if they can upload images to posts */ ) &&
-    //                   request.resource.size < 10 * 1024 * 1024 &&
-    //                   request.resource.contentType.matches('image/.*');
-    // }
-    
+
     // Chat message images (if you implement image sending in chat):
-    // Path format: chatChannels/{channelId}/messages/{messageId}/{filename}
-    // This rule depends on your Firestore structure for chat channels to verify membership.
+    // Path: chatChannels/{channelId}/messages/{messageId}/{filename}
     // match /chatChannels/{channelId}/messages/{messageId}/{filename} {
     //   allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chatChannels/$(channelId)).data.members;
     //   allow write: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chatChannels/$(channelId)).data.members &&
-    //                   request.resource.size < 5 * 1024 * 1024 &&
+    //                   request.resource.size < 5 * 1024 * 1024 && // Max 5MB
     //                   request.resource.contentType.matches('image/.*');
     // }
-
   }
 }
-
     

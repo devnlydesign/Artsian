@@ -19,8 +19,8 @@ export default function CreatePage() {
         <CardHeader className="text-center">
           <PlusSquare className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Create New Content</CardTitle>
-           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
-          <CardDescription>What would you like to bring into existence on Charis Art Hub today?</CardDescription>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charisarthub</p>
+          <CardDescription>What would you like to bring into existence on Charisarthub today?</CardDescription>
         </CardHeader>
       </Card>
 
@@ -61,3 +61,4 @@ export default function CreatePage() {
     </div>
   );
 }
+    

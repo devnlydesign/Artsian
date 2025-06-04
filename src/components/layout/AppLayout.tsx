@@ -52,6 +52,7 @@ const userSpecificNavItems = [
 const artisanToolsNavItems = [
   { href: "/flux-signature", label: "My Artistic Style", icon: Palette, tooltip: "View Your Artistic Style" },
   { href: "/crystalline-blooms", label: "My Artworks", icon: Gem, tooltip: "View My Artworks" },
+  { href: "/reels/new", label: "Create Reel", icon: Clapperboard, tooltip: "Upload a New Reel" }, // Added Create Reel link
   { href: "/algorithmic-muse", label: "AI Idea Sparker", icon: Lightbulb, tooltip: "Get Creative Ideas" },
   { href: "/genesis-trails", label: "Project Stories", icon: GitBranch, tooltip: "Project Creation Timelines" },
   { href: "/process-symphony", label: "Creative Soundtracks", icon: Music, tooltip: "AI Generated Audio for Sessions" },
@@ -96,7 +97,7 @@ function UserThemeInjector() {
       styleElement.textContent = cssText;
     } else {
       if (styleElement) {
-        styleElement.remove();
+        styleElement.textContent = ''; // Clear content if no custom theme or not authenticated
       }
     }
   }, [currentUserProfile, isAuthenticated]);
@@ -321,3 +322,4 @@ function UserMenu() {
     </DropdownMenu>
   );
 }
+    

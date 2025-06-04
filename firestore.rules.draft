@@ -4,7 +4,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -12,68 +11,58 @@ service cloud.firestore {
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
-    function isResourceOwner(docData, ownerField) {
-      return isAuthenticated() && request.auth.uid == docData[ownerField];
+
+    function isResourceOwner(docData, fieldName) {
+      return isAuthenticated() && request.auth.uid == docData[fieldName];
     }
 
     function isModerationStatusApproved(docData) {
       return docData.moderationStatus == 'approved';
     }
-
+    
     function isPublishedAndApproved(docData) {
       return docData.isPublished == true && isModerationStatusApproved(docData);
     }
 
     // --- Users (Profiles) ---
     match /users/{userId} {
-      // Public profiles are generally readable, especially basic info for connections/mentions
       allow read: if true; 
-      
-      // User can create their own profile document, typically during onboarding
+
       allow create: if isOwner(userId) &&
                        request.resource.data.uid == userId &&
-                       // Validate essential fields for new profiles
-                       request.resource.data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt']) &&
-                       request.resource.data.isPremium == false && // Cannot set premium on client-side creation
+                       request.resource.data.keys().hasAll(['uid', 'email', 'fullName', 'username', 'isPremium', 'followersCount', 'followingCount', 'createdAt', 'updatedAt', 'moderationStatus']) &&
+                       request.resource.data.isPremium == false &&
                        request.resource.data.followersCount == 0 &&
                        request.resource.data.followingCount == 0 &&
-                       request.resource.data.moderationStatus == 'pending'; // New profiles start as pending
+                       request.resource.data.moderationStatus == 'pending';
 
-      // User can update their own profile
+
       allow update: if isOwner(userId) &&
-                       // Prevent client from modifying these fields directly
                        !(request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                           'uid', 'email', // Email typically verified and not directly updatable
-                           'isPremium', 'premiumSubscriptionId', 'premiumSubscriptionEndsAt', // Stripe webhook controlled
-                           'stripeCustomerId', // Stripe webhook/server controlled
-                           'followersCount', 'followingCount', // Server action controlled
+                           'uid', 'email', 
+                           'isPremium', 'premiumSubscriptionId', 'premiumSubscriptionEndsAt', 
+                           'stripeCustomerId', 
+                           'followersCount', 'followingCount', 
                            'createdAt',
-                           'moderationStatus', 'moderationInfo' // Admin/moderator controlled post-creation
+                           'moderationStatus', 'moderationInfo' // Only admin/moderator should update these post-initial-check
                          ]));
-      
-      // Users typically don't delete their own main profile document directly
-      allow delete: if false; // Handle account deletion via a server process
     }
 
     // --- Artworks (Crystalline Blooms) ---
     match /artworks/{artworkId} {
-      allow read: if isPublishedAndApproved(resource.data) || isResourceOwner(resource.data, "userId");
+      allow read: if isPublishedAndApproved(resource.data) || isResourceOwner(resource.data, 'userId');
 
-      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, "userId") &&
-                       request.resource.data.keys().hasAll(['userId', 'title', 'type', 'description', 'imageUrl', 'dataAiHint', 'layers', 'createdAt', 'updatedAt', 'isAmplified', 'amplifiedAt', 'isPublished', 'status', 'moderationStatus']) &&
+      allow create: if isResourceOwner(request.resource.data, 'userId') &&
+                       request.resource.data.keys().hasAll(['userId', 'title', 'type', 'description', 'imageUrl', 'dataAiHint', 'layers', 'createdAt', 'updatedAt', 'isAmplified', 'amplifiedAt', 'moderationStatus', 'isPublished', 'status']) &&
                        request.resource.data.isAmplified == false &&
-                       (request.resource.data.status == 'pending_moderation' || request.resource.data.status == 'scheduled' || request.resource.data.status == 'draft') && // initial valid statuses
-                       request.resource.data.moderationStatus == 'pending';
+                       request.resource.data.moderationStatus == 'pending'; // isPublished and status handled by action
 
-      allow update: if isAuthenticated() && isResourceOwner(resource.data, "userId") &&
+      allow update: if isResourceOwner(resource.data, 'userId') &&
                        !(request.resource.data.diff(resource.data).affectedKeys().hasAny([
                            'userId', 'createdAt',
-                           // status and isPublished are server/webhook controlled for scheduled items
-                           // moderationStatus and moderationInfo are admin/moderator controlled
-                           'status', 'isPublished', 'moderationStatus', 'moderationInfo' 
+                           'moderationStatus', 'moderationInfo', // Admin/moderator controlled
+                           'isPublished', 'status' // Server/Cloud Function controlled for scheduled posts
                          ])) &&
-                       // Specific rule for client-side amplification update (via server action is better)
                        (
                          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAmplified', 'amplifiedAt']) ||
                          (
@@ -81,237 +70,232 @@ service cloud.firestore {
                          )
                        );
       
-      allow delete: if isAuthenticated() && isResourceOwner(resource.data, "userId");
+      allow delete: if isResourceOwner(resource.data, 'userId');
+    }
+
+    // --- Reels ---
+    match /reels/{reelId} {
+      allow read: if isPublishedAndApproved(resource.data); // Or true if all reels are public
+
+      allow create: if isResourceOwner(request.resource.data, 'userId') &&
+                       request.resource.data.keys().hasAll(['userId', 'videoUrl', 'createdAt', 'updatedAt', 'moderationStatus', 'isPublished']) &&
+                       request.resource.data.moderationStatus == 'pending' &&
+                       request.resource.data.isPublished == true; // Or handle via server logic
+
+      allow update: if isResourceOwner(resource.data, 'userId') &&
+                       !(request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                           'userId', 'createdAt', 'videoUrl', // videoUrl likely immutable or needs special handling
+                           'moderationStatus', 'moderationInfo',
+                           'isPublished', 'viewCount', 'likeCount', 'commentCount'
+                         ]));
+                         
+      allow delete: if isResourceOwner(resource.data, 'userId');
     }
 
     // --- Connections (Follows) ---
     match /connections/{connectionId} {
       function isValidConnectionId() {
         let parts = connectionId.split('_');
-        return parts.size() == 2 && parts[0] != parts[1];
+        return parts.size() == 2 && parts[0] != parts[1]; 
       }
       
-      allow read: if isAuthenticated(); // Users can read connection docs to see who follows whom if needed by app logic
+      allow read: if isAuthenticated();
 
       allow create: if isValidConnectionId() &&
-                       isOwner(request.resource.data.followerId) && // Only follower can initiate
+                       isResourceOwner(request.resource.data, 'followerId') && 
                        request.resource.data.followerId == connectionId.split('_')[0] && 
-                       request.resource.data.followedId == connectionId.split('_')[1] &&
+                       request.resource.data.followedId == connectionId.split('_')[1] && 
                        request.resource.data.keys().hasAll(['followerId', 'followedId', 'createdAt']);
 
-      allow delete: if isOwner(resource.data.followerId); // Only follower can unfollow
+      allow delete: if isResourceOwner(resource.data, 'followerId'); 
     }
 
     // --- Genesis Trails ---
     match /genesisTrails/{trailId} {
-      allow read: if isResourceOwner(resource.data, "userId");
-      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, "userId") &&
-                       request.resource.data.keys().hasAll(['userId', 'input', 'output', 'projectTitle', 'createdAt']);
-      allow update, delete: if false; // Immutable by client after creation
+      allow read, create: if isResourceOwner(request.resource.data, 'userId') &&
+                              (request.method == 'create' ? request.resource.data.keys().hasAll(['userId', 'input', 'output', 'projectTitle', 'createdAt']) : true);
+      allow update, delete: if false;
     }
 
     // --- Muse Ideas ---
     match /museIdeas/{ideaId} {
-      allow read: if isResourceOwner(resource.data, "userId");
-      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, "userId") &&
-                       request.resource.data.keys().hasAll(['userId', 'input', 'output', 'createdAt']);
-      allow update, delete: if false; // Immutable by client after creation
+      allow read, create: if isResourceOwner(request.resource.data, 'userId') &&
+                              (request.method == 'create' ? request.resource.data.keys().hasAll(['userId', 'input', 'output', 'createdAt']) : true);
+      allow update, delete: if false;
     }
 
-    // --- Communities ---
+    // --- Communities & Posts ---
     match /communities/{communityId} {
-      allow read: if true; // Public communities
-      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, "creatorId") &&
+      allow read: if true; 
+      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, 'creatorId') &&
                        request.resource.data.keys().hasAll(['name', 'description', 'creatorId', 'creatorName', 'imageUrl', 'dataAiHint', 'memberCount', 'createdAt', 'updatedAt']) &&
                        request.resource.data.memberCount == 1; 
-      
-      allow update: if isAuthenticated() && isResourceOwner(resource.data, "creatorId") && // Only creator can update community details
+      allow update: if isResourceOwner(resource.data, 'creatorId') && 
                        !(request.resource.data.diff(resource.data).affectedKeys().hasAny([
                            'creatorId', 'creatorName', 'memberCount', 'createdAt'
                          ]));
-      // delete: typically by admin or server process
 
-      // --- Community Posts ---
       match /posts/{postId} {
-        allow read: if isModerationStatusApproved(resource.data); // Only approved posts readable by public
+        allow read: if isModerationStatusApproved(resource.data);
         allow create: if isAuthenticated() &&
-                         isResourceOwner(request.resource.data, "creatorId") &&
-                         exists(/databases/$(database)/documents/communityMemberships/$(request.auth.uid + '_' + communityId)) && // Must be a member
+                         isResourceOwner(request.resource.data, 'creatorId') &&
+                         exists(/databases/$(database)/documents/communityMemberships/$(request.auth.uid + '_' + communityId)) &&
                          request.resource.data.keys().hasAll(['communityId', 'creatorId', 'creatorName', 'content', 'createdAt', 'updatedAt', 'moderationStatus']) &&
                          request.resource.data.communityId == communityId &&
                          request.resource.data.moderationStatus == 'pending';
-        
-        allow update: if isAuthenticated() && isResourceOwner(resource.data, "creatorId") &&
+        allow update: if isResourceOwner(resource.data, 'creatorId') &&
                          !(request.resource.data.diff(resource.data).affectedKeys().hasAny([
                            'communityId', 'creatorId', 'creatorName', 'createdAt', 'moderationStatus', 'moderationInfo'
                          ]));
-        allow delete: if isAuthenticated() && isResourceOwner(resource.data, "creatorId");
-        // Future: allow community admins/moderators to delete/update moderationStatus
+        allow delete: if isResourceOwner(resource.data, 'creatorId');
       }
     }
 
-    // --- Community Memberships ---
-    match /communityMemberships/{membershipId} { // membershipId: {userId}_{communityId}
+    match /communityMemberships/{membershipId} {
       function isCorrectMembershipIdFormat() {
         let parts = membershipId.split('_');
         return parts.size() == 2;
       }
-      function isMemberRequestingOwnDoc() {
-          return isCorrectMembershipIdFormat() && request.auth.uid == membershipId.split('_')[0];
-      }
-
       allow read: if isAuthenticated() && 
-                     (isMemberRequestingOwnDoc() || 
-                      isResourceOwner(get(/databases/$(database)/documents/communities/$(resource.data.communityId)).data, "creatorId")); // Member or community creator can read
+                     (isOwner(membershipId.split('_')[0]) || isResourceOwner(get(/databases/$(database)/documents/communities/$(membershipId.split('_')[1])).data, 'creatorId'));
 
       allow create: if isAuthenticated() &&
                        isCorrectMembershipIdFormat() &&
-                       isOwner(request.resource.data.userId) && // User creates their own membership
+                       isOwner(request.resource.data.userId) && 
                        request.resource.data.userId == membershipId.split('_')[0] &&
                        request.resource.data.communityId == membershipId.split('_')[1] &&
                        request.resource.data.keys().hasAll(['userId', 'communityId', 'joinedAt', 'role']) &&
-                       request.resource.data.role == 'member'; // Client can only join as member
+                       (request.resource.data.role == 'member' || (request.resource.data.role == 'admin' && isResourceOwner(get(/databases/$(database)/documents/communities/$(request.resource.data.communityId)).data, 'creatorId')));
 
       allow delete: if isAuthenticated() &&
                        isCorrectMembershipIdFormat() &&
-                       isOwner(resource.data.userId) && // User deletes their own membership
+                       isOwner(resource.data.userId) && 
                        resource.data.userId == membershipId.split('_')[0];
     }
 
-    // --- Private Biomes ---
+    // --- Private Biomes & Memberships ---
     match /biomes/{biomeId} {
-      allow read: if true; // Biome details are public for discovery
-      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, "creatorId") &&
+      allow read: if true; 
+      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, 'creatorId') &&
                        request.resource.data.keys().hasAll(['name', 'description', 'creatorId', 'creatorName', 'imageUrl', 'dataAiHint', 'memberCount', 'accessType', 'createdAt', 'updatedAt']) &&
                        request.resource.data.memberCount == 1 &&
                        (request.resource.data.accessType == 'free' || request.resource.data.stripePriceId != null);
 
-      allow update: if isAuthenticated() && isResourceOwner(resource.data, "creatorId") &&
+      allow update: if isResourceOwner(resource.data, 'creatorId') && 
                        !(request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                           'creatorId', 'creatorName', 'memberCount', 'createdAt'
+                           'creatorId', 'creatorName', 'memberCount', 'createdAt', 'accessType', 'stripePriceId' 
                          ]));
-      // delete: typically by admin or server process
     }
 
-    // --- Biome Memberships ---
-    match /biomeMemberships/{membershipId} { // membershipId: {userId}_{biomeId}
-      function isCorrectBiomeMembershipIdFormat() {
+    match /biomeMemberships/{membershipId} { 
+       function isCorrectBiomeMembershipIdFormat() {
         let parts = membershipId.split('_');
         return parts.size() == 2;
       }
-       function isBiomeMemberRequestingOwnDoc() {
-          return isCorrectBiomeMembershipIdFormat() && request.auth.uid == membershipId.split('_')[0];
-      }
-      function isBiomeOwnerOrAdminOfMembership() {
-        let biomeDoc = get(/databases/$(database)/documents/biomes/$(resource.data.biomeId)).data;
-        return isResourceOwner(biomeDoc, "creatorId"); // Simple owner check, extend for admin roles
+      function isBiomeMemberOrOwner() {
+        return isAuthenticated() && (isOwner(resource.data.userId) || isResourceOwner(get(/databases/$(database)/documents/biomes/$(resource.data.biomeId)).data, 'creatorId'));
       }
 
-      allow read: if isAuthenticated() && (isBiomeMemberRequestingOwnDoc() || isBiomeOwnerOrAdminOfMembership());
+      allow read: if isBiomeMemberOrOwner();
       
-      // Create for free biomes by client, paid biomes by webhook.
-      allow create: if isAuthenticated() && 
-                       isCorrectBiomeMembershipIdFormat() && 
-                       isOwner(request.resource.data.userId) &&
-                       request.resource.data.userId == membershipId.split('_')[0] &&
-                       request.resource.data.biomeId == membershipId.split('_')[1] &&
-                       request.resource.data.keys().hasAll(['userId', 'biomeId', 'role', 'joinedAt', 'status']) &&
-                       request.resource.data.role == (get(/databases/$(database)/documents/biomes/$(request.resource.data.biomeId)).data.creatorId == request.auth.uid ? 'owner' : 'member') && // owner if creating own biome, member if joining
-                       get(/databases/$(database)/documents/biomes/$(request.resource.data.biomeId)).data.accessType == 'free' &&
-                       request.resource.data.status == 'active';
-                       // Paid biome memberships are created/activated by webhook after payment.
+      allow create: if (isAuthenticated() && 
+                        isCorrectBiomeMembershipIdFormat() &&
+                        isOwner(request.resource.data.userId) &&
+                        request.resource.data.userId == membershipId.split('_')[0] &&
+                        request.resource.data.biomeId == membershipId.split('_')[1] &&
+                        (
+                          (get(/databases/$(database)/documents/biomes/$(request.resource.data.biomeId)).data.accessType == 'free' && request.resource.data.status == 'active') ||
+                          (get(/databases/$(database)/documents/biomes/$(request.resource.data.biomeId)).data.accessType == 'paid' && request.resource.data.status == 'pending_payment') || // Initial status for paid
+                          (request.resource.data.role == 'owner') // Owner during biome creation
+                        ) &&
+                        request.resource.data.keys().hasAll(['userId', 'biomeId', 'role', 'joinedAt', 'status'])
+                       ) ||
+                       // Allow webhook/server to create/update with full details
+                       (request.auth == null && request.origin == 'firebase'); // Basic check, needs refinement for real webhooks
 
-      allow update: if false; // All membership updates (status, role, Stripe details) should be via server actions or webhooks.
+      allow update: if (request.auth == null && request.origin == 'firebase'); // Only server/webhook can update (e.g. status after payment)
 
-      allow delete: if isAuthenticated() &&
+      allow delete: if isAuthenticated() && 
                        isCorrectBiomeMembershipIdFormat() &&
                        isOwner(resource.data.userId) && 
-                       resource.data.userId == membershipId.split('_')[0]; // User leaves a biome
+                       resource.data.userId == membershipId.split('_')[0];
     }
-
+    
     // --- Shop Items ---
     match /shopItems/{itemId} {
-      allow read: if isPublishedAndApproved(resource.data) || (isAuthenticated() && isResourceOwner(resource.data, "artistId"));
-      
-      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, "artistId") &&
-                       request.resource.data.keys().hasAll(['artistId', 'name', 'description', 'priceInCents', 'imageUrl', 'createdAt', 'updatedAt', 'isPublished', 'moderationStatus']) &&
-                       request.resource.data.priceInCents >= 50 && // Min price
+      allow read: if isPublishedAndApproved(resource.data) || (isAuthenticated() && isResourceOwner(resource.data, 'artistId'));
+      allow create: if isAuthenticated() && isResourceOwner(request.resource.data, 'artistId') &&
+                       request.resource.data.keys().hasAll(['artistId', 'artistName', 'name', 'description', 'priceInCents', 'imageUrl', 'createdAt', 'updatedAt', 'isPublished', 'moderationStatus']) &&
+                       request.resource.data.priceInCents >= 50 && 
                        request.resource.data.moderationStatus == 'pending';
-      
-      allow update: if isAuthenticated() && isResourceOwner(resource.data, "artistId") &&
+      allow update: if isAuthenticated() && isResourceOwner(resource.data, 'artistId') &&
                        !(request.resource.data.diff(resource.data).affectedKeys().hasAny([
                            'artistId', 'createdAt', 'moderationStatus', 'moderationInfo'
                          ]));
-      allow delete: if isAuthenticated() && isResourceOwner(resource.data, "artistId");
+      allow delete: if isAuthenticated() && isResourceOwner(resource.data, 'artistId');
     }
 
     // --- Orders ---
     match /orders/{orderId} {
-      // Only buyer can read their own order. Artist access might be added later.
-      allow read: if isAuthenticated() && isResourceOwner(resource.data, "userId");
-      // Orders are created and updated by server/webhook only
-      allow create, update, delete: if false;
+      allow read: if isAuthenticated() && isResourceOwner(resource.data, 'userId');
+      allow create, update, delete: if false; // Server/webhook controlled
     }
 
     // --- Notifications ---
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && isResourceOwner(resource.data, "recipientId");
-      
-      allow create: if false; // Created by server actions/Cloud Functions only
-
-      allow update: if isAuthenticated() && isResourceOwner(resource.data, "recipientId") &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']); // Only 'isRead' can be updated by client
-      
-      allow delete: if isAuthenticated() && isResourceOwner(resource.data, "recipientId");
+      allow read: if isResourceOwner(resource.data, 'recipientId');
+      allow update: if isResourceOwner(resource.data, 'recipientId') &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow create: if false; 
+      allow delete: if isResourceOwner(resource.data, 'recipientId'); 
     }
 
     // --- Chat Channels & Messages ---
     match /chatChannels/{channelId} {
-      function isChannelMember(docData) {
-        return isAuthenticated() && request.auth.uid in docData.members;
+      function isChannelMember() {
+        return isAuthenticated() && request.auth.uid in resource.data.members;
       }
-      function isValidChannelIdAndMembersInRequest() {
+      function isChannelMemberForCreate(channelData) {
+        return isAuthenticated() && request.auth.uid in channelData.members;
+      }
+      function isValidChannelIdFormatAndMembers() {
         let parts = channelId.split('_');
-        return parts.size() == 2 && parts[0] < parts[1] &&
-               request.resource.data.members[0] == parts[0] &&
+        return parts.size() == 2 && parts[0] < parts[1] && 
+               request.resource.data.members.size() == 2 && // Ensure exactly two members
+               request.resource.data.members[0] == parts[0] && 
                request.resource.data.members[1] == parts[1];
       }
 
-      allow read: if isChannelMember(resource.data);
+      allow read: if isChannelMember();
       
-      allow create: if isChannelMember(request.resource.data) &&
-                       isValidChannelIdAndMembersInRequest() &&
+      allow create: if isChannelMemberForCreate(request.resource.data) &&
+                       isValidChannelIdFormatAndMembers() &&
                        request.resource.data.id == channelId &&
                        request.resource.data.keys().hasAll(['id', 'members', 'memberInfo', 'lastMessageText', 'lastMessageTimestamp', 'lastMessageSenderId', 'unreadCounts', 'createdAt', 'updatedAt']);
 
-      allow update: if isChannelMember(resource.data) &&
+      allow update: if isChannelMember() &&
                        (
-                         // Server action updates last message details
                          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessageText', 'lastMessageTimestamp', 'lastMessageSenderId', 'updatedAt'])) ||
-                         // Client updates their own unread count (typically to 0)
                          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadCounts', 'updatedAt']) && 
-                           request.resource.data.unreadCounts[request.auth.uid] == 0 && // Can only set their own unread to 0
-                           (resource.data.unreadCounts[request.auth.uid] == null || request.resource.data.unreadCounts[request.auth.uid] <= resource.data.unreadCounts[request.auth.uid])
-                         )
+                           request.resource.data.unreadCounts[request.auth.uid] <= resource.data.unreadCounts[request.auth.uid])
                        );
-      allow delete: if false; // Channels not deleted by clients
+      allow delete: if false; 
 
       match /messages/{messageId} {
         function isChannelMemberFromParentDoc() {
-          return request.auth.uid in get(/databases/$(database)/documents/chatChannels/$(channelId)).data.members;
+          return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chatChannels/$(channelId)).data.members;
         }
         
         allow read: if isChannelMemberFromParentDoc();
         
         allow create: if isChannelMemberFromParentDoc() && 
                          isOwner(request.resource.data.senderId) && 
-                         request.resource.data.channelId == channelId &&
-                         request.resource.data.keys().hasAll(['channelId', 'senderId', 'text', 'timestamp']);
+                         request.resource.data.channelId == channelId && 
+                         request.resource.data.keys().hasAll(['channelId', 'senderId', 'text', 'timestamp', 'senderName']); 
                          
-        allow update, delete: if false; // Messages are immutable by clients
+        allow update, delete: if false; 
       }
     }
   }
 }
-
     
