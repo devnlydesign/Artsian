@@ -21,7 +21,7 @@ import {
   SidebarSeparator,
   SidebarGroupLabel
 } from '@/components/ui/sidebar';
-import { CharisMonogramLogo } from '@/components/icons/CharisMonogramLogo'; // Updated Logo
+import { CharisMonogramLogo } from '@/components/icons/CharisMonogramLogo';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,7 +46,7 @@ const userSpecificNavItems = [
   { href: "/profile", label: "My Profile", icon: UserCircle, tooltip: "Your Profile Page" },
   { href: "/notifications", label: "My Activity", icon: Heart, tooltip: "Your Notifications" },
   { href: "/settings", label: "Settings", icon: Settings, tooltip: "App & Account Settings" },
-  { href: "/premium", label: "Get Premium", icon: Star, tooltip: "Charis Art Hub Premium Benefits" },
+  { href: "/premium", label: "Get Premium", icon: Star, tooltip: "Charisarthub Premium Benefits" },
 ];
 
 const artisanToolsNavItems = [
@@ -65,12 +65,13 @@ const artisanToolsNavItems = [
 
 
 function UserThemeInjector() {
-  const { currentUserProfile } = useAppState();
+  const { currentUserProfile, isAuthenticated } = useAppState();
 
   useEffect(() => {
-    if (currentUserProfile?.themeSettings?.customColors) {
-      const styleId = 'user-theme-overrides';
-      let styleElement = document.getElementById(styleId) as HTMLStyleElement | null;
+    const styleId = 'user-theme-overrides';
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement | null;
+
+    if (isAuthenticated && currentUserProfile?.themeSettings?.customColors) {
       if (!styleElement) {
         styleElement = document.createElement('style');
         styleElement.id = styleId;
@@ -94,12 +95,11 @@ function UserThemeInjector() {
 
       styleElement.textContent = cssText;
     } else {
-      const styleElement = document.getElementById('user-theme-overrides');
       if (styleElement) {
         styleElement.remove();
       }
     }
-  }, [currentUserProfile]);
+  }, [currentUserProfile, isAuthenticated]);
 
   return null; 
 }
@@ -118,8 +118,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const getPageTitle = () => {
     const allNavItems = [...mainNavItems, ...userSpecificNavItems, ...artisanToolsNavItems];
     const currentItem = allNavItems.find(item => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)));
-    // Use a more generic title or site name if no specific item matches
-    return currentItem?.label || "Charis Art Hub";
+    return currentItem?.label || "Charisarthub";
   }
 
   return (
@@ -129,7 +128,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarHeader className="p-4">
           <Link href="/" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
             <CharisMonogramLogo className="h-8 w-8 text-sidebar-primary block group-data-[collapsible=expanded]:hidden" />
-            <span className={cn("font-bold text-2xl text-sidebar-foreground hidden group-data-[collapsible=expanded]:block", "font-neue-regrade")}>Charis Art Hub</span>
+            <span className={cn("font-bold text-2xl text-sidebar-foreground hidden group-data-[collapsible=expanded]:block", "font-neue-regrade")}>Charisarthub</span>
           </Link>
         </SidebarHeader>
         <SidebarContent asChild>
@@ -234,7 +233,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               {isMobile && <SidebarTrigger />} 
                <Link href="/" className="flex items-center gap-2 md:hidden"> 
                  <CharisMonogramLogo className="h-7 w-7 text-primary" />
-                 <span className={cn("font-semibold text-xl text-gradient-primary-accent", "font-neue-regrade")}>Charis Art Hub</span>
+                 <span className={cn("font-semibold text-xl text-gradient-primary-accent", "font-neue-regrade")}>Charisarthub</span>
                </Link>
                <h1 className="text-xl font-header text-gradient-primary-accent hidden md:block"> 
                 {getPageTitle()}

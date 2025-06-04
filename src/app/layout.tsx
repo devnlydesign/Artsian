@@ -17,7 +17,7 @@ const roboto = Roboto({
 
 
 export const metadata: Metadata = {
-  title: 'Charis Art Hub',
+  title: 'Charisarthub',
   description: 'A dynamic platform for creative expression and connection.',
 };
 

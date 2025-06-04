@@ -183,7 +183,7 @@ export default function SettingsPage() {
           <SettingsIcon className="h-10 w-10 text-primary mb-2" />
           <CardTitle className="text-3xl">Settings</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
-          <CardDescription>Manage your profile information, preferences, and platform settings for Charis Art Hub.</CardDescription>
+          <CardDescription>Manage your profile information, preferences, and platform settings for Charisarthub.</CardDescription>
         </CardHeader>
       </Card>
 
@@ -306,7 +306,7 @@ export default function SettingsPage() {
       <Card className="card-interactive-hover">
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2"><DollarSign className="text-green-500" /> Monetization</CardTitle>
-          <CardDescription>Manage how you earn with Charis Art Hub. (Currently a placeholder for future integration)</CardDescription>
+          <CardDescription>Manage how you earn with Charisarthub. (Currently a placeholder for future integration)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
@@ -330,7 +330,7 @@ export default function SettingsPage() {
                 <Label htmlFor="emailNotifications" className="flex flex-col space-y-1">
                     <span>Email Notifications</span>
                     <span className="font-normal leading-snug text-muted-foreground">
-                        Receive important updates, news, and special offers from Charis Art Hub at {currentUser?.email}.
+                        Receive important updates, news, and special offers from Charisarthub at {currentUser?.email}.
                     </span>
                 </Label>
                 <Switch id="emailNotifications" checked={emailNotifications} onCheckedChange={setEmailNotifications} disabled={isSaving}/>

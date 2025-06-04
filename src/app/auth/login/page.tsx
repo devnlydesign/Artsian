@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
-import { CharisArtHubLogo } from '@/components/icons/CharisArtHubLogo';
+import { CharisMonogramLogo } from '@/components/icons/CharisMonogramLogo';
 import { LogIn, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
 
@@ -46,8 +46,8 @@ export default function LoginPage() {
       </Button>
       <Card className="w-full max-w-md shadow-2xl transition-shadow hover:shadow-primary/20">
         <CardHeader className="text-center">
-          <CharisArtHubLogo className="mx-auto h-16 w-16 text-primary mb-3" />
-          <CardTitle className="text-3xl font-bold text-gradient-primary-accent">Log In to Charis Art Hub</CardTitle>
+          <CharisMonogramLogo className="mx-auto h-16 w-16 text-primary mb-3" />
+          <CardTitle className="text-3xl font-bold text-gradient-primary-accent">Log In to Charisarthub</CardTitle>
           <CardDescription className="text-md text-muted-foreground mt-1">
             Welcome back! Access your creative dashboard.
           </CardDescription>

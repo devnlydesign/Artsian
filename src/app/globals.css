@@ -114,6 +114,67 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     --sidebar-ring: 200 100% 55%;
   }
 
+  /* Unauthenticated theme overrides (Black & White style) */
+  :root.unauthenticated-theme {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 0 0% 15%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 25%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 85%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 20%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 0 0% 15%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 90%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 85%;
+    --sidebar-ring: 0 0% 20%;
+  }
+
+  .dark.unauthenticated-theme {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 85%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 0 0% 8%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 75%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 80%;
+    --sidebar-background: 0 0% 5%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 0 0% 85%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 0 0% 80%;
+  }
+
   .welcome-page-theme-override {
     --background: 0 0% 100% !important;
     --foreground: 0 0% 0% !important;
@@ -130,17 +191,17 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
   }
 
   .dark .welcome-page-theme-override {
-    --background: 0 0% 8% !important;
-    --foreground: 0 0% 95% !important;
+    --background: 0 0% 0% !important; 
+    --foreground: 0 0% 100% !important;
     --primary: 0 0% 85% !important;
     --primary-foreground: 0 0% 0% !important;
     --accent: 0 0% 75% !important;
     --accent-foreground: 0 0% 0% !important;
     --border: 0 0% 20% !important;
-    --card: 0 0% 8% !important;
-    --card-foreground: 0 0% 95% !important;
-    --popover: 0 0% 8% !important;
-    --popover-foreground: 0 0% 95% !important;
+    --card: 0 0% 0% !important;
+    --card-foreground: 0 0% 100% !important;
+    --popover: 0 0% 0% !important;
+    --popover-foreground: 0 0% 100% !important;
     --muted-foreground: 0 0% 70% !important;
   }
 

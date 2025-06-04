@@ -51,7 +51,7 @@ const placeholderPosts: Post[] = [
     id: "3",
     author: { name: "AI Muse", username: "aimuseofficial", avatarUrl: "https://placehold.co/40x40.png", dataAiHintAvatar: "robot face icon" },
     imageUrl: "https://placehold.co/600x400.png",
-    caption: "Generated this piece using my AI Idea Sparker! Prompt: 'A forest made of crystal'. Try it yourself on Charis Art Hub! #aiart #ideasparker #charisarthub",
+    caption: "Generated this piece using my AI Idea Sparker! Prompt: 'A forest made of crystal'. Try it yourself on Charisarthub! #aiart #ideasparker #charisarthub",
     likes: 2345,
     comments: 150,
     timestamp: "3 days ago",
@@ -215,7 +215,7 @@ export default function HomePage() {
             <Link href="#" className="hover:underline">Privacy</Link>
             <Link href="#" className="hover:underline">Terms</Link>
         </div>
-        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Charis Art Hub</p>
+        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Charisarthub</p>
       </aside>
     </div>
   );

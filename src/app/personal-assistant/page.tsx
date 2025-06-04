@@ -62,7 +62,7 @@ export default function PersonalAssistantPage() {
           <Bot className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Your Personal AI Assistant</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
-          <CardDescription>Need help tailoring Charis Art Hub? Describe what you'd like to change, or how you're feeling, and I'll provide suggestions for app personalization!</CardDescription>
+          <CardDescription>Need help tailoring Charisarthub? Describe what you'd like to change, or how you're feeling, and I'll provide suggestions for app personalization!</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -72,7 +72,7 @@ export default function PersonalAssistantPage() {
                 name="userRequest"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>How can I help you personalize Charis Art Hub?</FormLabel>
+                    <FormLabel>How can I help you personalize Charisarthub?</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="e.g., 'I want a theme that feels calm and introspective', 'Suggest a layout for my profile page', 'I feel energetic, suggest a vibrant dark theme!'"

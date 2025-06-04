@@ -29,7 +29,7 @@ const premiumFeatures = [
   "Everything in Basic, plus:",
   "**Exclusive Premium Badge / Checkmark** on Profile",
   "**Unlimited links** on your profile",
-  "**Create a custom portfolio website** directly on Charis Art Hub",
+  "**Create a custom portfolio website** directly on Charisarthub",
   "**Enhanced Discovery & Visibility** (e.g., priority in Amplify Flux Pulse)",
   "**Create & Host Broadcasting Channels**",
   "Access to advanced AI tools & insights (e.g., deeper Energy Flow Patterns)",
@@ -155,7 +155,7 @@ export default function PremiumPage() {
       <Card className="shadow-lg card-interactive-hover text-center">
         <CardHeader>
           <Star className="mx-auto h-16 w-16 text-amber-400 mb-3 animate-pulse" />
-          <CardTitle className="text-4xl font-bold text-gradient-primary-accent">Charis Art Hub Premium</CardTitle>
+          <CardTitle className="text-4xl font-bold text-gradient-primary-accent">Charisarthub Premium</CardTitle>
            <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription className="text-xl text-muted-foreground mt-2">
             Elevate your creative journey and unlock exclusive benefits.
@@ -216,7 +216,7 @@ export default function PremiumPage() {
             <CardTitle className="text-2xl flex items-center gap-2">
                 <Rocket className="h-7 w-7 text-primary"/>Premium Plan
             </CardTitle>
-            <CardDescription>Unlock the full power of Charis Art Hub.</CardDescription>
+            <CardDescription>Unlock the full power of Charisarthub.</CardDescription>
             <p className="text-3xl font-bold text-primary pt-2">$9.99 <span className="text-sm font-normal text-muted-foreground">/ month (Placeholder Price)</span></p>
           </CardHeader>
           <CardContent className="space-y-3">

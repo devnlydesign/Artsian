@@ -1,16 +1,12 @@
 
 import type { SVGProps } from 'react';
 
+// This component is being replaced by CharisMonogramLogo for the monogram.
+// If a full wordmark SVG is needed, this file could be repurposed or a new one created.
+// For now, returning the new monogram as a fallback if this is still imported somewhere.
+import { CharisMonogramLogo } from './CharisMonogramLogo';
+
+
 export function CharisArtHubLogo(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor" 
-      {...props}
-    >
-      {/* A simple, abstract gem-like shape */}
-      <path d="M12 1.5L3.5 8.5L5.25 19.5L12 22.5L18.75 19.5L20.5 8.5L12 1.5Z" />
-    </svg>
-  );
+  return <CharisMonogramLogo {...props} />;
 }

@@ -45,7 +45,7 @@ const themeVariables = [
 const themeTemplates: ThemeTemplate[] = [
   {
     name: "Charis Default (Violet Bliss)",
-    description: "The standard vibrant and creative Charis Art Hub theme.",
+    description: "The standard vibrant and creative Charisarthub theme.",
     light: {
       "--background": "278 50% 95%", "--foreground": "282 30% 20%", "--card": "278 50% 98%",
       "--primary": "282 100% 41%", "--primary-foreground": "0 0% 100%", "--accent": "322 79% 43%",
@@ -112,7 +112,7 @@ const onboardingSteps: OnboardingStep[] = [
     ],
   },
   {
-    id: 4, title: "Theme Customization", description: "Personalize the look and feel of Charis Art Hub.", icon: Paintbrush, isThemeStep: true,
+    id: 4, title: "Theme Customization", description: "Personalize the look and feel of Charisarthub.", icon: Paintbrush, isThemeStep: true,
   },
   {
     id: 5, title: "Connect Your World (Optional)", description: "Link your other creative platforms or website.", icon: LinkIconProp,
@@ -122,7 +122,7 @@ const onboardingSteps: OnboardingStep[] = [
     ]
   },
   {
-    id: 6, title: "Stay Updated!", description: "Get the latest news, tips, and community highlights from Charis Art Hub.", icon: Mail, isFinalStep: true,
+    id: 6, title: "Stay Updated!", description: "Get the latest news, tips, and community highlights from Charisarthub.", icon: Mail, isFinalStep: true,
   }
 ];
 
@@ -257,7 +257,7 @@ export default function OnboardingPage() {
       const result = await saveUserProfile(currentUser.uid, profileDataToSave);
 
       if (result.success) {
-        toast({ title: "Onboarding Complete!", description: "Welcome to Charis Art Hub! You're all set to explore." });
+        toast({ title: "Onboarding Complete!", description: "Welcome to Charisarthub! You're all set to explore." });
         router.push('/');
       } else {
         toast({ title: "Onboarding Error", description: result.message || "Could not save your profile. Please try again.", variant: "destructive" });
@@ -380,7 +380,7 @@ export default function OnboardingPage() {
                     <Checkbox id="emailOptIn" name="emailOptIn" checked={!!formData.emailOptIn} onCheckedChange={(checked) => handleCheckboxChange("emailOptIn", !!checked)} disabled={isSubmitting}/>
                     <div className="grid gap-1.5 leading-none">
                         <label htmlFor="emailOptIn" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        Yes, I'd like to receive email updates, news, and special offers from Charis Art Hub.
+                        Yes, I'd like to receive email updates, news, and special offers from Charisarthub.
                         </label>
                         <p className="text-xs text-muted-foreground">You can unsubscribe at any time.</p>
                     </div>

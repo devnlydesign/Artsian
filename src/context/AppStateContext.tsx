@@ -12,19 +12,19 @@ import {
   type User as FirebaseUser 
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { getUserProfile, type UserProfileData } from '@/actions/userProfile'; // Import for profile checking
+import { getUserProfile, type UserProfileData } from '@/actions/userProfile'; 
 
 type AppStateContextType = {
   isLoadingAuth: boolean; 
   isAuthenticated: boolean;
   currentUser: FirebaseUser | null;
-  currentUserProfile: UserProfileData | null; // Added to store fetched profile data
+  currentUserProfile: UserProfileData | null; 
   loginUser: (email: string, password: string) => Promise<FirebaseUser | null>;
   signupUser: (email: string, password: string) => Promise<FirebaseUser | null>;
   logoutUser: () => Promise<void>;
   showWelcome: boolean;
   setShowWelcome: React.Dispatch<React.SetStateAction<boolean>>;
-  refreshUserProfile: () => Promise<void>; // Added to allow manual profile refresh
+  refreshUserProfile: () => Promise<void>; 
 };
 
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
@@ -65,12 +65,15 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
+    const htmlElement = document.documentElement;
     const unsubscribe = onAuthStateChanged(auth, async (user) => { 
       if (user) {
         setCurrentUser(user);
         setIsAuthenticated(true);
         setShowWelcome(false); 
         sessionStorage.setItem('hasSeenWelcome', 'true');
+        htmlElement.classList.remove('unauthenticated-theme');
+        // UserThemeInjector will handle applying user-specific or default app themes
 
         const userProfileData = await fetchAndSetUserProfile(user);
 
@@ -87,7 +90,8 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setCurrentUser(null);
         setIsAuthenticated(false);
-        setCurrentUserProfile(null); // Clear profile on logout
+        setCurrentUserProfile(null); 
+        htmlElement.classList.add('unauthenticated-theme');
         if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true') {
           setShowWelcome(true);
           if (!pathname.startsWith('/auth/welcome') && !pathname.startsWith('/auth/login') && !pathname.startsWith('/auth/signup')) {
@@ -100,23 +104,28 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       setIsLoadingAuth(false);
     });
 
-    if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true' && !auth.currentUser && !pathname.startsWith('/auth/')) {
+    // Initial check for unauthenticated theme if not loading and no user
+    if (!isLoadingAuth && !auth.currentUser) {
+        htmlElement.classList.add('unauthenticated-theme');
+    }
+     if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true' && !auth.currentUser && !pathname.startsWith('/auth/')) {
         setShowWelcome(true);
         if (!pathname.startsWith('/auth/welcome')) router.push('/auth/welcome');
     } else {
       setShowWelcome(false);
     }
 
-
-    return () => unsubscribe();
+    return () => {
+        unsubscribe();
+        htmlElement.classList.remove('unauthenticated-theme'); 
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]); // Removed router and toast to prevent re-runs from their changes
+  }, [pathname, isLoadingAuth]); 
 
   const loginUser = async (email: string, password: string): Promise<FirebaseUser | null> => {
     setIsLoadingAuth(true); 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle the rest (fetching profile, navigation)
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -134,7 +143,6 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
     setIsLoadingAuth(true); 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle the rest (navigation to onboarding)
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase signup error:", error);
@@ -154,7 +162,6 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
     try {
       await signOut(auth);
       sessionStorage.removeItem('hasSeenWelcome');
-      // onAuthStateChanged will handle setting showWelcome and navigation
     } catch (error) {
       console.error("Firebase logout error:", error);
       toast({ title: "Logout Error", description: "Failed to log out. Please try again.", variant: "destructive" });

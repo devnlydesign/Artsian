@@ -5,7 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CharisArtHubLogo } from '@/components/icons/CharisArtHubLogo';
+import { CharisMonogramLogo } from '@/components/icons/CharisMonogramLogo';
 import { ArrowRight, LogIn, UserPlus, Compass } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
 import { useRouter } from 'next/navigation';
@@ -36,8 +36,8 @@ export default function WelcomePage() {
     <div className="min-h-screen flex flex-col items-center justify-center welcome-page-theme-override p-4">
       <Card className="w-full max-w-md shadow-2xl bg-card text-card-foreground">
         <CardHeader className="text-center">
-          <CharisArtHubLogo className="mx-auto h-20 w-20 text-primary mb-4" />
-          <CardTitle className="text-4xl font-bold text-gradient-primary-accent">Welcome to Charis Art Hub</CardTitle>
+          <CharisMonogramLogo className="mx-auto h-20 w-20 text-primary mb-4" />
+          <CardTitle className="text-4xl font-bold text-gradient-primary-accent">Welcome to Charisarthub</CardTitle>
           <CardDescription className="text-lg text-muted-foreground mt-2">
             Your dynamic platform for creative expression and connection.
           </CardDescription>
