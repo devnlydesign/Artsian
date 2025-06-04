@@ -16,6 +16,7 @@ interface CreateCheckoutSessionInput {
   quantity: number;
   itemId: string; // Your internal item ID for metadata
   userId?: string; // Optional: if you want to link one-time payments to a user
+  crystallineBloomId?: string | null; // Optional metadata for art-linked items
 }
 
 export async function createCheckoutSession(
@@ -29,6 +30,7 @@ export async function createCheckoutSession(
     quantity,
     itemId,
     userId,
+    crystallineBloomId,
   } = input;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -48,6 +50,7 @@ export async function createCheckoutSession(
             name: itemName,
             ...(itemDescription && { description: itemDescription }),
             ...(itemImage && { images: [itemImage] }),
+            // You can add more metadata to product_data if needed by Stripe
           },
           unit_amount: itemPriceInCents, 
         },
@@ -55,15 +58,21 @@ export async function createCheckoutSession(
       },
     ];
     
-    const metadata: Stripe.MetadataParam = { itemId };
+    const metadata: Stripe.MetadataParam = { 
+        itemId,
+        itemType: 'shop_item', // To distinguish from other types of checkouts
+    };
     if (userId) {
         metadata.userId = userId;
+    }
+    if (crystallineBloomId) {
+        metadata.crystallineBloomId = crystallineBloomId;
     }
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
         payment_method_types: ['card'],
         line_items: lineItems,
-        mode: 'payment',
+        mode: 'payment', // For one-time purchases
         success_url: successUrl,
         cancel_url: cancelUrl,
         metadata: metadata,
@@ -74,7 +83,9 @@ export async function createCheckoutSession(
         if (userProfile?.stripeCustomerId) {
             sessionParams.customer = userProfile.stripeCustomerId;
         } else if (userProfile?.email) {
-            sessionParams.customer_email = userProfile.email;
+            // Prefer creating a customer if user is logged in for better tracking in Stripe
+             const customerId = await getOrCreateStripeCustomerId(userId, userProfile.email, userProfile.fullName || userProfile.username);
+             sessionParams.customer = customerId;
         }
     }
 
@@ -118,8 +129,8 @@ export async function getOrCreateStripeCustomerId(
   }
 
   const customerParams: Stripe.CustomerCreateParams = {
-    email: userEmail || undefined, 
-    name: userName || undefined,
+    email: userEmail || userProfile?.email || undefined, 
+    name: userName || userProfile?.fullName || userProfile?.username || undefined,
     metadata: {
       firebaseUID: userId,
     },
@@ -127,7 +138,19 @@ export async function getOrCreateStripeCustomerId(
 
   const customer = await stripe.customers.create(customerParams);
   
-  await saveUserProfile(userId, { stripeCustomerId: customer.id });
+  // Save only if userProfile exists, otherwise this function might be called for guest checkouts
+  if (userProfile) {
+    await saveUserProfile(userId, { stripeCustomerId: customer.id });
+  } else {
+    // If userProfile doesn't exist, it implies it's a new user or guest.
+    // We can create a placeholder profile or handle this based on app logic.
+    // For now, we'll assume userProfile must exist if userId is provided.
+    // If it's truly a guest checkout (no userId), then Stripe handles email input.
+    // This function, as is, assumes a userId means an existing/creatable user profile.
+    // For true guest checkout, the checkout session would collect email directly.
+    await saveUserProfile(userId, { stripeCustomerId: customer.id, email: userEmail, fullName: userName });
+  }
+
 
   return customer.id;
 }
@@ -217,10 +240,8 @@ export async function createPremiumAppSubscriptionCheckoutSession(
       metadata: {
         firebaseUID: userId,
         priceId: premiumPriceId,
-        subscriptionType: 'app_premium', // To distinguish this subscription
+        subscriptionType: 'app_premium', 
       },
-      // Enable this if you want to allow promo codes for app premium
-      // allow_promotion_codes: true, 
     });
 
     if (!session.id) {
@@ -240,71 +261,74 @@ export async function createPremiumAppSubscriptionCheckoutSession(
  *
  * You MUST implement a Firebase Cloud Function to act as a Stripe Webhook endpoint.
  * This function will listen for events from Stripe and update your Firestore database accordingly.
- * Without this, users will pay but their premium status or biome access WILL NOT be activated in your app.
  *
  * Key Events to Handle:
  *
  * 1. `checkout.session.completed`:
  *    - WHEN: A user successfully completes the Stripe Checkout process.
- *    - METADATA: The session object will contain metadata you passed during session creation (e.g., `firebaseUID`, `priceId`, `subscriptionType`, `biomeId`).
+ *    - METADATA: The session object will contain metadata you passed (e.g., `firebaseUID`, `priceId`, `subscriptionType`, `biomeId`, `itemId`, `itemType`).
  *    - ACTION:
- *      - If `subscriptionType` is 'app_premium':
- *        - Retrieve the `subscription` ID from the session.
- *        - Fetch the full subscription object from Stripe using the subscription ID to get `current_period_end`.
- *        - Update the user's profile in Firestore (`users/{firebaseUID}`):
- *          - `isPremium = true`
- *          - `stripeCustomerId = session.customer` (if not already set)
- *          - `premiumSubscriptionId = session.subscription`
- *          - `premiumSubscriptionEndsAt = Timestamp.fromMillis(subscription.current_period_end * 1000)`
- *      - If `subscriptionType` is 'biome_subscription':
- *        - Retrieve `biomeId` and `subscription` ID.
- *        - Fetch the full subscription object to get `current_period_end`.
- *        - Create/update a document in `biomeMemberships/{firebaseUID}_{biomeId}`:
- *          - `userId = firebaseUID`
- *          - `biomeId = biomeId`
- *          - `role = "member"`
- *          - `status = "active"`
- *          - `stripeSubscriptionId = session.subscription`
- *          - `stripeCustomerId = session.customer`
- *          - `stripePriceId = session.metadata.priceId`
- *          - `stripeCurrentPeriodEnd = Timestamp.fromMillis(subscription.current_period_end * 1000)`
- *          - `joinedAt = serverTimestamp()`
- *        - Increment `memberCount` on the `biomes/{biomeId}` document.
+ *      - **If `session.mode` is 'payment' (for one-time shop item purchases):**
+ *        - Retrieve `itemId`, `firebaseUID` (if user was logged in) from `session.metadata`.
+ *        - Retrieve `customer_details.email` (if available, for guest checkouts or logged-in users).
+ *        - Fetch the `ShopItemData` from Firestore using `itemId` to get current price, name, etc. (verify price if needed).
+ *        - Create an `OrderData` document in your `orders` collection in Firestore. Include:
+ *          - `userId` (if `firebaseUID` is present),
+ *          - `userEmail` (from `customer_details` or user profile),
+ *          - `items`: [{ `itemId`, `name`, `priceInCents`, `quantity`: (usually 1 for this setup) }],
+ *          - `totalAmountInCents`: `session.amount_total`,
+ *          - `status`: 'paid',
+ *          - `stripeCheckoutSessionId`: `session.id`,
+ *          - `createdAt`, `updatedAt`.
+ *        - If the item is physical and has `stock` tracking: Decrement the `stock` count on the `ShopItemData` document (atomically).
+ *        - If the item is digital: Trigger your digital goods delivery mechanism (e.g., grant access, send email with link - complex, requires separate setup).
+ *        - Send notifications to buyer (receipt) and artist (new order).
+ *
+ *      - **If `session.mode` is 'subscription' (for app premium or biome subscriptions):**
+ *        - If `subscriptionType` is 'app_premium':
+ *          - Retrieve the `subscription` ID from the session.
+ *          - Fetch the full subscription object from Stripe to get `current_period_end`.
+ *          - Update the user's profile in Firestore (`users/{firebaseUID}`):
+ *            - `isPremium = true`
+ *            - `stripeCustomerId = session.customer` (if not already set)
+ *            - `premiumSubscriptionId = session.subscription`
+ *            - `premiumSubscriptionEndsAt = Timestamp.fromMillis(subscription.current_period_end * 1000)`
+ *        - If `subscriptionType` is 'biome_subscription':
+ *          - Retrieve `biomeId` and `subscription` ID.
+ *          - Fetch the full subscription object to get `current_period_end`.
+ *          - Create/update a document in `biomeMemberships/{firebaseUID}_{biomeId}`:
+ *            - `userId = firebaseUID`, `biomeId = biomeId`, `role = "member"`, `status = "active"`
+ *            - `stripeSubscriptionId = session.subscription`, `stripeCustomerId = session.customer`
+ *            - `stripePriceId = session.metadata.priceId`
+ *            - `stripeCurrentPeriodEnd = Timestamp.fromMillis(subscription.current_period_end * 1000)`
+ *            - `joinedAt = serverTimestamp()`
+ *          - Increment `memberCount` on the `biomes/{biomeId}` document.
  *
  * 2. `customer.subscription.updated`:
- *    - WHEN: A subscription changes (e.g., payment success for renewal, payment failure, cancellation scheduled, trial ends).
- *    - METADATA: The subscription object should have the metadata you set initially (or you might need to fetch it from your DB based on `subscription.id`).
+ *    - WHEN: A subscription changes (e.g., payment success for renewal, payment failure, cancellation scheduled).
+ *    - METADATA: The subscription object should have metadata.
  *    - ACTION:
- *      - Check `subscription.status` (e.g., 'active', 'past_due', 'canceled', 'trialing').
- *      - Check `subscription.cancel_at_period_end`.
- *      - If for 'app_premium':
- *        - Update `isPremium` and `premiumSubscriptionEndsAt` on the user's profile.
- *          (e.g., if `status` is 'canceled' or 'past_due' and `cancel_at_period_end` is true, `isPremium` might remain true until `premiumSubscriptionEndsAt`).
- *      - If for 'biome_subscription':
- *        - Update `status` and `stripeCurrentPeriodEnd` in the `biomeMemberships` document.
+ *      - If for 'app_premium': Update `isPremium` and `premiumSubscriptionEndsAt` on the user's profile.
+ *      - If for 'biome_subscription': Update `status` and `stripeCurrentPeriodEnd` in `biomeMemberships`.
  *
  * 3. `customer.subscription.deleted`:
- *    - WHEN: A subscription is definitively canceled (either immediately or at the end of the current period after `cancel_at_period_end` was true).
+ *    - WHEN: A subscription is definitively canceled.
  *    - ACTION:
- *      - If for 'app_premium':
- *        - Set `isPremium = false` on the user's profile.
- *        - Optionally clear `premiumSubscriptionId` and `premiumSubscriptionEndsAt`.
- *      - If for 'biome_subscription':
- *        - Set `status = "cancelled"` or "expired" in the `biomeMemberships` document.
- *        - Decrement `memberCount` on the `biomes/{biomeId}` document if the member was previously active.
+ *      - If for 'app_premium': Set `isPremium = false` on user profile.
+ *      - If for 'biome_subscription': Set `status = "cancelled"` in `biomeMemberships`, decrement `memberCount`.
  *
- * Implementation Steps for Webhook:
- * 1. Create a new Firebase Cloud Function (HTTP trigger).
- * 2. Install `stripe` and `firebase-admin` SDKs in your functions directory.
- * 3. Initialize Firebase Admin SDK.
- * 4. Use `stripe.webhooks.constructEvent()` to verify the event signature using your `STRIPE_WEBHOOK_SECRET`.
- * 5. Implement the logic for each event type as described above, making necessary Firestore updates.
- * 6. Deploy the function.
- * 7. In your Stripe Dashboard (Developers > Webhooks), add an endpoint pointing to your deployed function's URL.
- * 8. Select the events to listen to (at least the ones mentioned above).
- * 9. Stripe will provide a "Signing secret" for this endpoint; store this as `STRIPE_WEBHOOK_SECRET` in your function's environment variables.
+ * Implementation Steps for Webhook (Firebase Cloud Function):
+ * 1. `firebase init functions` (if not done), choose TypeScript.
+ * 2. `npm install stripe firebase-admin firebase-functions` in your functions directory.
+ * 3. Initialize Firebase Admin SDK in your function (e.g., `admin.initializeApp()`).
+ * 4. Use `stripe.webhooks.constructEvent()` to verify signature with `STRIPE_WEBHOOK_SECRET`.
+ * 5. Implement logic for event types.
+ * 6. Deploy: `firebase deploy --only functions`.
+ * 7. Stripe Dashboard: Developers > Webhooks > Add endpoint (URL of deployed function). Select events. Get signing secret.
+ * 8. Set environment variables for the function: `stripe.secret_key`, `stripe.webhook_secret`.
+ *    `firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY" stripe.webhook_secret="whsec_YOUR_SECRET"`
  *
- * SECURITY: Protect your webhook endpoint. Verify Stripe's signature on every incoming event.
- * IDEMPOTENCY: Design your webhook handlers to be idempotent (i.e., processing the same event multiple times should not cause issues).
- * LOGGING: Add robust logging within your webhook for debugging.
+ * SECURITY: Protect your webhook. Verify Stripe's signature.
+ * IDEMPOTENCY: Design handlers to be idempotent.
+ * LOGGING: Add robust logging for debugging.
  */
