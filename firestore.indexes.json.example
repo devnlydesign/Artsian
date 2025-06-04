@@ -1,0 +1,124 @@
+
+{
+  "indexes": [
+    {
+      "collectionGroup": "artworks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "genesisTrails",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "chatChannels",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "members", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "lastMessageTimestamp", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "museIdeas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "recipientId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "recipientId", "order": "ASCENDING"},
+        {"fieldPath": "isRead", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "moderationStatus", "order": "ASCENDING"},
+        {"fieldPath": "username", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "moderationStatus", "order": "ASCENDING"},
+        {"fieldPath": "fullName", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "artistProducts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "moderationStatus", "order": "ASCENDING"},
+        {"fieldPath": "isPublished", "order": "ASCENDING"},
+        {"fieldPath": "title", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "artistProducts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "tags", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "isPublished", "order": "ASCENDING"},
+        {"fieldPath": "moderationStatus", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "communities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "name", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "artistProducts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "artistId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "artistProducts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isPublished", "order": "ASCENDING"},
+        {"fieldPath": "moderationStatus", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "hasFluxSignature", "order": "ASCENDING"},
+        {"fieldPath": "moderationStatus", "order": "ASCENDING"},
+        {"fieldPath": "isProfileAmplified", "order": "DESCENDING"},
+        {"fieldPath": "profileAmplifiedAt", "order": "DESCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

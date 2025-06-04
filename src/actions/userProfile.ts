@@ -10,9 +10,9 @@ export interface FluxSignature {
   currentMood?: string;
   dominantColors?: string[];
   keywords?: string[];
-  visualRepresentation?: string; // URL for the main visual
-  visualRepresentation_original?: string; // URL of the original uploaded image for flux visual
-  visualRepresentation_thumbnail_400x400?: string; // Example: URL if extension generates this
+  visualRepresentation?: string; 
+  visualRepresentation_original?: string; 
+  visualRepresentation_thumbnail_400x400?: string; 
   dataAiHintVisual?: string;
 }
 
@@ -35,10 +35,10 @@ export interface UserProfileData {
   fullName?: string;
   username?: string;
   bio?: string;
-  photoURL?: string | null; // URL of the primary display photo (e.g., a 400x400 thumbnail)
-  photoURLOriginal?: string | null; // URL of the original uploaded profile photo
-  bannerURL?: string | null; // URL of the primary display banner (e.g., a 1200x300 thumbnail)
-  bannerURLOriginal?: string | null; // URL of the original uploaded banner photo
+  photoURL?: string | null; 
+  photoURLOriginal?: string | null; 
+  bannerURL?: string | null; 
+  bannerURLOriginal?: string | null; 
   genre?: string;
   style?: string;
   motivations?: string;
@@ -49,10 +49,15 @@ export interface UserProfileData {
   portfolioLink?: string;
   emailOptIn?: boolean;
   isPremium?: boolean;
+  premiumTier?: "standard" | "plus" | "studioCreative" | "none";
+  subscriptionId?: string | null;
+  subscriptionStatus?: "active" | "canceled" | "past_due" | "trialing" | "incomplete" | "unpaid";
+  currentPeriodEnd?: Timestamp | null;
   stripeCustomerId?: string | null;
-  premiumSubscriptionId?: string | null;
-  premiumSubscriptionEndsAt?: Timestamp | null;
+  premiumSubscriptionId?: string | null; 
+  premiumSubscriptionEndsAt?: Timestamp | null; 
   fluxSignature?: FluxSignature;
+  hasFluxSignature?: boolean; // New field
   fluxEvolutionPoints?: FluxEvolutionPoint[];
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -90,17 +95,18 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       }
     });
     
-    // If photoURL is updated, assume it's the original and clear specific thumbnail fields
-    // The Resize Images extension will repopulate them.
-    // Or, the client can construct thumbnail URLs based on naming conventions.
-    // For simplicity here, we just store the original.
     if (data.photoURL && (!profileSnapshot.exists() || data.photoURL !== profileSnapshot.data()?.photoURL)) {
       dataToSave.photoURLOriginal = data.photoURL;
-      // dataToSave.photoURL = ... // Client would use the original or a known thumbnail path
     }
     if (data.bannerURL && (!profileSnapshot.exists() || data.bannerURL !== profileSnapshot.data()?.bannerURL)) {
       dataToSave.bannerURLOriginal = data.bannerURL;
-      // dataToSave.bannerURL = ...
+    }
+
+    // Set hasFluxSignature based on fluxSignature presence
+    if (dataToSave.fluxSignature && Object.keys(dataToSave.fluxSignature).length > 0) {
+      dataToSave.hasFluxSignature = true;
+    } else if (dataToSave.hasOwnProperty('fluxSignature') && dataToSave.fluxSignature === null) {
+      dataToSave.hasFluxSignature = false;
     }
 
 
@@ -124,7 +130,6 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         dataToSave.moderationStatus = 'pending';
         dataToSave.moderationInfo = { fields: changedFieldsForModeration, autoModerated: false, reason: 'Profile content updated.' };
         console.info(`[saveUserProfile] Profile fields (${changedFieldsForModeration.join(', ')}) for ${userId} changed, setting moderationStatus to pending.`);
-        // TODO: Trigger content moderation Cloud Function here for user profile fields
       }
 
       await updateDoc(userProfileRef, {
@@ -134,22 +139,26 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       console.info(`[saveUserProfile] Successfully updated profile for userId: ${userId}`);
     } else {
       console.info(`[saveUserProfile] Creating new profile for userId: ${userId}`);
-      // For new profiles, photoURL and bannerURL provided are considered originals
       const newProfileData: UserProfileData = {
         uid: userId,
         email: data.email ?? null,
         fullName: data.fullName ?? '',
         username: data.username ?? '',
         bio: data.bio ?? '',
-        photoURL: data.photoURL ?? null, // This would be a display URL, e.g. a thumbnail
-        photoURLOriginal: data.photoURL ?? null, // Original if provided at creation
-        bannerURL: data.bannerURL ?? null, // Display banner
-        bannerURLOriginal: data.bannerURL ?? null, // Original if provided
+        photoURL: data.photoURL ?? null, 
+        photoURLOriginal: data.photoURL ?? null, 
+        bannerURL: data.bannerURL ?? null, 
+        bannerURLOriginal: data.bannerURL ?? null, 
         isPremium: data.isPremium ?? false,
+        premiumTier: data.premiumTier ?? "none",
+        subscriptionId: data.subscriptionId ?? null,
+        subscriptionStatus: data.subscriptionStatus ?? undefined,
+        currentPeriodEnd: data.currentPeriodEnd ?? null,
         stripeCustomerId: data.stripeCustomerId ?? null,
         premiumSubscriptionId: data.premiumSubscriptionId ?? null,
         premiumSubscriptionEndsAt: data.premiumSubscriptionEndsAt ?? null,
         fluxSignature: data.fluxSignature ?? { dominantColors: [], keywords: [] },
+        hasFluxSignature: !!(data.fluxSignature && Object.keys(data.fluxSignature).length > 0),
         fluxEvolutionPoints: data.fluxEvolutionPoints ?? [],
         followersCount: data.followersCount ?? 0,
         followingCount: data.followingCount ?? 0,
@@ -159,13 +168,12 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         themeSettings: data.themeSettings ?? { baseMode: 'system', customColors: { light: {}, dark: {} } },
         moderationStatus: 'pending',
         moderationInfo: null,
-        ...dataToSave, // Spread again to ensure incoming data overrides defaults if present
+        ...dataToSave, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
       await setDoc(userProfileRef, newProfileData);
       console.info(`[saveUserProfile] Successfully created new profile for userId: ${userId}. Moderation status: pending.`);
-      // TODO: Trigger content moderation Cloud Function here for new user profile fields
     }
     return { success: true };
   } catch (error) {
@@ -177,10 +185,8 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
 
 export async function getUserProfile(userId: string): Promise<UserProfileData | null> {
   if (!userId) {
-    // console.warn('[getUserProfile] Missing userId.');
     return null;
   }
-  // console.info(`[getUserProfile] Fetching profile for userId: ${userId}`);
   try {
     const userProfileRef = doc(db, 'users', userId);
     const docSnap = await getDoc(userProfileRef);
@@ -191,15 +197,20 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.username = profile.username ?? '';
       profile.bio = profile.bio ?? '';
       profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
+      profile.hasFluxSignature = profile.hasFluxSignature ?? !!(profile.fluxSignature && Object.keys(profile.fluxSignature).length > 0);
       profile.fluxEvolutionPoints = profile.fluxEvolutionPoints ?? [];
       profile.photoURL = profile.photoURL ?? null;
-      profile.photoURLOriginal = profile.photoURLOriginal ?? profile.photoURL ?? null; // Fallback if original not set
+      profile.photoURLOriginal = profile.photoURLOriginal ?? profile.photoURL ?? null; 
       profile.bannerURL = profile.bannerURL ?? null;
-      profile.bannerURLOriginal = profile.bannerURLOriginal ?? profile.bannerURL ?? null; // Fallback
+      profile.bannerURLOriginal = profile.bannerURLOriginal ?? profile.bannerURL ?? null; 
       profile.followersCount = profile.followersCount ?? 0;
       profile.followingCount = profile.followingCount ?? 0;
       profile.stripeCustomerId = profile.stripeCustomerId ?? null;
       profile.isPremium = profile.isPremium ?? false;
+      profile.premiumTier = profile.premiumTier ?? "none";
+      profile.subscriptionId = profile.subscriptionId ?? null;
+      profile.subscriptionStatus = profile.subscriptionStatus ?? undefined;
+      profile.currentPeriodEnd = profile.currentPeriodEnd ?? null;
       profile.premiumSubscriptionId = profile.premiumSubscriptionId ?? null;
       profile.premiumSubscriptionEndsAt = profile.premiumSubscriptionEndsAt ?? null;
       profile.emailOptIn = profile.emailOptIn ?? false;
@@ -208,7 +219,6 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.themeSettings = profile.themeSettings ?? { baseMode: 'system', customColors: {light: {}, dark: {}} };
       profile.moderationStatus = profile.moderationStatus ?? 'approved';
       profile.moderationInfo = profile.moderationInfo ?? null;
-      // console.info(`[getUserProfile] Profile found for userId: ${userId}`);
       return profile;
     } else {
       console.warn(`[getUserProfile] No profile found for userId: ${userId}`);
@@ -220,5 +230,4 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     return null;
   }
 }
-
     
