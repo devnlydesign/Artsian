@@ -17,6 +17,7 @@ import {
   Timestamp,
   writeBatch,
   arrayUnion,
+  updateDoc, // Added updateDoc
 } from 'firebase/firestore';
 import type { UserProfileData } from './userProfile';
 
@@ -24,18 +25,17 @@ export interface ChatMessageData {
   id: string;
   channelId: string;
   senderId: string;
-  senderName?: string; // Denormalized for convenience
-  senderAvatar?: string | null; // Denormalized
+  senderName?: string; 
+  senderAvatar?: string | null; 
   text: string;
   imageUrl?: string | null;
   timestamp: Timestamp;
-  // isRead?: boolean; // Consider client-side or more complex unread tracking
 }
 
 export interface ChatChannelData {
-  id: string; // Combined UIDs: uid1_uid2 (sorted)
-  members: string[]; // Array of 2 user UIDs
-  memberInfo?: { // Denormalized info for quick display
+  id: string; 
+  members: string[]; 
+  memberInfo?: { 
     [userId: string]: {
       name?: string;
       avatarUrl?: string | null;
@@ -51,25 +51,6 @@ export interface ChatChannelData {
   updatedAt: Timestamp;
 }
 
-// Firestore Security Rules Reminder:
-// match /chatChannels/{channelId} {
-//   function isChannelMember() { return request.auth.uid in resource.data.members; }
-//   function isCreatingOwnChannel() {
-//     let members = request.resource.data.members;
-//     return request.auth.uid in members && members.size() == 2 && members[0] < members[1];
-//   }
-//   allow read, update: if isChannelMember();
-//   allow create: if isCreatingOwnChannel();
-//
-//   match /messages/{messageId} {
-//     function isChannelMemberFromParent() { return request.auth.uid in get(/databases/$(database)/documents/chatChannels/$(channelId)).data.members; }
-//     allow read: if isChannelMemberFromParent();
-//     allow create: if isChannelMemberFromParent() && request.auth.uid == request.resource.data.senderId;
-//     // update, delete: if false; // Or more complex rules
-//   }
-// }
-
-
 function generateChannelId(uid1: string, uid2: string): string {
   return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 }
@@ -81,46 +62,58 @@ export async function getOrCreateChatChannel(
   otherUserProfile?: Pick<UserProfileData, 'fullName' | 'username' | 'photoURL'>,
 ): Promise<{ channelId: string; channelData: ChatChannelData; isNew: boolean }> {
   if (!currentUserId || !otherUserId || currentUserId === otherUserId) {
+    const errorMsg = `[getOrCreateChatChannel] Valid and distinct user IDs are required. currentUserId: ${currentUserId}, otherUserId: ${otherUserId}`;
+    console.error(errorMsg);
     throw new Error('Valid and distinct user IDs are required.');
   }
+  console.info(`[getOrCreateChatChannel] Attempting for users: ${currentUserId}, ${otherUserId}`);
 
   const channelId = generateChannelId(currentUserId, otherUserId);
   const channelRef = doc(db, 'chatChannels', channelId);
-  const channelSnap = await getDoc(channelRef);
+  
+  try {
+    const channelSnap = await getDoc(channelRef);
 
-  if (channelSnap.exists()) {
-    return { channelId, channelData: channelSnap.data() as ChatChannelData, isNew: false };
-  } else {
-    const currentUserName = currentUserProfile?.fullName || currentUserProfile?.username || 'User';
-    const otherUserName = otherUserProfile?.fullName || otherUserProfile?.username || 'User';
+    if (channelSnap.exists()) {
+      console.info(`[getOrCreateChatChannel] Channel ${channelId} exists.`);
+      return { channelId, channelData: channelSnap.data() as ChatChannelData, isNew: false };
+    } else {
+      console.info(`[getOrCreateChatChannel] Channel ${channelId} does not exist. Creating new one.`);
+      const currentUserName = currentUserProfile?.fullName || currentUserProfile?.username || 'User';
+      const otherUserName = otherUserProfile?.fullName || otherUserProfile?.username || 'User';
 
-    const newChannelData: ChatChannelData = {
-      id: channelId,
-      members: [currentUserId, otherUserId].sort(),
-      memberInfo: {
-        [currentUserId]: {
-            name: currentUserName,
-            avatarUrl: currentUserProfile?.photoURL || null,
+      const newChannelData: ChatChannelData = {
+        id: channelId,
+        members: [currentUserId, otherUserId].sort(),
+        memberInfo: {
+          [currentUserId]: {
+              name: currentUserName,
+              avatarUrl: currentUserProfile?.photoURL || null,
+          },
+          [otherUserId]: {
+              name: otherUserName,
+              avatarUrl: otherUserProfile?.photoURL || null,
+          }
         },
-        [otherUserId]: {
-            name: otherUserName,
-            avatarUrl: otherUserProfile?.photoURL || null,
-        }
-      },
-      lastMessageText: null,
-      lastMessageTimestamp: null,
-      lastMessageSenderId: null,
-      unreadCounts: {
-        [currentUserId]: 0,
-        [otherUserId]: 0,
-      },
-      createdAt: serverTimestamp() as Timestamp, // Cast for new docs
-      updatedAt: serverTimestamp() as Timestamp, // Cast for new docs
-    };
-    await setDoc(channelRef, newChannelData);
-     // Re-fetch to get server timestamps resolved, or return newChannelData directly if local Timestamp object is acceptable for immediate use.
-    const createdChannelSnap = await getDoc(channelRef);
-    return { channelId, channelData: createdChannelSnap.data() as ChatChannelData, isNew: true };
+        lastMessageText: null,
+        lastMessageTimestamp: null,
+        lastMessageSenderId: null,
+        unreadCounts: {
+          [currentUserId]: 0,
+          [otherUserId]: 0,
+        },
+        createdAt: serverTimestamp() as Timestamp, 
+        updatedAt: serverTimestamp() as Timestamp, 
+      };
+      await setDoc(channelRef, newChannelData);
+      const createdChannelSnap = await getDoc(channelRef); // Re-fetch to get server timestamps
+      console.info(`[getOrCreateChatChannel] Channel ${channelId} created successfully.`);
+      return { channelId, channelData: createdChannelSnap.data() as ChatChannelData, isNew: true };
+    }
+  } catch (error) {
+     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+     console.error(`[getOrCreateChatChannel] Error for users ${currentUserId}, ${otherUserId}: ${errorMessage}`, error);
+     throw error; // Rethrow to be handled by caller
   }
 }
 
@@ -128,21 +121,22 @@ export async function sendMessage(
   channelId: string,
   senderId: string,
   text: string,
-  senderName?: string, // Optional, can be fetched or passed
-  senderAvatar?: string | null, // Optional
+  senderName?: string, 
+  senderAvatar?: string | null, 
   imageUrl?: string | null
 ): Promise<{ success: boolean; messageId?: string; message?: string }> {
   if (!channelId || !senderId || (!text && !imageUrl)) {
+    console.warn(`[sendMessage] Missing required fields. channelId: ${channelId}, senderId: ${senderId}`);
     return { success: false, message: 'Channel ID, sender ID, and text or image URL are required.' };
   }
+  console.info(`[sendMessage] Attempting for senderId: ${senderId} in channelId: ${channelId}`);
 
   const channelRef = doc(db, 'chatChannels', channelId);
   const messagesCollectionRef = collection(channelRef, 'messages');
 
   try {
     const batch = writeBatch(db);
-
-    const newMessageRef = doc(messagesCollectionRef); // Auto-generate ID
+    const newMessageRef = doc(messagesCollectionRef); 
     batch.set(newMessageRef, {
       channelId,
       senderId,
@@ -158,22 +152,26 @@ export async function sendMessage(
       lastMessageTimestamp: serverTimestamp(),
       lastMessageSenderId: senderId,
       updatedAt: serverTimestamp(),
-      // Basic unread count increment - this is prone to race conditions without transactions or Cloud Functions
-      // For a robust system, use Firebase Functions to update unread counts transactionally
-      // [`unreadCounts.${recipientId}`]: increment(1) // This requires knowing the recipientId
+      // Unread counts should ideally be handled by a Cloud Function for atomicity and accuracy
+      // For example: [`unreadCounts.${recipientId}`]: increment(1)
     });
 
     await batch.commit();
+    console.info(`[sendMessage] Message ${newMessageRef.id} sent by ${senderId} in channel ${channelId}.`);
     return { success: true, messageId: newMessageRef.id };
   } catch (error) {
-    console.error('Error sending message:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[sendMessage] Error for senderId: ${senderId}, channelId: ${channelId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to send message: ${errorMessage}` };
   }
 }
 
 export async function getUserChatChannels(userId: string): Promise<ChatChannelData[]> {
-  if (!userId) return [];
+  if (!userId) {
+    console.warn('[getUserChatChannels] Missing userId.');
+    return [];
+  }
+  // console.info(`[getUserChatChannels] Fetching channels for userId: ${userId}`);
   try {
     const channelsRef = collection(db, 'chatChannels');
     const q = query(
@@ -182,37 +180,54 @@ export async function getUserChatChannels(userId: string): Promise<ChatChannelDa
       orderBy('lastMessageTimestamp', 'desc')
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatChannelData));
+    const channels = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatChannelData));
+    // console.info(`[getUserChatChannels] Found ${channels.length} channels for userId: ${userId}`);
+    return channels;
   } catch (error) {
-    console.error('Error fetching user chat channels:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[getUserChatChannels] Error fetching channels for userId: ${userId}: ${errorMessage}`, error);
     return [];
   }
 }
 
-// Client-side will use onSnapshot for real-time messages. This could be for initial batch.
 export async function getMessagesForChannel(channelId: string, messageLimit: number = 25): Promise<ChatMessageData[]> {
-    if (!channelId) return [];
+    if (!channelId) {
+      console.warn('[getMessagesForChannel] Missing channelId.');
+      return [];
+    }
+    // console.info(`[getMessagesForChannel] Fetching messages for channelId: ${channelId}, limit: ${messageLimit}`);
     try {
         const messagesRef = collection(db, 'chatChannels', channelId, 'messages');
         const q = query(messagesRef, orderBy('timestamp', 'desc'), limit(messageLimit));
         const querySnapshot = await getDocs(q);
-        // Messages are fetched in desc order for pagination, reverse for display
-        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessageData)).reverse();
+        const messages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessageData)).reverse();
+        // console.info(`[getMessagesForChannel] Found ${messages.length} messages for channelId: ${channelId}`);
+        return messages;
     } catch (error) {
-        console.error(`Error fetching messages for channel ${channelId}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        console.error(`[getMessagesForChannel] Error fetching messages for channelId: ${channelId}: ${errorMessage}`, error);
         return [];
     }
 }
 
 export async function markChannelAsRead(channelId: string, userId: string): Promise<void> {
-  if (!channelId || !userId) return;
+  if (!channelId || !userId) {
+    console.warn(`[markChannelAsRead] Missing channelId or userId. channelId: ${channelId}, userId: ${userId}`);
+    return;
+  }
+  console.info(`[markChannelAsRead] Marking channel ${channelId} as read for userId: ${userId}`);
   const channelRef = doc(db, 'chatChannels', channelId);
   try {
+    // Ensure unreadCounts object exists, then set specific user's count to 0
+    // This requires a read-then-write if unreadCounts object might not exist, or more complex server-side logic.
+    // For simplicity, assuming unreadCounts structure is initialized.
     await updateDoc(channelRef, {
       [`unreadCounts.${userId}`]: 0,
-      updatedAt: serverTimestamp(),
+      // updatedAt: serverTimestamp(), // Optional: update channel's updatedAt timestamp
     });
+    console.info(`[markChannelAsRead] Successfully marked channel ${channelId} as read for userId: ${userId}`);
   } catch (error) {
-    console.error(`Error marking channel ${channelId} as read for user ${userId}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[markChannelAsRead] Error for channelId: ${channelId}, userId: ${userId}: ${errorMessage}`, error);
   }
 }

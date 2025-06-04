@@ -1,3 +1,4 @@
+
 'use server';
 
 import { db } from '@/lib/firebase';
@@ -15,10 +16,10 @@ import {
   increment,
   deleteDoc,
   orderBy,
-  setDoc as firestoreSetDoc, // Renamed to avoid conflict with local setDoc
+  setDoc as firestoreSetDoc, 
 } from 'firebase/firestore';
-import { createSubscriptionCheckoutSession } from './stripe'; // Import for paid biomes
-import type { UserProfileData } from './userProfile'; // For user details
+import { createSubscriptionCheckoutSession } from './stripe'; 
+import type { UserProfileData } from './userProfile'; 
 
 export interface BiomeData {
   id: string;
@@ -41,9 +42,9 @@ export interface BiomeMembershipData {
   biomeId: string;
   role: 'owner' | 'member' | 'admin'; 
   joinedAt: Timestamp;
-  status?: 'active' | 'pending_payment' | 'cancelled' | 'incomplete'; // For paid biomes
-  stripeSubscriptionId?: string | null; // For tracking Stripe subscription
-  stripeCurrentPeriodEnd?: Timestamp | null; // For subscription validity
+  status?: 'active' | 'pending_payment' | 'cancelled' | 'incomplete'; 
+  stripeSubscriptionId?: string | null; 
+  stripeCurrentPeriodEnd?: Timestamp | null; 
 }
 
 export async function createBiome(
@@ -57,11 +58,14 @@ export async function createBiome(
   stripePriceId?: string
 ): Promise<{ success: boolean; biomeId?: string; message?: string }> {
   if (!creatorId || !name || !description) {
+    console.warn(`[createBiome] Missing required fields. creatorId: ${creatorId}, name: ${name}`);
     return { success: false, message: "Creator ID, name, and description are required." };
   }
   if (accessType === 'paid' && !stripePriceId) {
+    console.warn(`[createBiome] Paid biome requires Stripe Price ID. Name: ${name}`);
     return { success: false, message: "A Stripe Price ID is required for paid biomes." };
   }
+  console.info(`[createBiome] Attempting for creatorId: ${creatorId}, name: ${name}, access: ${accessType}`);
 
   try {
     const biomesCollectionRef = collection(db, 'biomes');
@@ -87,16 +91,17 @@ export async function createBiome(
       joinedAt: serverTimestamp(),
       status: 'active', 
     });
-
+    console.info(`[createBiome] Successfully created biomeId: ${newBiomeDocRef.id} by creatorId: ${creatorId}`);
     return { success: true, biomeId: newBiomeDocRef.id };
   } catch (error) {
-    console.error("Error creating biome: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[createBiome] Error for creatorId: ${creatorId}, name: ${name}: ${errorMessage}`, error);
     return { success: false, message: `Failed to create biome: ${errorMessage}` };
   }
 }
 
 export async function getAllBiomes(): Promise<BiomeData[]> {
+  // console.info("[getAllBiomes] Fetching all biomes."); // Can be noisy
   try {
     const biomesCollectionRef = collection(db, 'biomes');
     const q = query(biomesCollectionRef, orderBy("createdAt", "desc"));
@@ -106,24 +111,33 @@ export async function getAllBiomes(): Promise<BiomeData[]> {
     querySnapshot.forEach((doc) => {
       biomes.push({ id: doc.id, ...doc.data() } as BiomeData);
     });
+    // console.info(`[getAllBiomes] Found ${biomes.length} biomes.`);
     return biomes;
   } catch (error) {
-    console.error("Error fetching all biomes: ", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getAllBiomes] Error: ${errorMessage}`, error);
     return [];
   }
 }
 
 export async function getBiomeById(biomeId: string): Promise<BiomeData | null> {
-  if (!biomeId) return null;
+  if (!biomeId) {
+    console.warn('[getBiomeById] Missing biomeId.');
+    return null;
+  }
+  // console.info(`[getBiomeById] Fetching biomeId: ${biomeId}`);
   try {
     const biomeDocRef = doc(db, 'biomes', biomeId);
     const docSnap = await getDoc(biomeDocRef);
     if (docSnap.exists()) {
+      // console.info(`[getBiomeById] Found biomeId: ${biomeId}`);
       return { id: docSnap.id, ...docSnap.data() } as BiomeData;
     }
+    console.warn(`[getBiomeById] Biome not found: ${biomeId}`);
     return null;
   } catch (error) {
-    console.error("Error fetching biome by ID:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getBiomeById] Error fetching biomeId: ${biomeId}: ${errorMessage}`, error);
     return null;
   }
 }
@@ -135,12 +149,15 @@ export async function joinBiome(
   biomeId: string
 ): Promise<{ success: boolean; message?: string; sessionId?: string; requiresPayment?: boolean }> {
   if (!userId || !biomeId) {
+    console.warn(`[joinBiome] Missing userId or biomeId. userId: ${userId}, biomeId: ${biomeId}`);
     return { success: false, message: "User ID and Biome ID are required." };
   }
+  console.info(`[joinBiome] Attempting for userId: ${userId} to join biomeId: ${biomeId}`);
 
   try {
     const biome = await getBiomeById(biomeId);
     if (!biome) {
+      console.warn(`[joinBiome] Biome not found: ${biomeId}`);
       return { success: false, message: "Biome not found." };
     }
 
@@ -149,14 +166,16 @@ export async function joinBiome(
     const membershipSnap = await getDoc(membershipDocRef);
 
     if (membershipSnap.exists() && membershipSnap.data()?.status === 'active') {
+      console.info(`[joinBiome] User ${userId} is already an active member of biome ${biomeId}.`);
       return { success: false, message: "User is already an active member of this biome." };
     }
 
     if (biome.accessType === 'paid') {
       if (!biome.stripePriceId) {
+        console.error(`[joinBiome] Paid biome ${biomeId} is missing Stripe Price ID.`);
         return { success: false, message: "This paid biome is missing a Stripe Price ID. Cannot process payment." };
       }
-      // For paid biomes, initiate Stripe Checkout
+      console.info(`[joinBiome] Paid biome ${biomeId}. Initiating Stripe checkout for user ${userId}.`);
       const checkoutResult = await createSubscriptionCheckoutSession(
         userId,
         userEmail,
@@ -166,13 +185,14 @@ export async function joinBiome(
       );
 
       if ('error' in checkoutResult) {
+        console.warn(`[joinBiome] Stripe checkout session creation failed for user ${userId}, biome ${biomeId}: ${checkoutResult.error}`);
         return { success: false, message: checkoutResult.error, requiresPayment: true };
       }
-      // Optionally, create a 'pending_payment' membership record here, or let webhook handle it.
-      // For now, we let webhook create the membership.
+      console.info(`[joinBiome] Stripe session created for user ${userId}, biome ${biomeId}. SessionId: ${checkoutResult.sessionId}`);
       return { success: true, sessionId: checkoutResult.sessionId, requiresPayment: true };
 
     } else { // For 'free' biomes:
+      console.info(`[joinBiome] Free biome ${biomeId}. Adding user ${userId} as member.`);
       const batch = writeBatch(db);
       batch.set(membershipDocRef, {
         userId,
@@ -189,11 +209,12 @@ export async function joinBiome(
       });
 
       await batch.commit();
+      console.info(`[joinBiome] User ${userId} successfully joined free biome ${biomeId}.`);
       return { success: true, message: "Successfully joined biome." };
     }
   } catch (error) {
-    console.error("Error joining biome: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[joinBiome] Error for userId: ${userId}, biomeId: ${biomeId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to join biome: ${errorMessage}` };
   }
 }
@@ -203,8 +224,10 @@ export async function leaveBiome(
   biomeId: string
 ): Promise<{ success: boolean; message?: string }> {
   if (!userId || !biomeId) {
+    console.warn(`[leaveBiome] Missing userId or biomeId. userId: ${userId}, biomeId: ${biomeId}`);
     return { success: false, message: "User ID and Biome ID are required." };
   }
+  console.info(`[leaveBiome] Attempting for userId: ${userId} to leave biomeId: ${biomeId}`);
 
   try {
     const membershipId = `${userId}_${biomeId}`;
@@ -212,6 +235,7 @@ export async function leaveBiome(
     const membershipSnap = await getDoc(membershipDocRef);
 
     if (!membershipSnap.exists()) {
+      console.warn(`[leaveBiome] User ${userId} is not a member of biome ${biomeId}.`);
       return { success: false, message: "User is not a member of this biome." };
     }
     
@@ -219,21 +243,14 @@ export async function leaveBiome(
     if (membershipData.role === 'owner') {
         const biome = await getBiomeById(biomeId);
         if (biome && biome.memberCount > 1) {
+            console.warn(`[leaveBiome] Owner ${userId} cannot leave biome ${biomeId} with other members.`);
              return { success: false, message: "Owner cannot leave a biome with other members. Transfer ownership or manage members first." };
         }
     }
-
-    // If it was a paid biome, you might need to cancel the Stripe subscription here
-    // or handle it via a separate "manage subscription" flow.
-    // For simplicity, this example just removes the Firestore record.
-    // A webhook for `customer.subscription.deleted` should also handle membership status changes.
+    
     if (membershipData.stripeSubscriptionId) {
-        console.warn(`User ${userId} leaving biome ${biomeId} with active subscription ${membershipData.stripeSubscriptionId}. Subscription should be cancelled in Stripe.`);
-        // Ideally: await stripe.subscriptions.update(membershipData.stripeSubscriptionId, { cancel_at_period_end: true });
-        // Or: await stripe.subscriptions.del(membershipData.stripeSubscriptionId);
-        // For now, we'll just log a warning and proceed with Firestore deletion.
+        console.warn(`[leaveBiome] User ${userId} leaving biome ${biomeId} with active subscription ${membershipData.stripeSubscriptionId}. Subscription should be cancelled in Stripe.`);
     }
-
 
     const batch = writeBatch(db);
     batch.delete(membershipDocRef);
@@ -245,16 +262,21 @@ export async function leaveBiome(
     });
 
     await batch.commit();
+    console.info(`[leaveBiome] User ${userId} successfully left biome ${biomeId}.`);
     return { success: true, message: "Successfully left biome." };
   } catch (error) {
-    console.error("Error leaving biome: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[leaveBiome] Error for userId: ${userId}, biomeId: ${biomeId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to leave biome: ${errorMessage}` };
   }
 }
 
 export async function getUserBiomeMemberships(userId: string): Promise<BiomeMembershipData[]> {
-  if (!userId) return [];
+  if (!userId) {
+    console.warn('[getUserBiomeMemberships] Missing userId.');
+    return [];
+  }
+  // console.info(`[getUserBiomeMemberships] Fetching for userId: ${userId}`);
   try {
     const membershipsCollectionRef = collection(db, 'biomeMemberships');
     const q = query(membershipsCollectionRef, where("userId", "==", userId));
@@ -264,22 +286,31 @@ export async function getUserBiomeMemberships(userId: string): Promise<BiomeMemb
     querySnapshot.forEach((doc) => {
       memberships.push({ id: doc.id, ...doc.data() } as BiomeMembershipData);
     });
+    // console.info(`[getUserBiomeMemberships] Found ${memberships.length} memberships for userId: ${userId}`);
     return memberships;
   } catch (error) {
-    console.error("Error fetching user biome memberships:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getUserBiomeMemberships] Error fetching memberships for userId: ${userId}: ${errorMessage}`, error);
     return [];
   }
 }
 
 export async function isUserMemberOfBiome(userId: string, biomeId: string): Promise<boolean> {
-  if (!userId || !biomeId) return false;
+  if (!userId || !biomeId) {
+    // console.warn(`[isUserMemberOfBiome] Missing userId or biomeId. userId: ${userId}, biomeId: ${biomeId}`);
+    return false;
+  }
+  // console.info(`[isUserMemberOfBiome] Checking for userId: ${userId}, biomeId: ${biomeId}`);
   try {
     const membershipId = `${userId}_${biomeId}`;
     const membershipDocRef = doc(db, 'biomeMemberships', membershipId);
     const docSnap = await getDoc(membershipDocRef);
-    return docSnap.exists() && docSnap.data()?.status === 'active';
+    const isMember = docSnap.exists() && docSnap.data()?.status === 'active';
+    // console.info(`[isUserMemberOfBiome] Membership status for userId: ${userId}, biomeId: ${biomeId}: ${isMember}`);
+    return isMember;
   } catch (error) {
-    console.error("Error checking biome membership:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[isUserMemberOfBiome] Error checking membership for userId: ${userId}, biomeId: ${biomeId}: ${errorMessage}`, error);
     return false;
   }
 }

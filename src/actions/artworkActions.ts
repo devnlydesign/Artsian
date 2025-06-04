@@ -3,82 +3,79 @@
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, serverTimestamp, orderBy, Timestamp, doc, getDoc } from 'firebase/firestore';
-import type { UserProfileData } from './userProfile'; // Assuming UserProfileData might be linked or referenced
+import type { UserProfileData } from './userProfile'; 
 
 export interface LayerData {
-  id: string; // Unique identifier for the layer (e.g., UUID)
+  id: string; 
   type: "text" | "image" | "video" | "audio";
   title?: string;
   description?: string;
-  content?: string; // For text type
-  url?: string;     // For image, video, audio types (Firebase Storage URL)
-  dataAiHint?: string; // For image/video layers
-  order: number;    // Display order of the layer
+  content?: string; 
+  url?: string;     
+  dataAiHint?: string; 
+  order: number;    
 }
 
 export interface ArtworkData {
   id: string;
-  userId: string; // Firebase UID of the creator
+  userId: string; 
   title: string;
   type: "Artwork" | "Process Chronicle" | "Sketch" | "Multimedia" | "Other";
-  description: string; // General description of the artwork
-  imageUrl: string; // URL to the main COVER image/thumbnail of the artwork
-  dataAiHint: string; // For Unsplash/AI image search hints for the cover image
-  layers?: LayerData[]; // Array of content layers
-  tags?: string[]; // Optional: User-defined tags
-  isPublished?: boolean; // Optional: For draft/published status
+  description: string; 
+  imageUrl: string; 
+  dataAiHint: string; 
+  layers?: LayerData[]; 
+  tags?: string[]; 
+  isPublished?: boolean; 
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  isAmplified?: boolean; // For Amplify Flux Pulse feature
-  amplifiedAt?: Timestamp | null; // Timestamp of when it was last amplified
+  isAmplified?: boolean; 
+  amplifiedAt?: Timestamp | null; 
 }
 
-// Firestore Security Rules Reminder:
-// Ensure your Firestore rules allow authenticated users to create artworks
-// and read artworks (potentially based on isPublished status or userId).
-// Example for 'artworks' collection:
-// match /artworks/{artworkId} {
-//   allow read: if true; // Or more restrictive, e.g., if resource.data.isPublished == true || request.auth.uid == resource.data.userId;
-//   allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-//   allow update: if request.auth != null && request.auth.uid == resource.data.userId; // Ensure rules allow updating isAmplified by owner
-//   allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
-// }
 
 export async function createArtwork(
   userId: string,
   artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished' | 'isAmplified' | 'amplifiedAt'> & { isPublished?: boolean }
 ): Promise<{ success: boolean; artworkId?: string; message?: string }> {
   if (!userId) {
+    console.warn('[createArtwork] Missing userId.');
     return { success: false, message: "User ID is required to create an artwork." };
   }
   if (!artworkDetails.title || !artworkDetails.imageUrl || !artworkDetails.type || !artworkDetails.description) {
+    console.warn(`[createArtwork] Missing required details for userId: ${userId}, title: ${artworkDetails.title}`);
     return { success: false, message: "Missing required artwork details (title, image URL, type, description)." };
   }
+  console.info(`[createArtwork] Attempting for userId: ${userId}, title: ${artworkDetails.title}`);
 
   try {
     const artworksCollectionRef = collection(db, 'artworks');
     const docRef = await addDoc(artworksCollectionRef, {
       ...artworkDetails,
       userId: userId,
-      layers: artworkDetails.layers || [], // Ensure layers is at least an empty array
-      isPublished: artworkDetails.isPublished ?? true, // Default to published
+      layers: artworkDetails.layers || [], 
+      isPublished: artworkDetails.isPublished ?? true, 
       isAmplified: false,
       amplifiedAt: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    console.info(`[createArtwork] Successfully created artworkId: ${docRef.id} for userId: ${userId}`);
     return { success: true, artworkId: docRef.id };
   } catch (error) {
-    console.error("Error creating artwork: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[createArtwork] Error for userId: ${userId}, title: ${artworkDetails.title}: ${errorMessage}`, error);
     return { success: false, message: `Failed to create artwork: ${errorMessage}` };
   }
 }
 
 export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]> {
   if (!userId) {
+    console.warn('[getArtworksByUserId] Missing userId.');
     return [];
   }
+  // console.info(`[getArtworksByUserId] Fetching for userId: ${userId}`); // Can be too noisy, enable if needed
+
   try {
     const artworksCollectionRef = collection(db, 'artworks');
     const q = query(artworksCollectionRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
@@ -96,29 +93,36 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
               amplifiedAt: data.amplifiedAt ?? null,
             } as ArtworkData);
         } else {
-            console.warn(`Skipping malformed artwork document with id: ${doc.id}`);
+            console.warn(`[getArtworksByUserId] Skipping malformed artwork document with id: ${doc.id} for userId: ${userId}`);
         }
       } catch (e) {
-        console.error(`Error processing artwork document ${doc.id}:`, e);
+        const errorMessage = e instanceof Error ? e.message : "Unknown error processing document.";
+        console.error(`[getArtworksByUserId] Error processing artwork document ${doc.id} for userId: ${userId}: ${errorMessage}`, e);
       }
     });
+    // console.info(`[getArtworksByUserId] Found ${artworks.length} artworks for userId: ${userId}`);
     return artworks;
   } catch (error) {
-    console.error("Error fetching artworks by user ID: ", error);
-    return []; // Return empty array on error to prevent breaking caller
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getArtworksByUserId] Error fetching artworks for userId: ${userId}: ${errorMessage}`, error);
+    return []; 
   }
 }
 
 export async function getArtworkById(artworkId: string): Promise<ArtworkData | null> {
   if (!artworkId) {
+    console.warn('[getArtworkById] Missing artworkId.');
     return null;
   }
+  // console.info(`[getArtworkById] Fetching artworkId: ${artworkId}`);
+
   try {
     const artworkDocRef = doc(db, 'artworks', artworkId);
     const docSnap = await getDoc(artworkDocRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
       const layers = Array.isArray(data.layers) ? data.layers : [];
+      // console.info(`[getArtworkById] Found artworkId: ${artworkId}`);
       return { 
         id: docSnap.id, 
         ...data, 
@@ -127,11 +131,12 @@ export async function getArtworkById(artworkId: string): Promise<ArtworkData | n
         amplifiedAt: data.amplifiedAt ?? null,
       } as ArtworkData;
     } else {
-      console.log("No such artwork found!");
+      console.warn(`[getArtworkById] No artwork found with artworkId: ${artworkId}`);
       return null;
     }
   } catch (error) {
-    console.error("Error fetching artwork by ID: ", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getArtworkById] Error fetching artworkId: ${artworkId}: ${errorMessage}`, error);
     return null;
   }
 }

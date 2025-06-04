@@ -8,21 +8,21 @@ export interface FluxSignature {
   style?: string;
   activityLevel?: string; 
   currentMood?: string; 
-  dominantColors?: string[]; // Array of hex color strings
+  dominantColors?: string[]; 
   keywords?: string[];
-  visualRepresentation?: string; // URL to an image
+  visualRepresentation?: string; 
   dataAiHintVisual?: string;
 }
 
 export interface FluxEvolutionPoint {
-  date: string; // Should be ISO string or 'YYYY-MM-DD'
+  date: string; 
   change: string;
 }
 
 export interface UserProfileThemeSettings {
   baseMode?: 'light' | 'dark' | 'system';
   customColors?: {
-    light: { [key: string]: string }; // e.g., {'--background': '0 0% 100%'}
+    light: { [key: string]: string }; 
     dark: { [key: string]: string };
   };
 }
@@ -30,45 +30,49 @@ export interface UserProfileThemeSettings {
 export interface UserProfileData {
   uid: string;
   email?: string | null;
-  fullName?: string; // Used for display names
-  username?: string; // Unique identifier, can be used for @mentions or profile URLs
+  fullName?: string; 
+  username?: string; 
   bio?: string;
-  photoURL?: string | null; // Profile picture URL
-  bannerURL?: string | null; // Profile banner image URL
-  genre?: string; // Main art genre
-  style?: string; // Artistic style description
+  photoURL?: string | null; 
+  bannerURL?: string | null; 
+  genre?: string; 
+  style?: string; 
   motivations?: string;
   inspirations?: string;
   website?: string;
-  socialMedia?: string; // Could be a single link or an object for multiple platforms
+  socialMedia?: string; 
   location?: string;
-  portfolioLink?: string; // Link to an external portfolio
+  portfolioLink?: string; 
   emailOptIn?: boolean;
   isPremium?: boolean;
   stripeCustomerId?: string | null;
-  premiumSubscriptionId?: string | null; // Stripe Subscription ID for app premium
-  premiumSubscriptionEndsAt?: Timestamp | null; // When the current premium period ends
+  premiumSubscriptionId?: string | null; 
+  premiumSubscriptionEndsAt?: Timestamp | null; 
   fluxSignature?: FluxSignature;
   fluxEvolutionPoints?: FluxEvolutionPoint[];
   createdAt?: Timestamp; 
   updatedAt?: Timestamp; 
   followersCount?: number;
   followingCount?: number;
-  isProfileAmplified?: boolean; // For Amplify Flux Pulse feature
-  profileAmplifiedAt?: Timestamp | null; // Timestamp of when profile was last amplified
-  themeSettings?: UserProfileThemeSettings; // Added for theme customization
+  isProfileAmplified?: boolean; 
+  profileAmplifiedAt?: Timestamp | null; 
+  themeSettings?: UserProfileThemeSettings; 
 }
 
 export async function saveUserProfile(userId: string, data: Partial<UserProfileData>): Promise<{ success: boolean; message?: string }> {
   if (!userId) {
+    console.warn('[saveUserProfile] Missing userId.');
     return { success: false, message: "User ID is required." };
   }
+  console.info(`[saveUserProfile] Attempting for userId: ${userId}`);
+
   try {
     const userProfileRef = doc(db, 'users', userId);
     const profileSnapshot = await getDoc(userProfileRef);
 
     const dataToSave: Partial<UserProfileData> = { ...data };
     
+    // Remove undefined fields to prevent Firestore errors or unintentional field deletions
     Object.keys(dataToSave).forEach(key => {
       const K = key as keyof UserProfileData;
       if (dataToSave[K] === undefined) {
@@ -76,19 +80,20 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       }
     });
 
-
     if (profileSnapshot.exists()) {
       await updateDoc(userProfileRef, {
         ...dataToSave,
         updatedAt: serverTimestamp(),
       });
+      console.info(`[saveUserProfile] Successfully updated profile for userId: ${userId}`);
     } else {
-      // Defaults for new profiles
+      console.info(`[saveUserProfile] Creating new profile for userId: ${userId}`);
       await setDoc(userProfileRef, {
         uid: userId,
         email: data.email ?? null,
         fullName: data.fullName ?? '', 
         username: data.username ?? '', 
+        bio: data.bio ?? '',
         photoURL: data.photoURL ?? null,
         bannerURL: data.bannerURL ?? null,
         isPremium: data.isPremium ?? false,
@@ -102,32 +107,36 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         isProfileAmplified: data.isProfileAmplified ?? false,
         profileAmplifiedAt: data.profileAmplifiedAt ?? null,
         emailOptIn: data.emailOptIn ?? false,
-        themeSettings: data.themeSettings ?? { baseMode: 'system', customColors: { light: {}, dark: {} } }, // Default theme settings
-        ...dataToSave, 
+        themeSettings: data.themeSettings ?? { baseMode: 'system', customColors: { light: {}, dark: {} } },
+        ...dataToSave, // Spread again to ensure incoming data overrides defaults if present
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      console.info(`[saveUserProfile] Successfully created new profile for userId: ${userId}`);
     }
     return { success: true };
   } catch (error) {
-    console.error("Error saving user profile: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[saveUserProfile] Error for userId: ${userId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to save profile: ${errorMessage}` };
   }
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfileData | null> {
   if (!userId) {
+    // console.warn('[getUserProfile] Missing userId.'); // Can be noisy
     return null;
   }
+  // console.info(`[getUserProfile] Fetching profile for userId: ${userId}`);
   try {
     const userProfileRef = doc(db, 'users', userId);
     const docSnap = await getDoc(userProfileRef);
     if (docSnap.exists()) {
       const profile = docSnap.data() as UserProfileData;
-      // Ensure all potentially undefined fields have sensible defaults if needed by calling code
+      // Ensure all potentially undefined fields have sensible defaults
       profile.fullName = profile.fullName ?? '';
       profile.username = profile.username ?? '';
+      profile.bio = profile.bio ?? '';
       profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
       profile.fluxEvolutionPoints = profile.fluxEvolutionPoints ?? [];
       profile.photoURL = profile.photoURL ?? null;
@@ -141,14 +150,16 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.emailOptIn = profile.emailOptIn ?? false;
       profile.isProfileAmplified = profile.isProfileAmplified ?? false;
       profile.profileAmplifiedAt = profile.profileAmplifiedAt ?? null;
-      profile.themeSettings = profile.themeSettings ?? { baseMode: 'system', customColors: {light: {}, dark: {}} }; // Default theme settings
+      profile.themeSettings = profile.themeSettings ?? { baseMode: 'system', customColors: {light: {}, dark: {}} };
+      // console.info(`[getUserProfile] Profile found for userId: ${userId}`);
       return profile;
     } else {
-      console.log("No such user profile for ID:", userId);
+      console.warn(`[getUserProfile] No profile found for userId: ${userId}`);
       return null;
     }
   } catch (error) {
-    console.error("Error fetching user profile: ", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getUserProfile] Error fetching profile for userId: ${userId}: ${errorMessage}`, error);
     return null;
   }
 }

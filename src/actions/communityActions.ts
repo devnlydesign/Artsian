@@ -51,31 +51,7 @@ export interface CommunityPostData {
   dataAiHintImageUrl?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  // Future expansions:
-  // likesCount: number;
-  // commentsCount: number;
 }
-
-
-// Firestore Security Rules Reminder for 'communities' and 'communityMemberships':
-// match /communities/{communityId} {
-//   allow read: if true; 
-//   allow create: if request.auth != null; 
-//   allow update: if request.auth != null && request.auth.uid == resource.data.creatorId; 
-// }
-// match /communityMemberships/{membershipId} {
-//   allow read: if request.auth != null && (request.auth.uid == resource.data.userId || resource.data.communityId in get(/databases/$(database)/documents/communities/$(resource.data.communityId)).data.adminIds); 
-//   allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-//   allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
-// }
-// match /communities/{communityId}/posts/{postId} {
-//   allow read: if true; // Assuming public communities for now
-//   allow create: if request.auth != null && request.auth.uid == request.resource.data.creatorId &&
-//                 exists(/databases/$(database)/documents/communityMemberships/$(request.auth.uid + '_' + communityId)); 
-//   allow update: if request.auth != null && request.auth.uid == resource.data.creatorId;
-//   allow delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
-// }
-
 
 export async function createCommunity(
   creatorId: string,
@@ -86,8 +62,10 @@ export async function createCommunity(
   dataAiHint: string = "community group" 
 ): Promise<{ success: boolean; communityId?: string; message?: string }> {
   if (!creatorId || !name || !description) {
+    console.warn(`[createCommunity] Missing required fields. creatorId: ${creatorId}, name: ${name}`);
     return { success: false, message: "Creator ID, name, and description are required." };
   }
+  console.info(`[createCommunity] Attempting for creatorId: ${creatorId}, name: ${name}`);
 
   try {
     const communitiesCollectionRef = collection(db, 'communities');
@@ -104,22 +82,24 @@ export async function createCommunity(
     });
 
     const membershipRef = doc(db, 'communityMemberships', `${creatorId}_${docRef.id}`);
-    await setDoc(membershipRef, {
+    await setDocInternal(membershipRef, { // Changed to setDocInternal
       userId: creatorId,
       communityId: docRef.id,
       joinedAt: serverTimestamp(),
       role: 'admin', 
     });
 
+    console.info(`[createCommunity] Successfully created communityId: ${docRef.id} by creatorId: ${creatorId}`);
     return { success: true, communityId: docRef.id };
   } catch (error) {
-    console.error("Error creating community: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[createCommunity] Error for creatorId: ${creatorId}, name: ${name}: ${errorMessage}`, error);
     return { success: false, message: `Failed to create community: ${errorMessage}` };
   }
 }
 
 export async function getAllPublicCommunities(): Promise<CommunityData[]> {
+  // console.info("[getAllPublicCommunities] Fetching all public communities."); // Can be noisy
   try {
     const communitiesCollectionRef = collection(db, 'communities');
     const q = query(communitiesCollectionRef, orderBy("createdAt", "desc")); 
@@ -129,24 +109,33 @@ export async function getAllPublicCommunities(): Promise<CommunityData[]> {
     querySnapshot.forEach((doc) => {
       communities.push({ id: doc.id, ...doc.data() } as CommunityData);
     });
+    // console.info(`[getAllPublicCommunities] Found ${communities.length} communities.`);
     return communities;
   } catch (error) {
-    console.error("Error fetching all public communities: ", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getAllPublicCommunities] Error: ${errorMessage}`, error);
     return [];
   }
 }
 
 export async function getCommunityById(communityId: string): Promise<CommunityData | null> {
-  if (!communityId) return null;
+  if (!communityId) {
+    console.warn('[getCommunityById] Missing communityId.');
+    return null;
+  }
+  // console.info(`[getCommunityById] Fetching communityId: ${communityId}`);
   try {
     const communityDocRef = doc(db, 'communities', communityId);
     const docSnap = await getDoc(communityDocRef);
     if (docSnap.exists()) {
+      // console.info(`[getCommunityById] Found communityId: ${communityId}`);
       return { id: docSnap.id, ...docSnap.data() } as CommunityData;
     }
+    console.warn(`[getCommunityById] Community not found: ${communityId}`);
     return null;
   } catch (error) {
-    console.error("Error fetching community by ID:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getCommunityById] Error fetching communityId: ${communityId}: ${errorMessage}`, error);
     return null;
   }
 }
@@ -157,8 +146,10 @@ export async function joinCommunity(
   communityId: string
 ): Promise<{ success: boolean; message?: string }> {
   if (!userId || !communityId) {
+    console.warn(`[joinCommunity] Missing userId or communityId. userId: ${userId}, communityId: ${communityId}`);
     return { success: false, message: "User ID and Community ID are required." };
   }
+  console.info(`[joinCommunity] Attempting for userId: ${userId} to join communityId: ${communityId}`);
 
   try {
     const batch = writeBatch(db);
@@ -167,6 +158,7 @@ export async function joinCommunity(
     
     const membershipSnap = await getDoc(membershipDocRef);
     if (membershipSnap.exists()) {
+      console.info(`[joinCommunity] User ${userId} is already a member of community ${communityId}.`);
       return { success: false, message: "User is already a member of this community." };
     }
 
@@ -184,10 +176,11 @@ export async function joinCommunity(
     });
 
     await batch.commit();
+    console.info(`[joinCommunity] User ${userId} successfully joined community ${communityId}.`);
     return { success: true };
   } catch (error) {
-    console.error("Error joining community: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[joinCommunity] Error for userId: ${userId}, communityId: ${communityId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to join community: ${errorMessage}` };
   }
 }
@@ -197,8 +190,10 @@ export async function leaveCommunity(
   communityId: string
 ): Promise<{ success: boolean; message?: string }> {
   if (!userId || !communityId) {
+    console.warn(`[leaveCommunity] Missing userId or communityId. userId: ${userId}, communityId: ${communityId}`);
     return { success: false, message: "User ID and Community ID are required." };
   }
+  console.info(`[leaveCommunity] Attempting for userId: ${userId} to leave communityId: ${communityId}`);
 
   try {
     const batch = writeBatch(db);
@@ -207,6 +202,7 @@ export async function leaveCommunity(
     
     const membershipSnap = await getDoc(membershipDocRef);
     if (!membershipSnap.exists()) {
+      console.warn(`[leaveCommunity] User ${userId} is not a member of community ${communityId}.`);
       return { success: false, message: "User is not a member of this community." };
     }
 
@@ -219,16 +215,21 @@ export async function leaveCommunity(
     });
     
     await batch.commit();
+    console.info(`[leaveCommunity] User ${userId} successfully left community ${communityId}.`);
     return { success: true };
   } catch (error) {
-    console.error("Error leaving community: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[leaveCommunity] Error for userId: ${userId}, communityId: ${communityId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to leave community: ${errorMessage}` };
   }
 }
 
 export async function getUserCommunityMemberships(userId: string): Promise<CommunityMembershipData[]> {
-  if (!userId) return [];
+  if (!userId) {
+    console.warn('[getUserCommunityMemberships] Missing userId.');
+    return [];
+  }
+  // console.info(`[getUserCommunityMemberships] Fetching for userId: ${userId}`);
   try {
     const membershipsCollectionRef = collection(db, 'communityMemberships');
     const q = query(membershipsCollectionRef, where("userId", "==", userId));
@@ -238,22 +239,31 @@ export async function getUserCommunityMemberships(userId: string): Promise<Commu
     querySnapshot.forEach((doc) => {
       memberships.push({ id: doc.id, ...doc.data() } as CommunityMembershipData);
     });
+    // console.info(`[getUserCommunityMemberships] Found ${memberships.length} memberships for userId: ${userId}`);
     return memberships;
   } catch (error) {
-    console.error("Error fetching user community memberships:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getUserCommunityMemberships] Error fetching memberships for userId: ${userId}: ${errorMessage}`, error);
     return [];
   }
 }
 
 export async function isUserMemberOfCommunity(userId: string, communityId: string): Promise<boolean> {
-  if (!userId || !communityId) return false;
+  if (!userId || !communityId) {
+    // console.warn(`[isUserMemberOfCommunity] Missing userId or communityId. userId: ${userId}, communityId: ${communityId}`);
+    return false;
+  }
+  // console.info(`[isUserMemberOfCommunity] Checking for userId: ${userId}, communityId: ${communityId}`);
   try {
     const membershipId = `${userId}_${communityId}`;
     const membershipDocRef = doc(db, 'communityMemberships', membershipId);
     const docSnap = await getDoc(membershipDocRef);
-    return docSnap.exists();
+    const isMember = docSnap.exists();
+    // console.info(`[isUserMemberOfCommunity] Membership status for userId: ${userId}, communityId: ${communityId}: ${isMember}`);
+    return isMember;
   } catch (error) {
-    console.error("Error checking community membership:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[isUserMemberOfCommunity] Error checking membership for userId: ${userId}, communityId: ${communityId}: ${errorMessage}`, error);
     return false;
   }
 }
@@ -268,13 +278,15 @@ export async function createCommunityPost(
   dataAiHintImageUrl?: string
 ): Promise<{ success: boolean; postId?: string; message?: string }> {
   if (!communityId || !creatorId || !content) {
+    console.warn(`[createCommunityPost] Missing required fields. communityId: ${communityId}, creatorId: ${creatorId}`);
     return { success: false, message: "Community ID, creator ID, and content are required." };
   }
+  console.info(`[createCommunityPost] Attempting for creatorId: ${creatorId} in communityId: ${communityId}`);
 
   try {
-    // Verify membership
     const isMember = await isUserMemberOfCommunity(creatorId, communityId);
     if (!isMember) {
+      console.warn(`[createCommunityPost] User ${creatorId} is not a member of community ${communityId}.`);
       return { success: false, message: "User is not a member of this community and cannot post." };
     }
 
@@ -290,16 +302,21 @@ export async function createCommunityPost(
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    console.info(`[createCommunityPost] Post ${docRef.id} created by ${creatorId} in community ${communityId}.`);
     return { success: true, postId: docRef.id };
   } catch (error) {
-    console.error("Error creating community post: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[createCommunityPost] Error for creatorId: ${creatorId}, communityId: ${communityId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to create post: ${errorMessage}` };
   }
 }
 
 export async function getCommunityPosts(communityId: string): Promise<CommunityPostData[]> {
-  if (!communityId) return [];
+  if (!communityId) {
+    console.warn('[getCommunityPosts] Missing communityId.');
+    return [];
+  }
+  // console.info(`[getCommunityPosts] Fetching posts for communityId: ${communityId}`);
   try {
     const postsCollectionRef = collection(db, 'communities', communityId, 'posts');
     const q = query(postsCollectionRef, orderBy("createdAt", "desc"));
@@ -309,9 +326,11 @@ export async function getCommunityPosts(communityId: string): Promise<CommunityP
     querySnapshot.forEach((doc) => {
       posts.push({ id: doc.id, ...doc.data() } as CommunityPostData);
     });
+    // console.info(`[getCommunityPosts] Found ${posts.length} posts for communityId: ${communityId}`);
     return posts;
   } catch (error) {
-    console.error("Error fetching community posts:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getCommunityPosts] Error fetching posts for communityId: ${communityId}: ${errorMessage}`, error);
     return [];
   }
 }
@@ -322,46 +341,46 @@ export async function deleteCommunityPost(
   requestingUserId: string
 ): Promise<{ success: boolean; message?: string }> {
   if (!communityId || !postId || !requestingUserId) {
+    console.warn(`[deleteCommunityPost] Missing required fields. communityId: ${communityId}, postId: ${postId}, userId: ${requestingUserId}`);
     return { success: false, message: "Community ID, Post ID, and User ID are required." };
   }
+  console.info(`[deleteCommunityPost] Attempting for userId: ${requestingUserId} to delete postId: ${postId} in communityId: ${communityId}`);
   try {
     const postDocRef = doc(db, 'communities', communityId, 'posts', postId);
     const postSnap = await getDoc(postDocRef);
 
     if (!postSnap.exists()) {
+      console.warn(`[deleteCommunityPost] Post not found: ${postId} in community ${communityId}.`);
       return { success: false, message: "Post not found." };
     }
 
     const postData = postSnap.data() as CommunityPostData;
     if (postData.creatorId !== requestingUserId) {
-      // In future, add check for community admin/moderator role here
+      console.warn(`[deleteCommunityPost] User ${requestingUserId} not authorized to delete post ${postId}. Creator is ${postData.creatorId}.`);
       return { success: false, message: "You are not authorized to delete this post." };
     }
 
     await deleteDoc(postDocRef);
+    console.info(`[deleteCommunityPost] Post ${postId} deleted by ${requestingUserId} in community ${communityId}.`);
     return { success: true };
   } catch (error) {
-    console.error("Error deleting community post: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[deleteCommunityPost] Error for postId: ${postId}, communityId: ${communityId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to delete post: ${errorMessage}` };
   }
 }
 
-
-// Helper function to set doc with merge for serverTimestamp, used internally
-async function setDoc(docRef: any, data: any, options?: { merge?: boolean }) {
-  const { serverTimestamp } = await import('firebase/firestore'); 
+async function setDocInternal(docRef: any, data: any, options?: { merge?: boolean }) { // Renamed from setDoc to setDocInternal
+  const { serverTimestamp: fsServerTimestamp } = await import('firebase/firestore'); 
   const dataWithTimestamps = Object.keys(data).reduce((acc, key) => {
-    if (data[key] === serverTimestamp()) {
-      acc[key] = serverTimestamp();
+    if (data[key] === fsServerTimestamp()) { // Use aliased import
+      acc[key] = fsServerTimestamp();
     } else {
       acc[key] = data[key];
     }
     return acc;
   }, {} as any);
 
-  const firestoreSetDoc = (await import('firebase/firestore')).setDoc;
-  return firestoreSetDoc(docRef, dataWithTimestamps, options);
+  const { setDoc: firestoreSetDocOriginal } = await import('firebase/firestore'); // Original setDoc
+  return firestoreSetDocOriginal(docRef, dataWithTimestamps, options);
 }
-
-    

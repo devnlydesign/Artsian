@@ -19,14 +19,8 @@ export interface GenesisTrailStorageData {
   input: GenesisTrailInput;
   output: GenesisTrailOutput;
   createdAt: Timestamp;
-  projectTitle?: string; // Extracted from projectDescription for easier display
+  projectTitle?: string; 
 }
-
-// Firestore Security Rules Reminder for 'genesisTrails' collection:
-// match /genesisTrails/{trailId} {
-//   allow read, create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-//   // No update/delete for now
-// }
 
 export async function saveGenesisTrail(
   userId: string,
@@ -34,12 +28,13 @@ export async function saveGenesisTrail(
   output: GenesisTrailOutput
 ): Promise<{ success: boolean; trailId?: string; message?: string }> {
   if (!userId) {
+    console.warn('[saveGenesisTrail] Missing userId.');
     return { success: false, message: "User ID is required to save a genesis trail." };
   }
+  console.info(`[saveGenesisTrail] Attempting for userId: ${userId}, project: ${input.projectDescription.substring(0,30)}...`);
 
   try {
     const genesisTrailsCollectionRef = collection(db, 'genesisTrails');
-    // Extract a title from the description for easier listing, fallback if needed
     const projectTitle = input.projectDescription.substring(0, 70) + (input.projectDescription.length > 70 ? '...' : '');
 
     const docRef = await addDoc(genesisTrailsCollectionRef, {
@@ -49,18 +44,21 @@ export async function saveGenesisTrail(
       projectTitle,
       createdAt: serverTimestamp(),
     });
+    console.info(`[saveGenesisTrail] Successfully saved trailId: ${docRef.id} for userId: ${userId}`);
     return { success: true, trailId: docRef.id };
   } catch (error) {
-    console.error("Error saving genesis trail: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[saveGenesisTrail] Error for userId: ${userId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to save genesis trail: ${errorMessage}` };
   }
 }
 
 export async function getGenesisTrailsByUserId(userId: string): Promise<GenesisTrailStorageData[]> {
   if (!userId) {
+    console.warn('[getGenesisTrailsByUserId] Missing userId.');
     return [];
   }
+  // console.info(`[getGenesisTrailsByUserId] Fetching for userId: ${userId}`);
   try {
     const genesisTrailsCollectionRef = collection(db, 'genesisTrails');
     const q = query(genesisTrailsCollectionRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
@@ -70,9 +68,11 @@ export async function getGenesisTrailsByUserId(userId: string): Promise<GenesisT
     querySnapshot.forEach((doc) => {
       trails.push({ id: doc.id, ...doc.data() } as GenesisTrailStorageData);
     });
+    // console.info(`[getGenesisTrailsByUserId] Found ${trails.length} trails for userId: ${userId}`);
     return trails;
   } catch (error) {
-    console.error("Error fetching genesis trails by user ID: ", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getGenesisTrailsByUserId] Error fetching trails for userId: ${userId}: ${errorMessage}`, error);
     return [];
   }
 }

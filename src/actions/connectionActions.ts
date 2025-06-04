@@ -18,23 +18,25 @@ import {
 } from 'firebase/firestore';
 
 export interface ConnectionData {
-  id: string; // followerUserId_followedUserId
+  id: string; 
   followerId: string;
   followedId: string;
   createdAt: Timestamp;
 }
 
-// --- Follow a User ---
 export async function followUser(
   currentUserId: string,
   targetUserId: string
 ): Promise<{ success: boolean; message?: string }> {
   if (!currentUserId || !targetUserId) {
+    console.warn('[followUser] Missing currentUserId or targetUserId.');
     return { success: false, message: 'User IDs are required.' };
   }
   if (currentUserId === targetUserId) {
+    console.warn(`[followUser] User ${currentUserId} attempting to follow self.`);
     return { success: false, message: 'You cannot follow yourself.' };
   }
+  console.info(`[followUser] Attempting: ${currentUserId} follows ${targetUserId}`);
 
   const connectionId = `${currentUserId}_${targetUserId}`;
   const connectionRef = doc(db, 'connections', connectionId);
@@ -44,6 +46,7 @@ export async function followUser(
   try {
     const connectionSnap = await getDoc(connectionRef);
     if (connectionSnap.exists()) {
+      console.info(`[followUser] User ${currentUserId} already follows ${targetUserId}.`);
       return { success: false, message: 'You are already following this user.' };
     }
 
@@ -65,22 +68,24 @@ export async function followUser(
     });
 
     await batch.commit();
+    console.info(`[followUser] Success: ${currentUserId} now follows ${targetUserId}`);
     return { success: true };
   } catch (error) {
-    console.error('Error following user:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[followUser] Error: ${currentUserId} follows ${targetUserId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to follow user: ${errorMessage}` };
   }
 }
 
-// --- Unfollow a User ---
 export async function unfollowUser(
   currentUserId: string,
   targetUserId: string
 ): Promise<{ success: boolean; message?: string }> {
   if (!currentUserId || !targetUserId) {
+    console.warn('[unfollowUser] Missing currentUserId or targetUserId.');
     return { success: false, message: 'User IDs are required.' };
   }
+  console.info(`[unfollowUser] Attempting: ${currentUserId} unfollows ${targetUserId}`);
 
   const connectionId = `${currentUserId}_${targetUserId}`;
   const connectionRef = doc(db, 'connections', connectionId);
@@ -90,6 +95,7 @@ export async function unfollowUser(
   try {
     const connectionSnap = await getDoc(connectionRef);
     if (!connectionSnap.exists()) {
+      console.info(`[unfollowUser] User ${currentUserId} is not following ${targetUserId}.`);
       return { success: false, message: 'You are not following this user.' };
     }
 
@@ -107,73 +113,93 @@ export async function unfollowUser(
     });
 
     await batch.commit();
+    console.info(`[unfollowUser] Success: ${currentUserId} unfollowed ${targetUserId}`);
     return { success: true };
   } catch (error) {
-    console.error('Error unfollowing user:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[unfollowUser] Error: ${currentUserId} unfollows ${targetUserId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to unfollow user: ${errorMessage}` };
   }
 }
 
-// --- Check if a user is following another ---
 export async function isFollowing(
   currentUserId: string,
   targetUserId: string
 ): Promise<boolean> {
   if (!currentUserId || !targetUserId) {
+    // console.warn('[isFollowing] Missing currentUserId or targetUserId.'); // Can be noisy
     return false;
   }
   const connectionId = `${currentUserId}_${targetUserId}`;
   const connectionRef = doc(db, 'connections', connectionId);
   try {
     const docSnap = await getDoc(connectionRef);
+    // console.info(`[isFollowing] Status for ${currentUserId} following ${targetUserId}: ${docSnap.exists()}`);
     return docSnap.exists();
   } catch (error) {
-    console.error('Error checking follow status:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[isFollowing] Error checking follow status for ${currentUserId} -> ${targetUserId}: ${errorMessage}`, error);
     return false;
   }
 }
 
-// --- Get IDs of users someone is following ---
 export async function getFollowingIds(userId: string): Promise<string[]> {
-  if (!userId) return [];
+  if (!userId) {
+    console.warn('[getFollowingIds] Missing userId.');
+    return [];
+  }
+  // console.info(`[getFollowingIds] Fetching for userId: ${userId}`);
   try {
     const connectionsRef = collection(db, 'connections');
     const q = query(connectionsRef, where('followerId', '==', userId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => doc.data().followedId as string);
+    const ids = querySnapshot.docs.map((doc) => doc.data().followedId as string);
+    // console.info(`[getFollowingIds] User ${userId} is following ${ids.length} users.`);
+    return ids;
   } catch (error) {
-    console.error('Error fetching following list:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[getFollowingIds] Error fetching following list for ${userId}: ${errorMessage}`, error);
     return [];
   }
 }
 
-// --- Get IDs of users who follow someone ---
 export async function getFollowerIds(userId: string): Promise<string[]> {
-  if (!userId) return [];
+  if (!userId) {
+    console.warn('[getFollowerIds] Missing userId.');
+    return [];
+  }
+  // console.info(`[getFollowerIds] Fetching for userId: ${userId}`);
   try {
     const connectionsRef = collection(db, 'connections');
     const q = query(connectionsRef, where('followedId', '==', userId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => doc.data().followerId as string);
+    const ids = querySnapshot.docs.map((doc) => doc.data().followerId as string);
+    // console.info(`[getFollowerIds] User ${userId} has ${ids.length} followers.`);
+    return ids;
   } catch (error) {
-    console.error('Error fetching followers list:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[getFollowerIds] Error fetching followers list for ${userId}: ${errorMessage}`, error);
     return [];
   }
 }
 
-// Placeholder for more complex data retrieval for visualization
 export async function getConnectionsForVisualization(userId: string): Promise<any[]> {
-  // This would involve fetching followers, following, and potentially 2nd-degree connections
-  // and their profile data for the visualization component.
-  // For now, it's a placeholder.
-  console.warn("getConnectionsForVisualization is not fully implemented. Fetching basic follower/following IDs for now.");
-  const following = await getFollowingIds(userId);
-  const followers = await getFollowerIds(userId);
+  console.warn("[getConnectionsForVisualization] is not fully implemented. Fetching basic follower/following IDs for now.");
+  if (!userId) {
+    console.warn('[getConnectionsForVisualization] Missing userId.');
+    return [];
+  }
+  try {
+    const following = await getFollowingIds(userId);
+    const followers = await getFollowerIds(userId);
   
-  // In a real scenario, you'd fetch profile details for these IDs.
-  return [
-    { type: 'following', ids: following },
-    { type: 'followers', ids: followers },
-  ];
+    return [
+      { type: 'following', ids: following },
+      { type: 'followers', ids: followers },
+    ];
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`[getConnectionsForVisualization] Error for userId: ${userId}: ${errorMessage}`, error);
+    return [];
+  }
 }

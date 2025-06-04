@@ -13,20 +13,16 @@ export interface MuseIdeaData {
   createdAt: Timestamp;
 }
 
-// Firestore Security Rules Reminder for 'museIdeas' collection:
-// match /museIdeas/{ideaId} {
-//   allow read, create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-//   // No update/delete for now, can be added if needed
-// }
-
 export async function saveMuseIdea(
   userId: string,
   input: GenerateMusePromptInput,
   output: GenerateMusePromptOutput
 ): Promise<{ success: boolean; ideaId?: string; message?: string }> {
   if (!userId) {
+    console.warn('[saveMuseIdea] Missing userId.');
     return { success: false, message: "User ID is required to save a muse idea." };
   }
+  console.info(`[saveMuseIdea] Attempting for userId: ${userId}, mood: ${input.currentMood}`);
 
   try {
     const museIdeasCollectionRef = collection(db, 'museIdeas');
@@ -36,18 +32,21 @@ export async function saveMuseIdea(
       output,
       createdAt: serverTimestamp(),
     });
+    console.info(`[saveMuseIdea] Successfully saved ideaId: ${docRef.id} for userId: ${userId}`);
     return { success: true, ideaId: docRef.id };
   } catch (error) {
-    console.error("Error saving muse idea: ", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[saveMuseIdea] Error for userId: ${userId}: ${errorMessage}`, error);
     return { success: false, message: `Failed to save muse idea: ${errorMessage}` };
   }
 }
 
 export async function getMuseIdeasByUserId(userId: string): Promise<MuseIdeaData[]> {
   if (!userId) {
+    console.warn('[getMuseIdeasByUserId] Missing userId.');
     return [];
   }
+  // console.info(`[getMuseIdeasByUserId] Fetching for userId: ${userId}`);
   try {
     const museIdeasCollectionRef = collection(db, 'museIdeas');
     const q = query(museIdeasCollectionRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
@@ -57,9 +56,11 @@ export async function getMuseIdeasByUserId(userId: string): Promise<MuseIdeaData
     querySnapshot.forEach((doc) => {
       ideas.push({ id: doc.id, ...doc.data() } as MuseIdeaData);
     });
+    // console.info(`[getMuseIdeasByUserId] Found ${ideas.length} ideas for userId: ${userId}`);
     return ideas;
   } catch (error) {
-    console.error("Error fetching muse ideas by user ID: ", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`[getMuseIdeasByUserId] Error fetching ideas for userId: ${userId}: ${errorMessage}`, error);
     return [];
   }
 }
