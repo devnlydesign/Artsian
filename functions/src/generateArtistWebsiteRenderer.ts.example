@@ -1,0 +1,218 @@
+/**
+ * @fileOverview Conceptual Cloud Function to render AI-generated artist websites.
+ * This function is triggered by Firebase Hosting rewrites.
+ *
+ * IMPORTANT: This is example code. You'll need to:
+ * 1. Place this in your Firebase project's 'functions/src' directory.
+ * 2. Install dependencies: `npm install firebase-admin firebase-functions` in the `functions` directory.
+ * 3. Adapt the Firestore queries and content serving logic to your actual data structures.
+ * 4. Deploy using `firebase deploy --only functions`.
+ * 5. Ensure the function name matches the one in `firebase.json` ("generateArtistWebsiteRenderer").
+ */
+
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
+// import { someHtmlTemplatingEngine } from 'your-templating-library'; // If dynamically rendering HTML
+
+try {
+  admin.initializeApp();
+} catch (e) {
+  console.error("Firebase admin initialization error", e);
+}
+
+const db = admin.firestore();
+const storage = admin.storage(); // If serving static files from Cloud Storage
+
+interface ArtistWebsiteConfig {
+  userId: string;
+  customDomain?: string;
+  themeId?: string;
+  // Example: If storing HTML content directly or references to it
+  htmlContentPath?: string; // e.g., path to an HTML file in Cloud Storage
+  // Example: If dynamically building based on structured data
+  pages?: Array<{ path: string; title: string; sections: Array<any> }>;
+  // Add other fields relevant to your website structure
+}
+
+export const generateArtistWebsiteRenderer = functions.https.onRequest(
+  async (req, res) => {
+    const host = req.hostname; // e.g., "artist-domain.com" or "your-firebase-project.web.app"
+    const path = req.path; // e.g., "/", "/about", "/gallery/piece1"
+
+    functions.logger.info(`Request for host: ${host}, path: ${path}`);
+
+    try {
+      // Step 1: Determine which artist's site to load
+      // This could be based on the custom domain (host) or a path segment if using subdomains/paths on a main site
+      let siteQuery = db
+        .collection("artistWebsites")
+        .where("customDomain", "==", host);
+      
+      // Fallback or alternative: if not using custom domains directly as lookup,
+      // you might parse the host or path for a userId or siteId.
+      // For instance, if your Firebase Hosting site is project-id.web.app and you serve sites like
+      // project-id.web.app/sites/userId, you'd parse req.path.
+
+      if (host.endsWith(".web.app") || host.endsWith(".firebaseapp.com")) {
+        // This is likely your default Firebase Hosting URL.
+        // You might have a different logic, e.g., show a "site not found" or a default landing page.
+        // Or, if you use paths like `project-id.web.app/artist-username`, you'd parse `req.path`.
+        // For this example, let's assume direct custom domain mapping is primary.
+        // If you want to support paths on your main domain, you need more sophisticated routing.
+        // For example, if path is /artist-sites/some-unique-name
+        const pathSegments = path.split('/');
+        if (pathSegments.length > 2 && pathSegments[1] === 'sites') {
+            const siteIdentifier = pathSegments[2];
+            // Assume siteIdentifier could be a username or a unique ID stored in Firestore
+            siteQuery = db.collection("artistWebsites").where("siteSlug", "==", siteIdentifier);
+            // And update path to be relative to the site, e.g., /sites/foo/bar -> /bar
+            req.path = '/' + pathSegments.slice(3).join('/'); 
+        } else {
+            // Default behavior for your main domain if no specific site path is matched
+             res.status(404).send("Site not found or main app content for this path.");
+             return;
+        }
+      }
+
+
+      const snapshot = await siteQuery.limit(1).get();
+
+      if (snapshot.empty) {
+        functions.logger.warn(`No website configuration found for host: ${host}`);
+        res.status(404).send(`
+          <html>
+            <head><title>Site Not Found</title></head>
+            <body>
+              <h1>Oops! Site Not Found</h1>
+              <p>The website for <strong>${host}</strong> could not be found. Please check the domain or contact support.</p>
+            </body>
+          </html>
+        `);
+        return;
+      }
+
+      const siteConfig = snapshot.docs[0].data() as ArtistWebsiteConfig;
+      functions.logger.info(`Found site config for ${siteConfig.userId}:`, siteConfig);
+
+      // Step 2: Serve the content based on the configuration
+
+      // Option A: Serving pre-generated static files from Cloud Storage
+      if (siteConfig.htmlContentPath) {
+        // Assumes htmlContentPath is like "artistSites/{userId}/index.html"
+        // You'd need to map req.path to the correct file in Cloud Storage.
+        // For a single-page app structure or simple sites, this might be straightforward.
+        // For multi-page static sites, you'd need a more robust mapping.
+        let storageFilePath = siteConfig.htmlContentPath; // Base path
+        
+        // Basic routing for static files: map / to index.html, /about to about.html etc.
+        const requestedPath = req.path === '/' || req.path === '' ? '/index.html' : req.path;
+        
+        // Ensure the htmlContentPath in Firestore is the *directory* for the site's files
+        // e.g., "artistSites/{userId}/generated_site_files/"
+        // Then append the requested file:
+        if (siteConfig.htmlContentPath.endsWith('/')) {
+            storageFilePath = `${siteConfig.htmlContentPath}${requestedPath.startsWith('/') ? requestedPath.substring(1) : requestedPath}`;
+        } else {
+            storageFilePath = `${siteConfig.htmlContentPath}/${requestedPath.startsWith('/') ? requestedPath.substring(1) : requestedPath}`;
+        }
+
+        // Default to index.html if a directory-like path is requested
+        if (storageFilePath.endsWith('/')) {
+            storageFilePath += 'index.html';
+        }
+        // If path doesn't have an extension, assume .html
+        if (!storageFilePath.split('/').pop()?.includes('.')) {
+            storageFilePath += '.html';
+        }
+        
+        functions.logger.info(`Attempting to serve from Storage: ${storageFilePath}`);
+
+        try {
+          const bucket = storage.bucket(); // Default bucket
+          const file = bucket.file(storageFilePath);
+          const [exists] = await file.exists();
+
+          if (!exists) {
+            functions.logger.warn(`Storage file not found: ${storageFilePath}`);
+            // Try serving a 404.html from the site's directory if it exists
+            const fourOhFourPath = siteConfig.htmlContentPath.endsWith('/') 
+                ? `${siteConfig.htmlContentPath}404.html`
+                : `${siteConfig.htmlContentPath}/404.html`;
+            const fourOhFourFile = bucket.file(fourOhFourPath);
+            const [fourOhFourExists] = await fourOhFourFile.exists();
+            if (fourOhFourExists) {
+                 res.status(404);
+                 fourOhFourFile.createReadStream().pipe(res);
+            } else {
+                res.status(404).send("Page not found in site storage.");
+            }
+            return;
+          }
+
+          // Determine content type (basic inference)
+          let contentType = "text/html; charset=utf-8";
+          if (storageFilePath.endsWith(".css")) contentType = "text/css";
+          else if (storageFilePath.endsWith(".js")) contentType = "application/javascript";
+          else if (storageFilePath.endsWith(".png")) contentType = "image/png";
+          else if (storageFilePath.endsWith(".jpg") || storageFilePath.endsWith(".jpeg")) contentType = "image/jpeg";
+          else if (storageFilePath.endsWith(".svg")) contentType = "image/svg+xml";
+          // Add more as needed
+
+          res.setHeader("Content-Type", contentType);
+          file.createReadStream().pipe(res);
+          // Stream will automatically end the response.
+          return;
+
+        } catch (storageError) {
+          functions.logger.error(`Error serving from Storage path ${storageFilePath}:`, storageError);
+          res.status(500).send("Error retrieving website content from storage.");
+          return;
+        }
+      }
+
+      // Option B: Dynamically rendering HTML (more complex)
+      // This would involve fetching structured data (theme, sections, content) from Firestore
+      // and using a templating engine or string concatenation to build the HTML.
+      /*
+      if (siteConfig.pages) {
+        // Find the page configuration for req.path
+        const currentPageConfig = siteConfig.pages.find(p => p.path === req.path);
+        if (!currentPageConfig) {
+          res.status(404).send("Page configuration not found within site.");
+          return;
+        }
+        // Fetch theme details if themeId is present
+        // let theme = {};
+        // if (siteConfig.themeId) {
+        //   const themeDoc = await db.collection("websiteThemes").doc(siteConfig.themeId).get();
+        //   if (themeDoc.exists) theme = themeDoc.data();
+        // }
+        // const html = someHtmlTemplatingEngine.render(currentPageConfig, theme);
+        // res.status(200).send(html);
+        // return;
+      }
+      */
+
+      functions.logger.warn(
+        "Website configuration found, but no valid content serving method (htmlContentPath or structured pages) defined."
+      );
+      res
+        .status(500)
+        .send("Website content is not configured correctly.");
+    } catch (error) {
+      functions.logger.error("Error in generateArtistWebsiteRenderer:", error);
+      res.status(500).send("An error occurred while trying to load the website.");
+    }
+  }
+);
+
+// You would also need to define Firestore structures for 'artistWebsites' and potentially 'websiteThemes'.
+// Example 'artistWebsites' document:
+// {
+//   userId: "someUserId",
+//   customDomain: "my-cool-art.com",
+//   siteSlug: "my-cool-art-site", // for project-id.web.app/sites/my-cool-art-site
+//   htmlContentPath: "artistSites/someUserId/live_build/", // Path in Cloud Storage to static files root
+//   themeId: "darkElegance",
+//   lastGeneratedAt: Timestamp
+// }
