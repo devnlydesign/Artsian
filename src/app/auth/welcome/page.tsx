@@ -9,6 +9,7 @@ import { CharisArtHubLogo } from '@/components/icons/CharisArtHubLogo';
 import { ArrowRight, LogIn, UserPlus, Compass } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 
 export default function WelcomePage() {
@@ -32,24 +33,24 @@ export default function WelcomePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-      <Card className="w-full max-w-md shadow-2xl">
+    <div className="min-h-screen flex flex-col items-center justify-center welcome-page-theme-override p-4">
+      <Card className="w-full max-w-md shadow-2xl bg-card text-card-foreground">
         <CardHeader className="text-center">
           <CharisArtHubLogo className="mx-auto h-20 w-20 text-primary mb-4" />
-          <CardTitle className="text-4xl font-bold">Welcome to Charis Art Hub</CardTitle>
+          <CardTitle className="text-4xl font-bold text-gradient-primary-accent">Welcome to Charis Art Hub</CardTitle>
           <CardDescription className="text-lg text-muted-foreground mt-2">
             Your dynamic platform for creative expression and connection.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Button 
-            className="w-full text-lg py-6 transition-transform hover:scale-105" 
+            className="w-full text-lg py-6 transition-transform hover:scale-105 ui-button-primary-themed" 
             onClick={() => handleAuthRedirect('/auth/signup')}>
             <UserPlus className="mr-3 h-6 w-6" /> Create Account
           </Button>
           <Button 
             variant="outline" 
-            className="w-full text-lg py-6 transition-transform hover:scale-105"
+            className="w-full text-lg py-6 transition-transform hover:scale-105 ui-button-outline-themed"
             onClick={() => handleAuthRedirect('/auth/login')}>
             <LogIn className="mr-3 h-6 w-6" /> Log In
           </Button>
@@ -65,7 +66,7 @@ export default function WelcomePage() {
           </div>
           <Button 
             variant="ghost" 
-            className="w-full text-md py-4 text-primary hover:text-primary/80 transition-transform hover:scale-105"
+            className="w-full text-md py-4 text-primary hover:text-primary/80 transition-transform hover:scale-105 ui-button-ghost-themed"
             onClick={handleExplore}>
             <Compass className="mr-2 h-5 w-5" /> Explore as Guest <ArrowRight className="ml-2 h-5 w-5" />
           </Button>

@@ -89,6 +89,79 @@ body {
     --sidebar-border: 220 20% 8%;
     --sidebar-ring: 200 100% 55%;
   }
+
+  /* Welcome Page Specific Theme Override */
+  .welcome-page-theme-override {
+    --background: 0 0% 100%; /* White */
+    --foreground: 0 0% 0%;   /* Black */
+    --primary: 0 0% 15%; /* Dark Gray for primary elements like button text in some cases */
+    --primary-foreground: 0 0% 100%; /* White for text on primary buttons */
+    --accent: 0 0% 25%; /* Slightly lighter gray for accents if needed */
+    --accent-foreground: 0 0% 100%;
+    --border: 0 0% 85%; /* Light gray border */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --muted-foreground: 0 0% 30%; /* Darker muted text for contrast */
+  }
+
+  .dark .welcome-page-theme-override {
+    --background: 0 0% 8%;   /* Very Dark Gray / Off-Black */
+    --foreground: 0 0% 95%; /* Off-White */
+    --primary: 0 0% 85%; /* Light Gray for primary elements */
+    --primary-foreground: 0 0% 0%; /* Black for text on primary buttons */
+    --accent: 0 0% 75%; /* Slightly darker gray for accents */
+    --accent-foreground: 0 0% 0%;
+    --border: 0 0% 20%; /* Darker gray border */
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 95%;
+    --muted-foreground: 0 0% 70%; /* Lighter muted text for contrast */
+  }
+
+  .welcome-page-theme-override,
+  .welcome-page-theme-override .bg-card,
+  .welcome-page-theme-override .bg-popover,
+  .welcome-page-theme-override .ui-button-primary-themed { /* Add a class for buttons if needed */
+    background-color: hsl(var(--background)) !important; /* Use !important cautiously, only if needed */
+    color: hsl(var(--foreground)) !important;
+  }
+  
+  .welcome-page-theme-override .text-muted-foreground {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .welcome-page-theme-override .border-t,
+  .welcome-page-theme-override .border {
+      border-color: hsl(var(--border)) !important;
+  }
+
+   /* Ensure button text on welcome page is legible for its overridden background */
+  .welcome-page-theme-override .ui-button-primary-themed {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+   .welcome-page-theme-override .ui-button-outline-themed {
+    border-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary)) !important;
+    background-color: transparent !important;
+  }
+  .welcome-page-theme-override .ui-button-ghost-themed {
+    color: hsl(var(--primary)) !important;
+    background-color: transparent !important;
+  }
+  .welcome-page-theme-override .text-primary {
+     color: hsl(var(--primary)) !important;
+  }
+   .welcome-page-theme-override .text-gradient-primary-accent {
+    background: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--foreground))); /* Fallback for welcome */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+  }
 }
 
 @layer base {

@@ -19,6 +19,14 @@ export interface FluxEvolutionPoint {
   change: string;
 }
 
+export interface UserProfileThemeSettings {
+  baseMode?: 'light' | 'dark' | 'system';
+  customColors?: {
+    light: { [key: string]: string }; // e.g., {'--background': '0 0% 100%'}
+    dark: { [key: string]: string };
+  };
+}
+
 export interface UserProfileData {
   uid: string;
   email?: string | null;
@@ -48,6 +56,7 @@ export interface UserProfileData {
   followingCount?: number;
   isProfileAmplified?: boolean; // For Amplify Flux Pulse feature
   profileAmplifiedAt?: Timestamp | null; // Timestamp of when profile was last amplified
+  themeSettings?: UserProfileThemeSettings; // Added for theme customization
 }
 
 export async function saveUserProfile(userId: string, data: Partial<UserProfileData>): Promise<{ success: boolean; message?: string }> {
@@ -78,8 +87,8 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       await setDoc(userProfileRef, {
         uid: userId,
         email: data.email ?? null,
-        fullName: data.fullName ?? '', // Default to empty string
-        username: data.username ?? '', // Default to empty string
+        fullName: data.fullName ?? '', 
+        username: data.username ?? '', 
         photoURL: data.photoURL ?? null,
         bannerURL: data.bannerURL ?? null,
         isPremium: data.isPremium ?? false,
@@ -93,6 +102,7 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         isProfileAmplified: data.isProfileAmplified ?? false,
         profileAmplifiedAt: data.profileAmplifiedAt ?? null,
         emailOptIn: data.emailOptIn ?? false,
+        themeSettings: data.themeSettings ?? { baseMode: 'system', customColors: { light: {}, dark: {} } }, // Default theme settings
         ...dataToSave, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -131,9 +141,10 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.emailOptIn = profile.emailOptIn ?? false;
       profile.isProfileAmplified = profile.isProfileAmplified ?? false;
       profile.profileAmplifiedAt = profile.profileAmplifiedAt ?? null;
+      profile.themeSettings = profile.themeSettings ?? { baseMode: 'system', customColors: {light: {}, dark: {}} }; // Default theme settings
       return profile;
     } else {
-      console.log("No such user profile!");
+      console.log("No such user profile for ID:", userId);
       return null;
     }
   } catch (error) {

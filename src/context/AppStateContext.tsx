@@ -12,17 +12,19 @@ import {
   type User as FirebaseUser 
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { getUserProfile } from '@/actions/userProfile'; // Import for profile checking
+import { getUserProfile, type UserProfileData } from '@/actions/userProfile'; // Import for profile checking
 
 type AppStateContextType = {
   isLoadingAuth: boolean; 
   isAuthenticated: boolean;
   currentUser: FirebaseUser | null;
+  currentUserProfile: UserProfileData | null; // Added to store fetched profile data
   loginUser: (email: string, password: string) => Promise<FirebaseUser | null>;
   signupUser: (email: string, password: string) => Promise<FirebaseUser | null>;
   logoutUser: () => Promise<void>;
   showWelcome: boolean;
   setShowWelcome: React.Dispatch<React.SetStateAction<boolean>>;
+  refreshUserProfile: () => Promise<void>; // Added to allow manual profile refresh
 };
 
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
@@ -31,35 +33,52 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfileData | null>(null);
   const [showWelcome, setShowWelcome] = useState(false); 
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
 
+  const fetchAndSetUserProfile = async (user: FirebaseUser | null) => {
+    if (user) {
+      try {
+        const userProfile = await getUserProfile(user.uid);
+        setCurrentUserProfile(userProfile);
+        return userProfile;
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        toast({ title: "Profile Error", description: "Could not load your profile data.", variant: "destructive" });
+        setCurrentUserProfile(null);
+        return null;
+      }
+    } else {
+      setCurrentUserProfile(null);
+      return null;
+    }
+  };
+
+  const refreshUserProfile = async () => {
+    if (currentUser) {
+      await fetchAndSetUserProfile(currentUser);
+    }
+  };
+
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => { // Made async
+    const unsubscribe = onAuthStateChanged(auth, async (user) => { 
       if (user) {
         setCurrentUser(user);
         setIsAuthenticated(true);
         setShowWelcome(false); 
         sessionStorage.setItem('hasSeenWelcome', 'true');
 
-        try {
-          const userProfile = await getUserProfile(user.uid);
-          if (!userProfile) { // New user or onboarding incomplete
-            // Allow user to be on signup or onboarding page without redirecting them back to onboarding
-            if (pathname !== '/onboarding' && !pathname.startsWith('/auth/signup')) { 
-              router.push('/onboarding');
-            }
-          } else { // Existing user with a profile
-            if (pathname.startsWith('/auth/') || pathname === '/onboarding') {
-              router.push('/');
-            }
+        const userProfileData = await fetchAndSetUserProfile(user);
+
+        if (!userProfileData) { 
+          if (pathname !== '/onboarding' && !pathname.startsWith('/auth/signup')) { 
+            router.push('/onboarding');
           }
-        } catch (error) {
-          console.error("Error checking user profile during auth state change:", error);
-          toast({ title: "Auth Error", description: "Could not verify user profile. Please try again.", variant: "destructive"});
-          // Fallback: if profile check fails, and they are on auth pages, send to home.
+        } else { 
           if (pathname.startsWith('/auth/') || pathname === '/onboarding') {
             router.push('/');
           }
@@ -68,9 +87,9 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setCurrentUser(null);
         setIsAuthenticated(false);
+        setCurrentUserProfile(null); // Clear profile on logout
         if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true') {
           setShowWelcome(true);
-          // Avoid redirect loop if already on welcome or auth pages.
           if (!pathname.startsWith('/auth/welcome') && !pathname.startsWith('/auth/login') && !pathname.startsWith('/auth/signup')) {
              router.push('/auth/welcome');
           }
@@ -83,17 +102,21 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
 
     if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true' && !auth.currentUser && !pathname.startsWith('/auth/')) {
         setShowWelcome(true);
-        router.push('/auth/welcome');
+        if (!pathname.startsWith('/auth/welcome')) router.push('/auth/welcome');
+    } else {
+      setShowWelcome(false);
     }
 
+
     return () => unsubscribe();
-  }, [router, pathname, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]); // Removed router and toast to prevent re-runs from their changes
 
   const loginUser = async (email: string, password: string): Promise<FirebaseUser | null> => {
-    setIsLoadingAuth(true); // Indicate loading during login attempt
+    setIsLoadingAuth(true); 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting isAuthenticated, currentUser, and navigation
+      // onAuthStateChanged will handle the rest (fetching profile, navigation)
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -102,17 +125,16 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
         message = "Invalid email or password.";
       }
       toast({ title: "Login Error", description: message, variant: "destructive" });
-      setIsLoadingAuth(false); // Reset loading on error
+      setIsLoadingAuth(false); 
       return null;
     }
-    // setIsLoadingAuth(false) is handled by onAuthStateChanged
   };
 
   const signupUser = async (email: string, password: string): Promise<FirebaseUser | null> => {
-    setIsLoadingAuth(true); // Indicate loading during signup attempt
+    setIsLoadingAuth(true); 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting user state and navigation to onboarding
+      // onAuthStateChanged will handle the rest (navigation to onboarding)
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase signup error:", error);
@@ -123,18 +145,16 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
         message = "Password is too weak. It should be at least 6 characters.";
       }
       toast({ title: "Signup Error", description: message, variant: "destructive" });
-      setIsLoadingAuth(false); // Reset loading on error
+      setIsLoadingAuth(false); 
       return null;
     }
-    // setIsLoadingAuth(false) is handled by onAuthStateChanged
   };
 
   const logoutUser = async () => {
     try {
       await signOut(auth);
       sessionStorage.removeItem('hasSeenWelcome');
-      setShowWelcome(true); 
-      // onAuthStateChanged will push to /auth/welcome if not already there
+      // onAuthStateChanged will handle setting showWelcome and navigation
     } catch (error) {
       console.error("Firebase logout error:", error);
       toast({ title: "Logout Error", description: "Failed to log out. Please try again.", variant: "destructive" });
@@ -146,11 +166,13 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       isLoadingAuth, 
       isAuthenticated, 
       currentUser, 
+      currentUserProfile,
       loginUser, 
       signupUser, 
       logoutUser, 
       showWelcome, 
-      setShowWelcome 
+      setShowWelcome,
+      refreshUserProfile
     }}>
       {children}
     </AppStateContext.Provider>

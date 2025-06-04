@@ -1,7 +1,7 @@
 
 "use client"
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -30,6 +30,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useAppState } from '@/context/AppStateContext';
 import { MobileBottomNav } from './MobileBottomNav';
 import { useTheme } from "next-themes";
+import type { UserProfileData } from '@/actions/userProfile'; // Import UserProfileData
 
 const mainNavItems = [
   { href: "/", label: "Home Feed", icon: Home, tooltip: "Your Home Feed" },
@@ -62,6 +63,49 @@ const artisanToolsNavItems = [
 ];
 
 
+// New component to inject user-specific theme styles
+function UserThemeInjector() {
+  const { currentUserProfile } = useAppState();
+
+  useEffect(() => {
+    if (currentUserProfile?.themeSettings?.customColors) {
+      const styleId = 'user-theme-overrides';
+      let styleElement = document.getElementById(styleId) as HTMLStyleElement | null;
+      if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+      }
+
+      const lightColors = currentUserProfile.themeSettings.customColors.light || {};
+      const darkColors = currentUserProfile.themeSettings.customColors.dark || {};
+
+      let cssText = ":root {\n";
+      for (const [variable, value] of Object.entries(lightColors)) {
+        if (value && typeof value === 'string') cssText += `  ${variable}: ${value};\n`;
+      }
+      cssText += "}\n\n";
+
+      cssText += ".dark {\n";
+      for (const [variable, value] of Object.entries(darkColors)) {
+         if (value && typeof value === 'string') cssText += `  ${variable}: ${value};\n`;
+      }
+      cssText += "}\n";
+
+      styleElement.textContent = cssText;
+    } else {
+      // If no custom theme, remove the style tag to revert to globals.css
+      const styleElement = document.getElementById('user-theme-overrides');
+      if (styleElement) {
+        styleElement.remove();
+      }
+    }
+  }, [currentUserProfile]);
+
+  return null; // This component doesn't render anything itself
+}
+
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMobile = useIsMobile();
@@ -80,6 +124,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider defaultOpen={!isMobile} collapsible={isMobile ? "offcanvas" : "icon"}>
+      <UserThemeInjector /> {/* Inject user theme styles */}
       <Sidebar variant="sidebar" side="left" className="border-r border-sidebar-border hidden md:flex">
         <SidebarHeader className="p-4">
           <Link href="/" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
