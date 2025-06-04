@@ -52,21 +52,6 @@ export default function ManageShopPage() {
   const [itemImagePreview, setItemImagePreview] = useState<string | null>(null);
   const itemFileInputRef = useRef<HTMLInputElement>(null);
 
-  const form = useForm<ShopItemFormValues>({
-    resolver: zodResolver(shopItemFormSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      priceInCents: 500, // Default to $5.00
-      category: "",
-      crystallineBloomId: null,
-      stock: null,
-      isDigital: false,
-      isPublished: true,
-      dataAiHint: "",
-    },
-  });
-
   const fetchArtistItems = async () => {
     if (currentUser?.uid) {
       setIsLoadingItems(true);
@@ -107,39 +92,54 @@ export default function ManageShopPage() {
       toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
       return;
     }
-    if (!editingItem && !itemImageFile) { // Require image for new items
+    if (!editingItem && !itemImageFile) { 
       toast({ title: "Image Required", description: "Please select an image for your shop item.", variant: "destructive" });
       return;
     }
 
     setIsSubmitting(true);
-    let uploadedImageUrl = editingItem?.imageUrl || "";
+    let uploadedOriginalImageUrl = editingItem?.imageUrlOriginal || editingItem?.imageUrl || ""; // Fallback to imageUrl if original is not set
+    let displayImageUrl = editingItem?.imageUrl || "";
+
 
     try {
       if (itemImageFile) {
-        if (editingItem?.imageUrl && editingItem.imageUrl.includes('firebasestorage.googleapis.com')) {
+        // Delete old original image if it exists and a new file is being uploaded
+        if (editingItem?.imageUrlOriginal && editingItem.imageUrlOriginal.includes('firebasestorage.googleapis.com')) {
             try {
-                const oldImageRef = storageRefSdk(storage, editingItem.imageUrl);
+                const oldImageRef = storageRefSdk(storage, editingItem.imageUrlOriginal);
                 await deleteStorageObject(oldImageRef);
             } catch (e: any) {
-                if (e.code !== 'storage/object-not-found') console.warn("Old image deletion failed:", e);
+                if (e.code !== 'storage/object-not-found') console.warn("Old original image deletion failed:", e);
             }
         }
-        const itemFilePath = `shopItems/${currentUser.uid}/${Date.now()}_${itemImageFile.name}`;
+        // Also attempt to delete old display image if it's different from original and might be a thumbnail
+        if (editingItem?.imageUrl && editingItem.imageUrl !== editingItem?.imageUrlOriginal && editingItem.imageUrl.includes('firebasestorage.googleapis.com')) {
+            try {
+                const oldDisplayImageRef = storageRefSdk(storage, editingItem.imageUrl);
+                await deleteStorageObject(oldDisplayImageRef);
+            } catch (e: any) {
+                 if (e.code !== 'storage/object-not-found') console.warn("Old display image deletion failed:", e);
+            }
+        }
+
+        const itemFilePath = `shopItems/${currentUser.uid}/original_${Date.now()}_${itemImageFile.name}`;
         const itemFileRef = storageRefSdk(storage, itemFilePath);
         await uploadBytes(itemFileRef, itemImageFile);
-        uploadedImageUrl = await getDownloadURL(itemFileRef);
+        uploadedOriginalImageUrl = await getDownloadURL(itemFileRef);
+        displayImageUrl = uploadedOriginalImageUrl; // For now, display URL is the original. Thumbnails would be handled by extension.
       }
       
-      if (!uploadedImageUrl) {
-         toast({ title: "Image Error", description: "Image URL is missing. Please ensure an image is uploaded.", variant: "destructive" });
+      if (!displayImageUrl && !uploadedOriginalImageUrl) { // Check if any image URL is present
+         toast({ title: "Image Error", description: "Image URL is missing. Please ensure an image is uploaded or was previously set.", variant: "destructive" });
          setIsSubmitting(false);
          return;
       }
 
       const itemDetailsToSave = {
         ...data,
-        imageUrl: uploadedImageUrl,
+        imageUrl: displayImageUrl, // This is the primary URL used for display
+        imageUrlOriginal: uploadedOriginalImageUrl, // Storing the original image URL
         dataAiHint: data.dataAiHint || data.name.toLowerCase().split(" ").slice(0,2).join(" ") || "shop item",
       };
 
@@ -178,32 +178,20 @@ export default function ManageShopPage() {
       isPublished: item.isPublished === undefined ? true : item.isPublished,
       dataAiHint: item.dataAiHint || "",
     });
-    setItemImagePreview(item.imageUrl);
+    setItemImagePreview(item.imageUrl); // Display the current primary image (could be a thumbnail)
     setItemImageFile(null);
     setIsCreateModalOpen(true);
   };
 
-  const handleDelete = async (itemId: string, itemImageUrl: string) => {
+  const handleDelete = async (item: ShopItemData) => {
     if (!currentUser?.uid) return;
     const confirmed = window.confirm("Are you sure you want to delete this item? This action cannot be undone.");
     if (confirmed) {
-      setIsLoadingItems(true); // Use general loading state or a specific deleting state
-      const result = await deleteShopItem(currentUser.uid, itemId);
+      setIsLoadingItems(true); 
+      const result = await deleteShopItem(currentUser.uid, item.id);
       if (result.success) {
-        if (itemImageUrl && itemImageUrl.includes('firebasestorage.googleapis.com')) {
-             try {
-                const oldImageRef = storageRefSdk(storage, itemImageUrl);
-                await deleteStorageObject(oldImageRef);
-                toast({ title: "Item Image Deleted", description: "Associated image removed from storage."});
-            } catch (e: any) {
-                if (e.code !== 'storage/object-not-found') {
-                     console.warn("Image deletion failed during item delete:", e);
-                     toast({ title: "Image Deletion Warning", description: "Item deleted from shop, but failed to remove image from storage.", variant: "default" });
-                }
-            }
-        }
         toast({ title: "Item Deleted", description: "The item has been removed from your shop." });
-        fetchArtistItems();
+        fetchArtistItems(); // Refreshes list, isLoadingItems will be set to false by it
       } else {
         toast({ title: "Deletion Failed", description: result.message || "Could not delete item.", variant: "destructive" });
         setIsLoadingItems(false);
@@ -366,7 +354,7 @@ export default function ManageShopPage() {
             <Store className="mx-auto sm:mx-0 h-12 w-12 text-primary mb-2" />
             <CardTitle className="text-3xl text-gradient-primary-accent">Manage My Shop</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
-            <CardDescription>Add, edit, or remove items available in your personal Charis Art Hub shop.</CardDescription>
+            <CardDescription>Add, edit, or remove items available in your personal Charisarthub shop.</CardDescription>
           </div>
           <Dialog open={isCreateModalOpen} onOpenChange={(isOpen) => { setIsCreateModalOpen(isOpen); if (!isOpen) resetFormAndImage(); }}>
             <DialogTrigger asChild>
@@ -412,13 +400,13 @@ export default function ManageShopPage() {
                 <p className="text-sm text-muted-foreground line-clamp-2 h-10 mb-1">{item.description}</p>
                 <p className="font-semibold text-primary">${(item.priceInCents / 100).toFixed(2)}</p>
                 {item.category && <p className="text-xs text-muted-foreground">Category: {item.category}</p>}
-                {item.stock !== null && <p className="text-xs text-muted-foreground">{item.isDigital ? "Digital" : `Stock: ${item.stock}`}</p>}
+                {item.stock !== null && <p className="text-xs text-muted-foreground">{item.isDigital ? "Digital Item" : `Stock: ${item.stock}`}</p>}
               </CardContent>
               <CardFooter className="p-3 border-t flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleEdit(item)} className="flex-1 transition-colors hover:border-primary">
                   <Edit3 className="mr-1.5 h-4 w-4" /> Edit
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => handleDelete(item.id, item.imageUrl)} className="flex-1 transition-colors hover:border-destructive hover:text-destructive">
+                <Button variant="outline" size="sm" onClick={() => handleDelete(item)} className="flex-1 transition-colors hover:border-destructive hover:text-destructive">
                   <Trash2 className="mr-1.5 h-4 w-4" /> Delete
                 </Button>
               </CardFooter>
@@ -434,3 +422,5 @@ export default function ManageShopPage() {
     </div>
   );
 }
+
+    

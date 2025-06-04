@@ -70,16 +70,22 @@ export default function NewCrystallineBloomPage() {
     }
 
     setIsSubmitting(true);
-    let uploadedImageUrl = "";
-    const newLayers: LayerData[] = [];
+    let uploadedOriginalImageUrl = "";
 
     try {
-      const artworkFilePath = `artworks/${currentUser.uid}/${Date.now()}_${artworkImageFile.name}`;
+      // Upload original image
+      const artworkFilePath = `artworks/${currentUser.uid}/original_${Date.now()}_${artworkImageFile.name}`;
       const artworkFileRef = storageRefSdk(storage, artworkFilePath);
       await uploadBytes(artworkFileRef, artworkImageFile);
-      uploadedImageUrl = await getDownloadURL(artworkFileRef);
+      uploadedOriginalImageUrl = await getDownloadURL(artworkFileRef);
       toast({ title: "Cover Image Uploaded", description: "Artwork cover image successfully uploaded." });
+      
+      // For now, the display URL will be the same as the original.
+      // The Resize Images extension would create other versions (e.g., thumbnails).
+      // The frontend would then construct URLs to these versions.
+      const displayImageUrl = uploadedOriginalImageUrl; 
 
+      const newLayers: LayerData[] = [];
       if (data.primaryTextContent && data.primaryTextContent.trim() !== "") {
         newLayers.push({
           id: `text-${Date.now()}`, 
@@ -94,7 +100,8 @@ export default function NewCrystallineBloomPage() {
         title: data.title,
         type: data.type,
         description: data.description,
-        imageUrl: uploadedImageUrl, 
+        imageUrl: displayImageUrl, // This is the primary URL used for display
+        imageUrlOriginal: uploadedOriginalImageUrl, // Storing the original image URL
         dataAiHint: data.dataAiHint || data.title.toLowerCase().split(" ").slice(0,2).join(" ") || "abstract art",
         layers: newLayers,
       };
@@ -142,7 +149,7 @@ export default function NewCrystallineBloomPage() {
           <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Create New Artwork</CardTitle>
            <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
-          <CardDescription>Add a new piece to your Charis Art Hub collection. Fill in the details below.</CardDescription>
+          <CardDescription>Add a new piece to your Charisarthub collection. Fill in the details below.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -260,3 +267,5 @@ export default function NewCrystallineBloomPage() {
     </div>
   );
 }
+
+    

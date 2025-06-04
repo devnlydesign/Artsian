@@ -27,7 +27,9 @@ export interface ShopItemData {
   name: string;
   description: string;
   priceInCents: number;
-  imageUrl: string;
+  imageUrl: string; // Primary display image URL (e.g., a thumbnail)
+  imageUrlOriginal?: string; // URL of the original uploaded image
+  // imageUrl_thumbnail_200x200?: string; // Example if Resize Extension creates this
   dataAiHint?: string;
   category?: string;
   crystallineBloomId?: string | null;
@@ -50,7 +52,7 @@ export interface OrderItemData {
   name: string;
   priceInCents: number;
   quantity: number;
-  imageUrl?: string;
+  imageUrl?: string; // Should be a displayable thumbnail URL
   crystallineBloomId?: string | null;
 }
 
@@ -69,18 +71,21 @@ export interface OrderData {
 
 export async function createShopItem(
   artistId: string,
-  itemDetails: Omit<ShopItemData, 'id' | 'artistId' | 'artistName' | 'createdAt' | 'updatedAt' | 'isPublished' | 'moderationStatus' | 'moderationInfo'> & {isPublished?: boolean}
+  itemDetails: Omit<ShopItemData, 'id' | 'artistId' | 'artistName' | 'createdAt' | 'updatedAt' | 'isPublished' | 'moderationStatus' | 'moderationInfo' | 'imageUrlOriginal'> & {isPublished?: boolean; imageUrlOriginal?: string;}
 ): Promise<{ success: boolean; itemId?: string; message?: string }> {
   if (!artistId) {
-    console.warn('[createShopItem] Missing artistId.');
+    const msg = '[createShopItem] Missing artistId.';
+    console.warn(msg);
     return { success: false, message: "Artist ID is required." };
   }
   if (!itemDetails.name || itemDetails.priceInCents == null || !itemDetails.imageUrl) {
-    console.warn(`[createShopItem] Missing required fields for artistId: ${artistId}, name: ${itemDetails.name}`);
+    const msg = `[createShopItem] Missing required fields for artistId: ${artistId}, name: ${itemDetails.name}`;
+    console.warn(msg);
     return { success: false, message: "Item name, price, and image URL are required." };
   }
   if (itemDetails.priceInCents < 50) {
-    console.warn(`[createShopItem] Price too low for artistId: ${artistId}, name: ${itemDetails.name}, price: ${itemDetails.priceInCents}`);
+    const msg = `[createShopItem] Price too low for artistId: ${artistId}, name: ${itemDetails.name}, price: ${itemDetails.priceInCents}`;
+    console.warn(msg);
     return { success: false, message: "Price must be at least $0.50." };
   }
   console.info(`[createShopItem] Attempting for artistId: ${artistId}, name: ${itemDetails.name}`);
@@ -88,26 +93,26 @@ export async function createShopItem(
   try {
     const artistProfileDoc = doc(db, 'users', artistId);
     const artistSnap = await getDoc(artistProfileDoc);
-    const artistName = artistSnap.exists() ? (artistSnap.data() as UserProfileData).fullName || (artistSnap.data() as UserProfileData).username : "Charis Artist";
+    const artistName = artistSnap.exists() ? (artistSnap.data() as UserProfileData).fullName || (artistSnap.data() as UserProfileData).username : "Charisarthub Artist";
 
     const shopItemsCollectionRef = collection(db, 'shopItems');
     const docRef = await addDoc(shopItemsCollectionRef, {
       ...itemDetails,
       artistId: artistId,
       artistName: artistName,
+      imageUrlOriginal: itemDetails.imageUrlOriginal || itemDetails.imageUrl, // Store original URL
       isPublished: itemDetails.isPublished ?? true,
       stock: itemDetails.stock ?? null,
       isDigital: itemDetails.isDigital ?? false,
       crystallineBloomId: itemDetails.crystallineBloomId || null,
       tags: itemDetails.tags || [],
-      moderationStatus: 'pending', // Default moderation status
+      moderationStatus: 'pending',
       moderationInfo: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     console.info(`[createShopItem] Successfully created itemId: ${docRef.id} for artistId: ${artistId}. Moderation status: pending.`);
     // TODO: Trigger content moderation Cloud Function here for the new shop item (docRef.id)
-    // This function would analyze itemDetails.name, itemDetails.description, and itemDetails.imageUrl
     return { success: true, itemId: docRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -119,10 +124,11 @@ export async function createShopItem(
 export async function updateShopItem(
   artistId: string,
   itemId: string,
-  itemDetails: Partial<Omit<ShopItemData, 'id' | 'artistId' | 'createdAt' | 'updatedAt' | 'artistName'>>
+  itemDetails: Partial<Omit<ShopItemData, 'id' | 'artistId' | 'createdAt' | 'updatedAt' | 'artistName' | 'imageUrlOriginal'>> & { imageUrlOriginal?: string }
 ): Promise<{ success: boolean; message?: string }> {
   if (!artistId || !itemId) {
-    console.warn('[updateShopItem] Missing artistId or itemId.');
+    const msg = '[updateShopItem] Missing artistId or itemId.';
+    console.warn(msg);
     return { success: false, message: "Artist ID and Item ID are required." };
   }
   console.info(`[updateShopItem] Attempting for artistId: ${artistId}, itemId: ${itemId}`);
@@ -131,25 +137,30 @@ export async function updateShopItem(
   try {
     const itemSnap = await getDoc(itemDocRef);
     if (!itemSnap.exists() || itemSnap.data()?.artistId !== artistId) {
-      console.warn(`[updateShopItem] Item not found or permission denied for artistId: ${artistId}, itemId: ${itemId}`);
+      const msg = `[updateShopItem] Item not found or permission denied for artistId: ${artistId}, itemId: ${itemId}`;
+      console.warn(msg);
       return { success: false, message: "Shop item not found or you do not have permission to update it." };
     }
 
-    const updateData: Partial<ShopItemData> = { ...itemDetails, updatedAt: serverTimestamp() };
+    const updateData: Partial<ShopItemData> & { updatedAt: Timestamp } = { ...itemDetails, updatedAt: serverTimestamp() };
+    if (itemDetails.imageUrl) { // If new main imageUrl is provided, it's likely the new original.
+        updateData.imageUrlOriginal = itemDetails.imageUrl;
+    } else if (itemDetails.imageUrlOriginal) { // If only imageUrlOriginal is provided
+        updateData.imageUrlOriginal = itemDetails.imageUrlOriginal;
+    }
 
-    // If relevant fields are changing, reset moderation status
+
     const existingData = itemSnap.data() as ShopItemData;
     if (
       (itemDetails.name && itemDetails.name !== existingData.name) ||
       (itemDetails.description && itemDetails.description !== existingData.description) ||
-      (itemDetails.imageUrl && itemDetails.imageUrl !== existingData.imageUrl)
+      (itemDetails.imageUrl && itemDetails.imageUrl !== existingData.imageUrl) // Check if the display URL changed
     ) {
       updateData.moderationStatus = 'pending';
-      updateData.moderationInfo = null;
-      // TODO: Trigger content moderation Cloud Function here for the updated shop item (itemId)
+      updateData.moderationInfo = { reason: "Content updated.", autoModerated: false };
       console.info(`[updateShopItem] Shop item ${itemId} fields changed, resetting moderationStatus to pending.`);
+      // TODO: Trigger content moderation Cloud Function here for the updated shop item (itemId)
     }
-
 
     await updateDoc(itemDocRef, updateData);
     console.info(`[updateShopItem] Successfully updated itemId: ${itemId} for artistId: ${artistId}`);
@@ -166,7 +177,8 @@ export async function deleteShopItem(
   itemId: string
 ): Promise<{ success: boolean; message?: string }> {
   if (!artistId || !itemId) {
-    console.warn('[deleteShopItem] Missing artistId or itemId.');
+    const msg = '[deleteShopItem] Missing artistId or itemId.';
+    console.warn(msg);
     return { success: false, message: "Artist ID and Item ID are required." };
   }
   console.info(`[deleteShopItem] Attempting for artistId: ${artistId}, itemId: ${itemId}`);
@@ -175,18 +187,22 @@ export async function deleteShopItem(
   try {
     const itemSnap = await getDoc(itemDocRef);
     if (!itemSnap.exists() || itemSnap.data()?.artistId !== artistId) {
-      console.warn(`[deleteShopItem] Item not found or permission denied for artistId: ${artistId}, itemId: ${itemId}`);
+      const msg = `[deleteShopItem] Item not found or permission denied for artistId: ${artistId}, itemId: ${itemId}`;
+      console.warn(msg);
       return { success: false, message: "Shop item not found or you do not have permission to delete it." };
     }
 
-    const imageUrl = itemSnap.data()?.imageUrl;
-    if (imageUrl && imageUrl.includes('firebasestorage.googleapis.com')) {
+    // Delete original image and any known convention-based thumbnails.
+    // The Resize Images extension might also have a "delete resized images on original delete" option.
+    const imageUrlOriginal = itemSnap.data()?.imageUrlOriginal || itemSnap.data()?.imageUrl;
+    if (imageUrlOriginal && imageUrlOriginal.includes('firebasestorage.googleapis.com')) {
       try {
-        const imageFileRef = storageRef(storage, imageUrl);
+        const imageFileRef = storageRef(storage, imageUrlOriginal);
         await deleteObject(imageFileRef);
-        console.info(`[deleteShopItem] Successfully deleted image from storage for itemId: ${itemId}`);
+        console.info(`[deleteShopItem] Successfully deleted original image from storage for itemId: ${itemId}`);
+        // TODO: Add logic to delete known thumbnail sizes if URLs are not stored in Firestore
+        // e.g., by constructing their paths based on the original and deleting them.
       } catch (storageError: any) {
-        // Do not fail the whole operation if image deletion fails, but log it.
         if (storageError.code !== 'storage/object-not-found') {
             console.warn(`[deleteShopItem] Error deleting image from storage for itemId: ${itemId}: ${storageError.message}`, storageError);
         } else {
@@ -207,16 +223,12 @@ export async function deleteShopItem(
 
 export async function getArtistShopItems(artistId: string): Promise<ShopItemData[]> {
   if (!artistId) {
-    console.warn('[getArtistShopItems] Missing artistId.');
+    const msg = '[getArtistShopItems] Missing artistId.';
+    console.warn(msg);
     return [];
   }
   // console.info(`[getArtistShopItems] Fetching for artistId: ${artistId}`);
   try {
-    // PERFORMANCE & SCALABILITY:
-    // 1. Ensure composite index on (artistId, createdAt) if not automatically created.
-    // 2. For production, implement pagination.
-    // 3. CONTENT MODERATION: When artist views their own items, show all statuses.
-    //    If this were a public view of an artist's shop, you'd add where("moderationStatus", "==", "approved").
     const q = query(collection(db, 'shopItems'), where("artistId", "==", artistId), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     const items = querySnapshot.docs.map(doc => {
@@ -224,7 +236,8 @@ export async function getArtistShopItems(artistId: string): Promise<ShopItemData
         return {
             id: doc.id,
             ...data,
-            moderationStatus: data.moderationStatus ?? 'approved', // Default if not set
+            imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, // Fallback
+            moderationStatus: data.moderationStatus ?? 'approved',
             moderationInfo: data.moderationInfo ?? null,
         } as ShopItemData
     });
@@ -240,22 +253,17 @@ export async function getArtistShopItems(artistId: string): Promise<ShopItemData
 export async function getAllShopItems(): Promise<ShopItemData[]> {
   // console.info("[getAllShopItems] Fetching all published shop items.");
   try {
-    // PERFORMANCE & SCALABILITY:
-    // 1. Ensure composite index on (isPublished, moderationStatus, createdAt) if not automatically created.
-    // 2. For production, implement pagination.
-    // 3. CONTENT MODERATION: Only show published AND approved items.
     const q = query(collection(db, 'shopItems'),
                     where("isPublished", "==", true),
-                    // where("moderationStatus", "==", "approved"), // Add this line once moderation system is active
                     orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     const items = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        // Only return items that are approved, or if moderationStatus is not set (legacy items)
         if (data.moderationStatus === 'approved' || data.moderationStatus === undefined) {
             return {
                 id: doc.id,
                 ...data,
+                imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, // Fallback
                 moderationStatus: data.moderationStatus ?? 'approved',
                 moderationInfo: data.moderationInfo ?? null,
             } as ShopItemData;
@@ -273,7 +281,8 @@ export async function getAllShopItems(): Promise<ShopItemData[]> {
 
 export async function getShopItemById(itemId: string): Promise<ShopItemData | null> {
   if (!itemId) {
-    console.warn('[getShopItemById] Missing itemId.');
+    const msg = '[getShopItemById] Missing itemId.';
+    console.warn(msg);
     return null;
   }
   // console.info(`[getShopItemById] Fetching itemId: ${itemId}`);
@@ -282,18 +291,18 @@ export async function getShopItemById(itemId: string): Promise<ShopItemData | nu
     const docSnap = await getDoc(itemDocRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // CONTENT MODERATION: Only return if published AND approved.
       if (data.isPublished && (data.moderationStatus === 'approved' || data.moderationStatus === undefined)) {
         // console.info(`[getShopItemById] Found published and approved itemId: ${itemId}`);
         return {
             id: docSnap.id,
             ...data,
+            imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, // Fallback
             moderationStatus: data.moderationStatus ?? 'approved',
             moderationInfo: data.moderationInfo ?? null,
         } as ShopItemData;
       }
       console.warn(`[getShopItemById] Item ${itemId} found but is not published or not approved. Published: ${data.isPublished}, Moderation: ${data.moderationStatus}`);
-      return null; // Item exists but is not suitable for public display
+      return null;
     } else {
       console.warn(`[getShopItemById] Item not found: ${itemId}`);
     }
@@ -331,7 +340,8 @@ export async function updateOrderStatus(
   trackingNumber?: string
 ): Promise<{ success: boolean; message?: string }> {
   if (!orderId) {
-    console.warn('[updateOrderStatus] Missing orderId.');
+    const msg = '[updateOrderStatus] Missing orderId.';
+    console.warn(msg);
     return { success: false, message: "Order ID is required." };
   }
   console.info(`[updateOrderStatus] Attempting for orderId: ${orderId}, status: ${status}`);
@@ -350,3 +360,5 @@ export async function updateOrderStatus(
     return { success: false, message: `Failed to update order status: ${errorMessage}` };
   }
 }
+
+    

@@ -10,7 +10,9 @@ export interface FluxSignature {
   currentMood?: string;
   dominantColors?: string[];
   keywords?: string[];
-  visualRepresentation?: string;
+  visualRepresentation?: string; // URL for the main visual
+  visualRepresentation_original?: string; // URL of the original uploaded image for flux visual
+  visualRepresentation_thumbnail_400x400?: string; // Example: URL if extension generates this
   dataAiHintVisual?: string;
 }
 
@@ -33,8 +35,10 @@ export interface UserProfileData {
   fullName?: string;
   username?: string;
   bio?: string;
-  photoURL?: string | null;
-  bannerURL?: string | null;
+  photoURL?: string | null; // URL of the primary display photo (e.g., a 400x400 thumbnail)
+  photoURLOriginal?: string | null; // URL of the original uploaded profile photo
+  bannerURL?: string | null; // URL of the primary display banner (e.g., a 1200x300 thumbnail)
+  bannerURLOriginal?: string | null; // URL of the original uploaded banner photo
   genre?: string;
   style?: string;
   motivations?: string;
@@ -57,12 +61,12 @@ export interface UserProfileData {
   isProfileAmplified?: boolean;
   profileAmplifiedAt?: Timestamp | null;
   themeSettings?: UserProfileThemeSettings;
-  moderationStatus?: 'pending' | 'approved' | 'rejected' | 'escalated'; // For username, bio, photoURL, bannerURL
+  moderationStatus?: 'pending' | 'approved' | 'rejected' | 'escalated';
   moderationInfo?: {
     checkedAt?: Timestamp;
     reason?: string;
     autoModerated?: boolean;
-    fields?: ('username' | 'bio' | 'photoURL' | 'bannerURL')[]; // To track which fields were moderated
+    fields?: ('username' | 'bio' | 'photoURL' | 'bannerURL')[];
   };
 }
 
@@ -79,30 +83,48 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
 
     const dataToSave: Partial<UserProfileData> = { ...data };
 
-    // Remove undefined fields to prevent Firestore errors or unintentional field deletions
     Object.keys(dataToSave).forEach(key => {
       const K = key as keyof UserProfileData;
       if (dataToSave[K] === undefined) {
         delete dataToSave[K];
       }
     });
+    
+    // If photoURL is updated, assume it's the original and clear specific thumbnail fields
+    // The Resize Images extension will repopulate them.
+    // Or, the client can construct thumbnail URLs based on naming conventions.
+    // For simplicity here, we just store the original.
+    if (data.photoURL && (!profileSnapshot.exists() || data.photoURL !== profileSnapshot.data()?.photoURL)) {
+      dataToSave.photoURLOriginal = data.photoURL;
+      // dataToSave.photoURL = ... // Client would use the original or a known thumbnail path
+    }
+    if (data.bannerURL && (!profileSnapshot.exists() || data.bannerURL !== profileSnapshot.data()?.bannerURL)) {
+      dataToSave.bannerURLOriginal = data.bannerURL;
+      // dataToSave.bannerURL = ...
+    }
+
 
     if (profileSnapshot.exists()) {
-      // When updating, check if sensitive fields (bio, username, photoURL, bannerURL) are changing
+      console.info(`[saveUserProfile] Updating existing profile for userId: ${userId}`);
       const existingData = profileSnapshot.data() as UserProfileData;
       const potentiallyModeratedFields: (keyof UserProfileData)[] = ['bio', 'username', 'photoURL', 'bannerURL'];
       let needsModerationCheck = false;
+      let changedFieldsForModeration: ('username' | 'bio' | 'photoURL' | 'bannerURL')[] = [];
+
       potentiallyModeratedFields.forEach(field => {
         if (dataToSave[field] !== undefined && dataToSave[field] !== existingData[field]) {
           needsModerationCheck = true;
+          if (field === 'username' || field === 'bio' || field === 'photoURL' || field === 'bannerURL') {
+            changedFieldsForModeration.push(field);
+          }
         }
       });
 
-      if (needsModerationCheck) {
+      if (needsModerationCheck && changedFieldsForModeration.length > 0) {
         dataToSave.moderationStatus = 'pending';
+        dataToSave.moderationInfo = { fields: changedFieldsForModeration, autoModerated: false, reason: 'Profile content updated.' };
+        console.info(`[saveUserProfile] Profile fields (${changedFieldsForModeration.join(', ')}) for ${userId} changed, setting moderationStatus to pending.`);
         // TODO: Trigger content moderation Cloud Function here for user profile fields
-        // e.g., pass dataToSave.bio, dataToSave.username, new photoURL/bannerURL if changed.
-        console.info(`[saveUserProfile] Profile fields for ${userId} changed, setting moderationStatus to pending.`);
       }
 
       await updateDoc(userProfileRef, {
@@ -112,14 +134,17 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       console.info(`[saveUserProfile] Successfully updated profile for userId: ${userId}`);
     } else {
       console.info(`[saveUserProfile] Creating new profile for userId: ${userId}`);
-      await setDoc(userProfileRef, {
+      // For new profiles, photoURL and bannerURL provided are considered originals
+      const newProfileData: UserProfileData = {
         uid: userId,
         email: data.email ?? null,
         fullName: data.fullName ?? '',
         username: data.username ?? '',
         bio: data.bio ?? '',
-        photoURL: data.photoURL ?? null,
-        bannerURL: data.bannerURL ?? null,
+        photoURL: data.photoURL ?? null, // This would be a display URL, e.g. a thumbnail
+        photoURLOriginal: data.photoURL ?? null, // Original if provided at creation
+        bannerURL: data.bannerURL ?? null, // Display banner
+        bannerURLOriginal: data.bannerURL ?? null, // Original if provided
         isPremium: data.isPremium ?? false,
         stripeCustomerId: data.stripeCustomerId ?? null,
         premiumSubscriptionId: data.premiumSubscriptionId ?? null,
@@ -132,14 +157,15 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         profileAmplifiedAt: data.profileAmplifiedAt ?? null,
         emailOptIn: data.emailOptIn ?? false,
         themeSettings: data.themeSettings ?? { baseMode: 'system', customColors: { light: {}, dark: {} } },
-        moderationStatus: 'pending', // New profiles also start as pending
+        moderationStatus: 'pending',
         moderationInfo: null,
         ...dataToSave, // Spread again to ensure incoming data overrides defaults if present
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
-      // TODO: Trigger content moderation Cloud Function here for new user profile fields
+      };
+      await setDoc(userProfileRef, newProfileData);
       console.info(`[saveUserProfile] Successfully created new profile for userId: ${userId}. Moderation status: pending.`);
+      // TODO: Trigger content moderation Cloud Function here for new user profile fields
     }
     return { success: true };
   } catch (error) {
@@ -160,17 +186,16 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     const docSnap = await getDoc(userProfileRef);
     if (docSnap.exists()) {
       const profile = docSnap.data() as UserProfileData;
-      // CONTENT MODERATION: Consider if unapproved profiles should be fully hidden or partially.
-      // If profile.moderationStatus === 'rejected', you might return null or a redacted version.
       
-      // Ensure all potentially undefined fields have sensible defaults
       profile.fullName = profile.fullName ?? '';
       profile.username = profile.username ?? '';
       profile.bio = profile.bio ?? '';
       profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
       profile.fluxEvolutionPoints = profile.fluxEvolutionPoints ?? [];
       profile.photoURL = profile.photoURL ?? null;
+      profile.photoURLOriginal = profile.photoURLOriginal ?? profile.photoURL ?? null; // Fallback if original not set
       profile.bannerURL = profile.bannerURL ?? null;
+      profile.bannerURLOriginal = profile.bannerURLOriginal ?? profile.bannerURL ?? null; // Fallback
       profile.followersCount = profile.followersCount ?? 0;
       profile.followingCount = profile.followingCount ?? 0;
       profile.stripeCustomerId = profile.stripeCustomerId ?? null;
@@ -181,7 +206,7 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.isProfileAmplified = profile.isProfileAmplified ?? false;
       profile.profileAmplifiedAt = profile.profileAmplifiedAt ?? null;
       profile.themeSettings = profile.themeSettings ?? { baseMode: 'system', customColors: {light: {}, dark: {}} };
-      profile.moderationStatus = profile.moderationStatus ?? 'approved'; // Default to approved if not set
+      profile.moderationStatus = profile.moderationStatus ?? 'approved';
       profile.moderationInfo = profile.moderationInfo ?? null;
       // console.info(`[getUserProfile] Profile found for userId: ${userId}`);
       return profile;
@@ -195,3 +220,5 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     return null;
   }
 }
+
+    

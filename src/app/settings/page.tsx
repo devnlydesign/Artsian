@@ -27,25 +27,31 @@ import {
 
 async function deleteFileFromFirebaseStorage(url: string | undefined | null): Promise<void> {
   if (!url || !url.startsWith('https://firebasestorage.googleapis.com/')) {
+    console.info("[deleteFileFromFirebaseStorage] URL is invalid or not a Firebase Storage URL, skipping deletion:", url);
     return;
   }
   try {
+    // Extract the path from the URL. The path starts after '/o/' and ends before '?alt=media'.
     const filePath = decodeURIComponent(new URL(url).pathname.split('/o/')[1].split('?')[0]);
+    if (!filePath) {
+        console.warn("[deleteFileFromFirebaseStorage] Could not extract file path from URL:", url);
+        return;
+    }
     const fileRef = storageRefSdk(storage, filePath);
     await deleteObject(fileRef);
-    console.log("Successfully deleted old file:", filePath);
+    console.log("[deleteFileFromFirebaseStorage] Successfully deleted old file:", filePath);
   } catch (error: any) {
     if (error.code === 'storage/object-not-found') {
-      console.warn(`Old file not found for deletion, skipping: ${url}`);
+      console.warn(`[deleteFileFromFirebaseStorage] Old file not found for deletion, skipping: ${url}`);
     } else {
-      console.error("Error deleting old file from storage:", error);
+      console.error("[deleteFileFromFirebaseStorage] Error deleting old file from storage:", error);
     }
   }
 }
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { currentUser, logoutUser } = useAppState();
+  const { currentUser, logoutUser, refreshUserProfile } = useAppState(); // Added refreshUserProfile
   const { theme, setTheme } = useTheme();
 
   const [profileData, setProfileData] = useState<Partial<UserProfileData>>({});
@@ -71,8 +77,10 @@ export default function SettingsPage() {
         if (data) {
           setProfileData(data);
           setEmailNotifications(data.emailOptIn ?? true);
-          if (data.photoURL) setProfileImagePreview(data.photoURL);
-          if (data.bannerURL) setBannerImagePreview(data.bannerURL);
+          // Use photoURL (display/thumbnail) for preview, not photoURLOriginal,
+          // unless photoURL is null and photoURLOriginal exists.
+          setProfileImagePreview(data.photoURL || data.photoURLOriginal || "https://placehold.co/100x100.png");
+          setBannerImagePreview(data.bannerURL || data.bannerURLOriginal || "https://placehold.co/800x200.png");
         }
         setIsLoading(false);
       } else {
@@ -107,32 +115,51 @@ export default function SettingsPage() {
     }
     setIsSaving(true);
     
-    let newPhotoURL = profileData.photoURL;
-    let newBannerURL = profileData.bannerURL;
+    let newPhotoURLOriginal = profileData.photoURLOriginal;
+    let newBannerURLOriginal = profileData.bannerURLOriginal;
+    
+    // The display URLs (photoURL, bannerURL) will be updated if originals are updated.
+    // The actual URLs for display (thumbnails) would ideally come from the Resize Images extension's output
+    // or be constructed based on its naming convention. For now, we'll set the display URL to the new original if it changes.
+    let displayPhotoURL = profileData.photoURL;
+    let displayBannerURL = profileData.bannerURL;
 
     try {
       if (profileImageFile) {
-        await deleteFileFromFirebaseStorage(profileData.photoURL); 
-        const profileFilePath = `users/${currentUser.uid}/profile_${Date.now()}_${profileImageFile.name}`;
+        await deleteFileFromFirebaseStorage(profileData.photoURLOriginal); 
+        // Also delete old display URL if it's different and a Firebase URL (might be a thumbnail path)
+        if(profileData.photoURL !== profileData.photoURLOriginal) {
+            await deleteFileFromFirebaseStorage(profileData.photoURL);
+        }
+
+        const profileFilePath = `users/${currentUser.uid}/profile/original_${Date.now()}_${profileImageFile.name}`;
         const profileFileRef = storageRefSdk(storage, profileFilePath);
         await uploadBytes(profileFileRef, profileImageFile);
-        newPhotoURL = await getDownloadURL(profileFileRef);
+        newPhotoURLOriginal = await getDownloadURL(profileFileRef);
+        displayPhotoURL = newPhotoURLOriginal; // Assuming original is used as display for now
         toast({ title: "Profile Picture Uploaded", description: "Your new profile picture is set."});
       }
 
       if (bannerImageFile) {
-        await deleteFileFromFirebaseStorage(profileData.bannerURL); 
-        const bannerFilePath = `users/${currentUser.uid}/banner_${Date.now()}_${bannerImageFile.name}`;
+        await deleteFileFromFirebaseStorage(profileData.bannerURLOriginal);
+        if(profileData.bannerURL !== profileData.bannerURLOriginal) {
+            await deleteFileFromFirebaseStorage(profileData.bannerURL);
+        }
+
+        const bannerFilePath = `users/${currentUser.uid}/banner/original_${Date.now()}_${bannerImageFile.name}`;
         const bannerFileRef = storageRefSdk(storage, bannerFilePath);
         await uploadBytes(bannerFileRef, bannerImageFile);
-        newBannerURL = await getDownloadURL(bannerFileRef);
+        newBannerURLOriginal = await getDownloadURL(bannerFileRef);
+        displayBannerURL = newBannerURLOriginal; // Assuming original is used as display for now
         toast({ title: "Banner Image Uploaded", description: "Your new banner image is set."});
       }
 
       const dataToSave: Partial<UserProfileData> = {
         ...profileData,
-        photoURL: newPhotoURL,
-        bannerURL: newBannerURL,
+        photoURL: displayPhotoURL, // Update display URL
+        photoURLOriginal: newPhotoURLOriginal, // Update original URL
+        bannerURL: displayBannerURL, // Update display banner
+        bannerURLOriginal: newBannerURLOriginal, // Update original banner
         emailOptIn: emailNotifications,
       };
 
@@ -144,11 +171,16 @@ export default function SettingsPage() {
         });
         setProfileImageFile(null); 
         setBannerImageFile(null);
-        const updatedData = await getUserProfile(currentUser.uid);
+        
+        // Re-fetch and update AppStateContext
+        await refreshUserProfile(); 
+        
+        // Fetch again for local state after AppState context update
+        const updatedData = await getUserProfile(currentUser.uid); 
         if (updatedData) {
             setProfileData(updatedData);
-            if (updatedData.photoURL) setProfileImagePreview(updatedData.photoURL);
-            if (updatedData.bannerURL) setBannerImagePreview(updatedData.bannerURL);
+            setProfileImagePreview(updatedData.photoURL || updatedData.photoURLOriginal || "https://placehold.co/100x100.png");
+            setBannerImagePreview(updatedData.bannerURL || updatedData.bannerURLOriginal || "https://placehold.co/800x200.png");
         }
 
       } else {
@@ -220,7 +252,7 @@ export default function SettingsPage() {
             <Label htmlFor="profilePicture">Profile Picture</Label>
             <div className="flex items-center gap-4">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={profileImagePreview || "https://placehold.co/100x100.png"} alt="Profile Preview" data-ai-hint="user avatar" />
+                <AvatarImage src={profileImagePreview || undefined} alt="Profile Preview" data-ai-hint="user avatar" />
                 <AvatarFallback><UserCircle className="h-12 w-12 text-muted-foreground"/></AvatarFallback>
               </Avatar>
               <Button type="button" variant="outline" onClick={() => profileFileInputRef.current?.click()} disabled={isSaving}>
@@ -365,3 +397,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
