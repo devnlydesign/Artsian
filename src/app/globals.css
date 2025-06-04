@@ -114,67 +114,82 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     --sidebar-ring: 200 100% 55%;
   }
 
-  /* Unauthenticated theme overrides (Black & White style) */
+  /* Unauthenticated theme overrides (Strict Black & White style) */
   :root.unauthenticated-theme {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --background: 0 0% 100%; /* White */
+    --foreground: 0 0% 0%;   /* Black */
+    --card: 0 0% 100%; 
+    --card-foreground: 0 0% 0%; 
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
-    --primary: 0 0% 15%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 95%;
-    --secondary-foreground: 0 0% 10%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 0 0% 25%;
-    --accent-foreground: 0 0% 100%;
+    --primary: 0 0% 15%; /* Dark Gray for interaction */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+    --secondary: 0 0% 90%; /* Light Gray for secondary elements */
+    --secondary-foreground: 0 0% 10%; /* Dark text on secondary */
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 35%;
+    --accent: 0 0% 25%; /* Darker Gray for accents */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 85%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 20%;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 10%;
-    --sidebar-primary: 0 0% 15%;
+    --border: 0 0% 85%; /* Light gray border */
+    --input: 0 0% 92%; /* Lighter gray input background */
+    --ring: 0 0% 20%; /* Dark gray ring */
+
+    --sidebar-background: 0 0% 100%; /* White sidebar */
+    --sidebar-foreground: 0 0% 0%;   /* Black text */
+    --sidebar-primary: 0 0% 15%;      /* Dark Gray for active/hover */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 90%;
-    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-accent: 0 0% 90%;       /* Light Gray for hover */
+    --sidebar-accent-foreground: 0 0% 0%;
     --sidebar-border: 0 0% 85%;
     --sidebar-ring: 0 0% 20%;
+    
+    --chart-1: 0 0% 20%;
+    --chart-2: 0 0% 40%;
+    --chart-3: 0 0% 60%;
+    --chart-4: 0 0% 30%;
+    --chart-5: 0 0% 50%;
   }
 
   .dark.unauthenticated-theme {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 0%;
-    --card-foreground: 0 0% 100%;
+    --background: 0 0% 0%;   /* Black */
+    --foreground: 0 0% 100%; /* White */
+    --card: 0 0% 0%; 
+    --card-foreground: 0 0% 100%; 
     --popover: 0 0% 0%;
     --popover-foreground: 0 0% 100%;
-    --primary: 0 0% 85%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 10%;
-    --secondary-foreground: 0 0% 90%;
-    --muted: 0 0% 8%;
-    --muted-foreground: 0 0% 60%;
-    --accent: 0 0% 75%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 0 0% 20%;
-    --input: 0 0% 15%;
-    --ring: 0 0% 80%;
-    --sidebar-background: 0 0% 5%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 0 0% 85%;
+    --primary: 0 0% 85%; /* Light Gray for interaction */
+    --primary-foreground: 0 0% 0%; /* Black text on primary */
+    --secondary: 0 0% 15%; /* Dark Gray for secondary elements */
+    --secondary-foreground: 0 0% 90%; /* Light text on secondary */
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 75%; /* Lighter Gray for accents */
+    --accent-foreground: 0 0% 0%; /* Black text on accent */
+    --destructive: 0 70% 50%; 
+    --destructive-foreground: 0 0% 95%; 
+    --border: 0 0% 20%; /* Dark gray border */
+    --input: 0 0% 12%; /* Darker gray input background */
+    --ring: 0 0% 80%; /* Light gray ring */
+
+    --sidebar-background: 0 0% 0%; /* Black sidebar */
+    --sidebar-foreground: 0 0% 100%; /* White text */
+    --sidebar-primary: 0 0% 85%;     /* Light Gray for active/hover */
     --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 15%;
-    --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 0 0% 20%;
+    --sidebar-accent: 0 0% 20%;      /* Dark Gray for hover */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 15%;
     --sidebar-ring: 0 0% 80%;
+
+    --chart-1: 0 0% 80%;
+    --chart-2: 0 0% 60%;
+    --chart-3: 0 0% 40%;
+    --chart-4: 0 0% 70%;
+    --chart-5: 0 0% 50%;
   }
 
+  /* Welcome page specific B&W override */
   .welcome-page-theme-override {
     --background: 0 0% 100% !important;
     --foreground: 0 0% 0% !important;
@@ -205,23 +220,7 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     --muted-foreground: 0 0% 70% !important;
   }
 
-  .welcome-page-theme-override,
-  .welcome-page-theme-override .bg-card,
-  .welcome-page-theme-override .bg-popover,
-  .welcome-page-theme-override .ui-button-primary-themed { 
-    background-color: hsl(var(--background)) !important; 
-    color: hsl(var(--foreground)) !important;
-  }
-  
-  .welcome-page-theme-override .text-muted-foreground {
-    color: hsl(var(--muted-foreground)) !important;
-  }
-
-  .welcome-page-theme-override .border-t,
-  .welcome-page-theme-override .border {
-      border-color: hsl(var(--border)) !important;
-  }
-
+  /* Ensure welcome page buttons get the B&W theme properly */
   .welcome-page-theme-override .ui-button-primary-themed {
     background-color: hsl(var(--primary)) !important;
     color: hsl(var(--primary-foreground)) !important;
@@ -235,9 +234,11 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     color: hsl(var(--primary)) !important;
     background-color: transparent !important;
   }
+  /* Text color for elements like the logo in welcome page */
   .welcome-page-theme-override .text-primary {
      color: hsl(var(--primary)) !important;
   }
+  /* Ensure welcome page title (gradient) uses foreground if it was primary/accent before */
    .welcome-page-theme-override .text-gradient-primary-accent {
     background: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--foreground)));
     -webkit-background-clip: text;
@@ -289,10 +290,19 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     background-position: 0% 0%; 
     transition: background-position 0.4s ease-in-out, box-shadow 0.3s ease-in-out, filter 0.3s ease-in-out;
   }
+  /* For unauthenticated theme, make gradient buttons solid primary (dark gray / light gray) */
+  .unauthenticated-theme .bg-gradient-primary-accent {
+    background-image: none;
+    background-color: hsl(var(--primary));
+  }
   .bg-gradient-primary-accent:hover {
     background-position: 100% 0%; 
     filter: brightness(1.15); 
   }
+  .unauthenticated-theme .bg-gradient-primary-accent:hover {
+     filter: brightness(1.1); /* Slightly less bright for B&W */
+  }
+
 
   .text-gradient-primary-accent {
     background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
@@ -301,6 +311,16 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     background-clip: text; 
     text-fill-color: transparent; 
   }
+  /* For unauthenticated theme, make gradient text solid foreground */
+  .unauthenticated-theme .text-gradient-primary-accent {
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
+    background-clip: initial;
+    text-fill-color: initial;
+    color: hsl(var(--foreground));
+  }
+
 
   .card-interactive-hover {
     @apply transition-all duration-300 ease-in-out;
@@ -309,6 +329,10 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     @apply shadow-xl transform -translate-y-0.5;
     box-shadow: 0 10px 15px -3px hsl(var(--primary) / 0.2), 0 4px 6px -4px hsl(var(--primary) / 0.2);
   }
+  .unauthenticated-theme .card-interactive-hover:hover {
+    box-shadow: 0 10px 15px -3px hsl(var(--foreground) / 0.1), 0 4px 6px -4px hsl(var(--foreground) / 0.1); /* Subtler shadow for B&W */
+  }
+
 
   @keyframes fadeInPage {
     from { opacity: 0; transform: translateY(8px); }
@@ -318,3 +342,4 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     animation: fadeInPage 0.35s ease-out forwards;
   }
 }
+
