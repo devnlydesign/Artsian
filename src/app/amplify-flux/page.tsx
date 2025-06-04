@@ -183,7 +183,7 @@ export default function AmplifyFluxPage() {
         <CardHeader className="text-center">
           <Zap className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Boost Your Art</CardTitle>
-           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription className="text-md">Get AI-powered tips to promote your art and reach a wider audience. Then, apply amplification to your chosen artwork or profile.</CardDescription>
         </CardHeader>
         <CardContent>

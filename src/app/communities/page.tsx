@@ -158,7 +158,7 @@ export default function CommunitiesPage() {
         <CardHeader className="text-center">
           <Users className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Communities</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Discover and join communities of artists. Share your passion, collaborate, and grow together.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
@@ -309,5 +309,4 @@ export default function CommunitiesPage() {
     </div>
   );
 }
-
     

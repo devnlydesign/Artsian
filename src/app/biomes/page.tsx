@@ -137,7 +137,7 @@ export default function BiomesPage() {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, isLoadingAuth]); // biomes and toast removed from dep array as they might cause loop if fetchBiomesAndMemberships updates them
+  }, [currentUser, isLoadingAuth]); 
 
 
   const handleCreateBiome: SubmitHandler<CreateBiomeFormValues> = async (data) => {
@@ -225,9 +225,9 @@ export default function BiomesPage() {
         }
       }
 
-      if (result?.success && (biome.accessType === 'free' || isMember)) { // Only refresh directly for free biomes or leaving paid
+      if (result?.success && (biome.accessType === 'free' || isMember)) { 
         await fetchBiomesAndMemberships(); 
-      } else if (result?.success === false) { // If join/leave itself failed for any reason
+      } else if (result?.success === false) { 
          await fetchBiomesAndMemberships();
       }
     } catch (error) {
@@ -245,14 +245,14 @@ export default function BiomesPage() {
             <p className="mt-4 text-muted-foreground">Loading your private spaces...</p>
         </div>
     );
-  } else {
+  } 
     return (
       <div className="space-y-8">
         <Card className="shadow-lg card-interactive-hover">
           <CardHeader className="text-center">
             <ShieldCheck className="mx-auto h-12 w-12 text-primary mb-2" />
             <CardTitle className="text-3xl text-gradient-primary-accent">My Private Spaces (Biomes)</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+            <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
             <CardDescription>Manage your secure spaces. Control access, share exclusive content, and build your communities.</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -442,4 +442,3 @@ export default function BiomesPage() {
       </div>
     );
   }
-}

@@ -46,7 +46,7 @@ export default function CrystallineBloomsPage() {
           <CardHeader className="text-center">
             <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
             <CardTitle className="text-3xl text-gradient-primary-accent">My Artworks</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+            <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
             <CardDescription>Explore your collection of artworks, process videos, sketches, and multimedia creations.</CardDescription>
           </CardHeader>
         </Card>
@@ -65,7 +65,7 @@ export default function CrystallineBloomsPage() {
           <CardHeader className="text-center">
             <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
             <CardTitle className="text-3xl text-gradient-primary-accent">My Artworks</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+            <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">Please log in to view and manage your artworks.</p>
@@ -85,7 +85,7 @@ export default function CrystallineBloomsPage() {
         <CardHeader className="text-center">
           <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">My Artworks</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Explore your collection of artworks, process videos, sketches, and multimedia creations.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">

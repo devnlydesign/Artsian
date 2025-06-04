@@ -3,31 +3,52 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
+/* 
+  Placeholder for Neue Regrade font. 
+  User needs to add the actual font files to /public/fonts/neue-regrade/ 
+  and update the src path if necessary.
+*/
+@font-face {
+  font-family: 'Neue Regrade';
+  src: url('/fonts/neue-regrade/NeueRegrade-Variable.woff2') format('woff2'); /* Example path and format */
+  /* Add other weights/styles if available and needed */
+  font-weight: normal; /* Or a range like 100 900 if variable font */
+  font-style: normal;
+  font-display: swap;
 }
+
+
+body {
+  font-family: var(--font-roboto), Arial, Helvetica, sans-serif; /* Use CSS variable from Roboto setup */
+}
+
+/* Apply Helvetica to headers */
+h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous setup */
+  font-family: Helvetica, Arial, sans-serif; /* Helvetica with fallbacks */
+}
+
 
 @layer base {
   :root {
-    --background: 278 50% 95%; /* Light Violet/Almost White #F0E6F5 */
-    --foreground: 282 30% 20%; /* Dark Violet for text */
-    --card: 278 50% 98%; /* Slightly whiter than background for cards */
-    --card-foreground: 282 30% 20%; /* Dark Violet for card text */
+    --background: 278 50% 95%; 
+    --foreground: 282 30% 20%; 
+    --card: 278 50% 98%; 
+    --card-foreground: 282 30% 20%; 
     --popover: 278 50% 98%;
     --popover-foreground: 282 30% 20%;
-    --primary: 282 100% 41%; /* Vibrant Violet #9400D3 */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 282 60% 85%; /* Lighter violet for secondary elements */
-    --secondary-foreground: 282 30% 20%; /* Dark violet for text on secondary */
+    --primary: 282 100% 41%; 
+    --primary-foreground: 0 0% 100%; 
+    --secondary: 282 60% 85%; 
+    --secondary-foreground: 282 30% 20%; 
     --muted: 278 40% 90%;
     --muted-foreground: 282 25% 45%;
-    --accent: 322 79% 43%; /* Rich Magenta #C71585 */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 322 79% 43%; 
+    --accent-foreground: 0 0% 100%; 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 278 30% 85%;
     --input: 278 30% 88%;
-    --ring: 282 100% 41%; /* Primary color for rings */
+    --ring: 282 100% 41%; 
     --chart-1: 282 100% 50%;
     --chart-2: 322 79% 50%;
     --chart-3: 278 50% 60%;
@@ -35,97 +56,99 @@ body {
     --chart-5: 322 60% 70%;
     --radius: 0.5rem;
 
-    /* Sidebar specific variables from shadcn/ui/sidebar tailored to ARTISAN theme */
-    --sidebar-background: 282 30% 15%; /* Dark violet for sidebar */
-    --sidebar-foreground: 278 30% 85%; /* Light violet/gray for sidebar text */
-    --sidebar-primary: 322 79% 55%; /* Magenta for active/primary elements in sidebar */
-    --sidebar-primary-foreground: 0 0% 100%; /* White text on primary elements */
-    --sidebar-accent: 282 40% 25%; /* Slightly lighter dark violet for hover backgrounds */
-    --sidebar-accent-foreground: 0 0% 100%; /* White text on hover */
-    --sidebar-border: 282 20% 25%; /* Border color for sidebar elements */
-    --sidebar-ring: 322 79% 55%; /* Magenta for focus rings in sidebar */
+    --sidebar-background: 282 30% 15%; 
+    --sidebar-foreground: 278 30% 85%; 
+    --sidebar-primary: 322 79% 55%; 
+    --sidebar-primary-foreground: 0 0% 100%; 
+    --sidebar-accent: 282 40% 25%; 
+    --sidebar-accent-foreground: 0 0% 100%; 
+    --sidebar-border: 282 20% 25%; 
+    --sidebar-ring: 322 79% 55%; 
+
+    /* Font variables for Tailwind integration */
+    --font-roboto: '__Roboto_Fallback_xxxxxx', system-ui, sans-serif; /* Fallback, next/font will replace this */
+    --font-helvetica: Helvetica, Arial, sans-serif;
+    --font-neue-regrade: "Neue Regrade", sans-serif; /* Custom font */
   }
 
   .dark {
-    --background: 220 20% 7%; /* Very Dark Blue-Charcoal */
-    --foreground: 220 15% 88%; /* Light Cool Gray */
-    --card: 220 20% 10%; /* Slightly Lighter Dark Blue-Charcoal */
-    --card-foreground: 220 15% 88%; /* Light Cool Gray */
-    --popover: 220 20% 9%; /* Dark Popover */
-    --popover-foreground: 220 15% 88%; /* Light Cool Gray */
+    --background: 220 20% 7%; 
+    --foreground: 220 15% 88%; 
+    --card: 220 20% 10%; 
+    --card-foreground: 220 15% 88%; 
+    --popover: 220 20% 9%; 
+    --popover-foreground: 220 15% 88%; 
     
-    --primary: 200 100% 50%;   /* Vibrant Cyan/Teal - for gradients */
-    --primary-foreground: 0 0% 100%; /* White text on primary */
+    --primary: 200 100% 50%;   
+    --primary-foreground: 0 0% 100%; 
     
-    --secondary: 220 15% 20%; /* Darker Cool Gray */
-    --secondary-foreground: 220 10% 80%; /* Lighter Cool Gray for text on secondary */
+    --secondary: 220 15% 20%; 
+    --secondary-foreground: 220 10% 80%; 
     
-    --muted: 220 15% 15%; /* Muted Dark Blue-Gray */
-    --muted-foreground: 220 10% 65%; /* Medium Cool Gray for muted text */
+    --muted: 220 15% 15%; 
+    --muted-foreground: 220 10% 65%; 
     
-    --accent: 280 80% 60%;    /* Vibrant Purple - for gradients */
-    --accent-foreground: 0 0% 100%; /* White text on accent */
+    --accent: 280 80% 60%;    
+    --accent-foreground: 0 0% 100%; 
     
-    --destructive: 0 70% 50%; /* Darker Red */
-    --destructive-foreground: 0 0% 95%; /* Light text on destructive */
+    --destructive: 0 70% 50%; 
+    --destructive-foreground: 0 0% 95%; 
     
-    --border: 220 15% 18%; /* Subtle Border */
-    --input: 220 15% 16%; /* Input Background */
-    --ring: 200 100% 55%; /* Ring color (Primary) */
+    --border: 220 15% 18%; 
+    --input: 220 15% 16%; 
+    --ring: 200 100% 55%; 
 
-    --chart-1: 200 100% 60%; /* Lighter Primary */
-    --chart-2: 280 80% 70%; /* Lighter Accent */
-    --chart-3: 220 70% 65%; /* A complementary blue */
-    --chart-4: 180 90% 55%; /* A bright teal */
-    --chart-5: 300 75% 60%; /* A magenta/pinkish purple */
+    --chart-1: 200 100% 60%; 
+    --chart-2: 280 80% 70%; 
+    --chart-3: 220 70% 65%; 
+    --chart-4: 180 90% 55%; 
+    --chart-5: 300 75% 60%; 
     
-    /* Sidebar specific variables for dark mode */
-    --sidebar-background: 220 25% 5%; /* Even Darker Blue-Charcoal */
-    --sidebar-foreground: 220 15% 78%; /* Slightly Softer Light Cool Gray */
-    --sidebar-primary: 200 100% 55%; /* Primary for sidebar active elements */
+    --sidebar-background: 220 25% 5%; 
+    --sidebar-foreground: 220 15% 78%; 
+    --sidebar-primary: 200 100% 55%; 
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 12%; /* Hover background for sidebar items */
+    --sidebar-accent: 220 20% 12%; 
     --sidebar-accent-foreground: 220 10% 90%;
     --sidebar-border: 220 20% 8%;
     --sidebar-ring: 200 100% 55%;
   }
 
-  /* Welcome Page Specific Theme Override */
   .welcome-page-theme-override {
-    --background: 0 0% 100%; /* White */
-    --foreground: 0 0% 0%;   /* Black */
-    --primary: 0 0% 15%; /* Dark Gray for primary elements like button text in some cases */
-    --primary-foreground: 0 0% 100%; /* White for text on primary buttons */
-    --accent: 0 0% 25%; /* Slightly lighter gray for accents if needed */
-    --accent-foreground: 0 0% 100%;
-    --border: 0 0% 85%; /* Light gray border */
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
-    --muted-foreground: 0 0% 30%; /* Darker muted text for contrast */
+    --background: 0 0% 100% !important;
+    --foreground: 0 0% 0% !important;
+    --primary: 0 0% 15% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --accent: 0 0% 25% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --border: 0 0% 85% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 0 0% 0% !important;
+    --popover: 0 0% 100% !important;
+    --popover-foreground: 0 0% 0% !important;
+    --muted-foreground: 0 0% 30% !important;
   }
 
   .dark .welcome-page-theme-override {
-    --background: 0 0% 8%;   /* Very Dark Gray / Off-Black */
-    --foreground: 0 0% 95%; /* Off-White */
-    --primary: 0 0% 85%; /* Light Gray for primary elements */
-    --primary-foreground: 0 0% 0%; /* Black for text on primary buttons */
-    --accent: 0 0% 75%; /* Slightly darker gray for accents */
-    --accent-foreground: 0 0% 0%;
-    --border: 0 0% 20%; /* Darker gray border */
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 95%;
-    --muted-foreground: 0 0% 70%; /* Lighter muted text for contrast */
+    --background: 0 0% 8% !important;
+    --foreground: 0 0% 95% !important;
+    --primary: 0 0% 85% !important;
+    --primary-foreground: 0 0% 0% !important;
+    --accent: 0 0% 75% !important;
+    --accent-foreground: 0 0% 0% !important;
+    --border: 0 0% 20% !important;
+    --card: 0 0% 8% !important;
+    --card-foreground: 0 0% 95% !important;
+    --popover: 0 0% 8% !important;
+    --popover-foreground: 0 0% 95% !important;
+    --muted-foreground: 0 0% 70% !important;
   }
 
   .welcome-page-theme-override,
   .welcome-page-theme-override .bg-card,
   .welcome-page-theme-override .bg-popover,
-  .welcome-page-theme-override .ui-button-primary-themed { /* Add a class for buttons if needed */
-    background-color: hsl(var(--background)) !important; /* Use !important cautiously, only if needed */
+  .welcome-page-theme-override .ui-button-primary-themed { 
+    background-color: hsl(var(--background)) !important; 
     color: hsl(var(--foreground)) !important;
   }
   
@@ -138,7 +161,6 @@ body {
       border-color: hsl(var(--border)) !important;
   }
 
-   /* Ensure button text on welcome page is legible for its overridden background */
   .welcome-page-theme-override .ui-button-primary-themed {
     background-color: hsl(var(--primary)) !important;
     color: hsl(var(--primary-foreground)) !important;
@@ -156,7 +178,7 @@ body {
      color: hsl(var(--primary)) !important;
   }
    .welcome-page-theme-override .text-gradient-primary-accent {
-    background: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--foreground))); /* Fallback for welcome */
+    background: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--foreground)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -169,12 +191,19 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans; /* Ensure body uses font-sans */
+  }
+  /* Ensure headers use font-header */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-header;
+  }
+  .card-title { /* Also apply to card titles for consistency */
+     @apply font-header;
   }
 }
 
 @layer utilities {
-  @keyframes loading-bar { /* This will be an indeterminate loader now */
+  @keyframes loading-bar { 
     0% {
       transform: translateX(-100%) scaleX(0.5);
       opacity: 0.5;
@@ -190,41 +219,36 @@ body {
   }
   .animate-loading-bar {
     animation: loading-bar 1.5s ease-in-out infinite;
-    transform-origin: left center; /* Not strictly needed for translateX but good practice */
+    transform-origin: left center; 
   }
 
-
-  /* Updated gradient for flowing effect */
   .bg-gradient-primary-accent {
     background-image: linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%);
-    background-size: 200% auto; /* Crucial for the animation */
-    background-position: 0% 0%; /* Initial position */
+    background-size: 200% auto; 
+    background-position: 0% 0%; 
     transition: background-position 0.4s ease-in-out, box-shadow 0.3s ease-in-out, filter 0.3s ease-in-out;
   }
   .bg-gradient-primary-accent:hover {
-    background-position: 100% 0%; /* Shifts the gradient on hover */
-    filter: brightness(1.15); /* Slightly brighten on hover */
+    background-position: 100% 0%; 
+    filter: brightness(1.15); 
   }
 
   .text-gradient-primary-accent {
     background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    background-clip: text; /* Standard property */
-    text-fill-color: transparent; /* Standard property */
+    background-clip: text; 
+    text-fill-color: transparent; 
   }
 
-  /* Enhanced card hover effect */
   .card-interactive-hover {
     @apply transition-all duration-300 ease-in-out;
   }
   .card-interactive-hover:hover {
     @apply shadow-xl transform -translate-y-0.5;
-    /* Tinted shadow with primary color */
     box-shadow: 0 10px 15px -3px hsl(var(--primary) / 0.2), 0 4px 6px -4px hsl(var(--primary) / 0.2);
   }
 
-  /* Page transition animation */
   @keyframes fadeInPage {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }

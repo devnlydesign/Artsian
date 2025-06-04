@@ -21,7 +21,7 @@ import {
   SidebarSeparator,
   SidebarGroupLabel
 } from '@/components/ui/sidebar';
-import { CharisArtHubLogo } from '@/components/icons/CharisArtHubLogo';
+import { CharisMonogramLogo } from '@/components/icons/CharisMonogramLogo'; // Updated Logo
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,7 +30,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useAppState } from '@/context/AppStateContext';
 import { MobileBottomNav } from './MobileBottomNav';
 import { useTheme } from "next-themes";
-import type { UserProfileData } from '@/actions/userProfile'; // Import UserProfileData
+import type { UserProfileData } from '@/actions/userProfile'; 
+import { cn } from '@/lib/utils';
 
 const mainNavItems = [
   { href: "/", label: "Home Feed", icon: Home, tooltip: "Your Home Feed" },
@@ -63,7 +64,6 @@ const artisanToolsNavItems = [
 ];
 
 
-// New component to inject user-specific theme styles
 function UserThemeInjector() {
   const { currentUserProfile } = useAppState();
 
@@ -94,7 +94,6 @@ function UserThemeInjector() {
 
       styleElement.textContent = cssText;
     } else {
-      // If no custom theme, remove the style tag to revert to globals.css
       const styleElement = document.getElementById('user-theme-overrides');
       if (styleElement) {
         styleElement.remove();
@@ -102,7 +101,7 @@ function UserThemeInjector() {
     }
   }, [currentUserProfile]);
 
-  return null; // This component doesn't render anything itself
+  return null; 
 }
 
 
@@ -119,17 +118,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const getPageTitle = () => {
     const allNavItems = [...mainNavItems, ...userSpecificNavItems, ...artisanToolsNavItems];
     const currentItem = allNavItems.find(item => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)));
+    // Use a more generic title or site name if no specific item matches
     return currentItem?.label || "Charis Art Hub";
   }
 
   return (
     <SidebarProvider defaultOpen={!isMobile} collapsible={isMobile ? "offcanvas" : "icon"}>
-      <UserThemeInjector /> {/* Inject user theme styles */}
+      <UserThemeInjector /> 
       <Sidebar variant="sidebar" side="left" className="border-r border-sidebar-border hidden md:flex">
         <SidebarHeader className="p-4">
           <Link href="/" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-            <CharisArtHubLogo className="h-8 w-8 text-sidebar-primary block group-data-[collapsible=expanded]:hidden" />
-            <span className="font-bold text-2xl text-sidebar-foreground hidden group-data-[collapsible=expanded]:block italic">Charis Art Hub</span>
+            <CharisMonogramLogo className="h-8 w-8 text-sidebar-primary block group-data-[collapsible=expanded]:hidden" />
+            <span className={cn("font-bold text-2xl text-sidebar-foreground hidden group-data-[collapsible=expanded]:block", "font-neue-regrade")}>Charis Art Hub</span>
           </Link>
         </SidebarHeader>
         <SidebarContent asChild>
@@ -233,10 +233,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-4">
               {isMobile && <SidebarTrigger />} 
                <Link href="/" className="flex items-center gap-2 md:hidden"> 
-                 <CharisArtHubLogo className="h-7 w-7 text-primary" />
-                 <span className="font-semibold text-xl text-gradient-primary-accent">Charis Art Hub</span>
+                 <CharisMonogramLogo className="h-7 w-7 text-primary" />
+                 <span className={cn("font-semibold text-xl text-gradient-primary-accent", "font-neue-regrade")}>Charis Art Hub</span>
                </Link>
-               <h1 className="text-xl font-semibold text-gradient-primary-accent hidden md:block"> 
+               <h1 className="text-xl font-header text-gradient-primary-accent hidden md:block"> 
                 {getPageTitle()}
               </h1>
             </div>

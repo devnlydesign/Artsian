@@ -141,7 +141,7 @@ export default function NewCrystallineBloomPage() {
         <CardHeader className="text-center">
           <Gem className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Create New Artwork</CardTitle>
-           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Add a new piece to your Charis Art Hub collection. Fill in the details below.</CardDescription>
         </CardHeader>
         <CardContent>

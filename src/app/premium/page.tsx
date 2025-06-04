@@ -68,10 +68,8 @@ export default function PremiumPage() {
         description: "Your premium subscription is being processed. Please refresh in a moment to see changes.",
         duration: 7000,
       });
-      // Optionally, trigger a profile refresh here after a short delay
-      // Or rely on webhook to update profile and user re-navigates/refreshes
       if (typeof window !== 'undefined') {
-        window.history.replaceState({}, document.title, window.location.pathname); // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname); 
       }
     } else if (premiumStatus === 'cancel') {
       toast({
@@ -81,7 +79,7 @@ export default function PremiumPage() {
         duration: 7000,
       });
        if (typeof window !== 'undefined') {
-        window.history.replaceState({}, document.title, window.location.pathname); // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname); 
       }
     }
   }, [searchParams, toast]);
@@ -97,7 +95,7 @@ export default function PremiumPage() {
       const result = await saveUserProfile(currentUser.uid, { isPremium: true });
       if (result.success) {
         toast({ title: "Mock Premium Activated!", description: "Premium features are now simulated for your account. Refresh profile to see changes." });
-        const updatedProfile = await getUserProfile(currentUser.uid); // Re-fetch profile
+        const updatedProfile = await getUserProfile(currentUser.uid); 
         setUserProfile(updatedProfile);
       } else {
         toast({ title: "Activation Failed", description: result.message || "Could not activate mock premium.", variant: "destructive" });
@@ -141,18 +139,13 @@ export default function PremiumPage() {
         console.error("Stripe redirect error:", stripeError);
         toast({ title: "Redirect Error", description: stripeError.message || "Failed to redirect to Stripe.", variant: "destructive" });
       }
-      // If redirectToCheckout is successful, user is navigated away.
-      // setIsProcessingSubscription(false) will be effectively handled by navigation or if an error occurs before redirect.
-
+      
     } catch (error) {
       console.error("Error starting premium subscription:", error);
       const message = error instanceof Error ? error.message : "An unexpected error occurred.";
       toast({ title: "Subscription Error", description: message, variant: "destructive" });
     } 
-    // Do not set isProcessingSubscription(false) here if redirect is expected.
-    // It will be set if an error occurs before redirect, or component unmounts.
-    // If redirect fails and code reaches here, then set to false.
-    if (!isProcessingSubscription) setIsProcessingSubscription(false); // Fallback
+    if (!isProcessingSubscription) setIsProcessingSubscription(false); 
   };
 
   const isAlreadyPremium = userProfile?.isPremium || false;
@@ -163,7 +156,7 @@ export default function PremiumPage() {
         <CardHeader>
           <Star className="mx-auto h-16 w-16 text-amber-400 mb-3 animate-pulse" />
           <CardTitle className="text-4xl font-bold text-gradient-primary-accent">Charis Art Hub Premium</CardTitle>
-           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription className="text-xl text-muted-foreground mt-2">
             Elevate your creative journey and unlock exclusive benefits.
           </CardDescription>

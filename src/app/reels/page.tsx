@@ -22,7 +22,7 @@ export default function ReelsPage() {
         <CardHeader className="text-center">
           <Clapperboard className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Reels</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Short-form video content. Process insights, quick tips, and artistic moments.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">

@@ -182,7 +182,7 @@ export default function SettingsPage() {
         <CardHeader>
           <SettingsIcon className="h-10 w-10 text-primary mb-2" />
           <CardTitle className="text-3xl">Settings</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Manage your profile information, preferences, and platform settings for Charis Art Hub.</CardDescription>
         </CardHeader>
       </Card>

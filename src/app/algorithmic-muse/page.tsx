@@ -97,7 +97,7 @@ export default function AlgorithmicMusePage() {
         <CardHeader className="text-center">
           <Lightbulb className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">AI Idea Sparker</CardTitle>
-           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription className="text-md">Let AI help ignite your creativity. Share some context and get a unique idea prompt tailored to you.</CardDescription>
         </CardHeader>
         <CardContent>

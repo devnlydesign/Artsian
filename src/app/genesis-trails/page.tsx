@@ -154,7 +154,7 @@ export default function GenesisTrailsPage() {
         <CardHeader className="text-center">
           <GitFork className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Create Project Story</CardTitle>
-           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Visualize the creation history of your projects. This will be saved to your account.</CardDescription>
         </CardHeader>
         <CardContent>

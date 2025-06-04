@@ -11,8 +11,8 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAppState } from '@/context/AppStateContext';
 import { useToast } from "@/hooks/use-toast";
-import { followUser, unfollowUser, isFollowing, getFollowerIds, getFollowingIds } from '@/actions/connectionActions'; // Assuming you create this
-import { getUserProfile, type UserProfileData } from '@/actions/userProfile'; // To fetch user details if needed
+import { followUser, unfollowUser, isFollowing, getFollowerIds, getFollowingIds } from '@/actions/connectionActions'; 
+import { getUserProfile, type UserProfileData } from '@/actions/userProfile'; 
 
 const exploreItems = [
   { id: "e1", type: "image", src: "https://placehold.co/400x400.png", alt: "Abstract digital art", dataAiHint: "abstract digital art" },
@@ -21,8 +21,6 @@ const exploreItems = [
   { id: "e4", type: "image", src: "https://placehold.co/600x400.png", alt: "Detailed character illustration", dataAiHint: "character illustration" },
 ];
 
-// Mock User Data for Follow/Unfollow Demo
-// In a real app, these UIDs would come from actual users.
 const mockUsersForDemo: Array<Partial<UserProfileData> & { uid: string, isMock?: boolean }> = [
   { uid: "mockUser1", fullName: "Elena Vortex", username: "elena_vortex", photoURL: "https://placehold.co/60x60.png?text=EV", bio: "Painter of cosmic dreams.", isMock: true },
   { uid: "mockUser2", fullName: "Marcus Rune", username: "marcus_rune", photoURL: "https://placehold.co/60x60.png?text=MR", bio: "Sculptor of digital forms.", isMock: true },
@@ -40,7 +38,7 @@ export default function ExplorePage() {
     const checkInitialFollowStatus = async () => {
       if (isAuthenticated && currentUser) {
         const statusPromises = mockUsersForDemo.map(async (targetUser) => {
-          if (targetUser.uid === currentUser.uid) return { [targetUser.uid]: false }; // Can't follow self
+          if (targetUser.uid === currentUser.uid) return { [targetUser.uid]: false }; 
           const currentlyFollowing = await isFollowing(currentUser.uid, targetUser.uid);
           return { [targetUser.uid]: currentlyFollowing };
         });
@@ -48,7 +46,6 @@ export default function ExplorePage() {
         const newStatus = Object.assign({}, ...statusesArray);
         setFollowingStatus(newStatus);
       } else {
-        // Reset status if user logs out
         const resetStatus: Record<string, boolean> = {};
         mockUsersForDemo.forEach(user => resetStatus[user.uid] = false);
         setFollowingStatus(resetStatus);
@@ -102,7 +99,7 @@ export default function ExplorePage() {
             <Compass className="h-8 w-8 text-primary" />
             <CardTitle className="text-3xl text-gradient-primary-accent">Explore Art & Creators</CardTitle>
           </div>
-           <p className="text-xs text-muted-foreground ml-10">Created by Charis</p>
+           <p className="text-xs text-muted-foreground ml-10">Created by Charis Mul</p>
           <CardDescription className="ml-10 mt-1">Discover new artworks, talented artists, and vibrant communities on Charis Art Hub.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -113,7 +110,6 @@ export default function ExplorePage() {
         </CardContent>
       </Card>
 
-      {/* Mock Users Section for Follow/Unfollow Demo */}
       <Card className="card-interactive-hover">
         <CardHeader>
             <CardTitle className="flex items-center gap-2"><Users className="text-accent"/> Discover Creators</CardTitle>

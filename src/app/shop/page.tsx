@@ -10,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { loadStripe } from '@stripe/stripe-js';
 import { createCheckoutSession } from '@/actions/stripe';
-import { getAllShopItems, type ShopItemData } from '@/actions/shopActions'; // Import new action
+import { getAllShopItems, type ShopItemData } from '@/actions/shopActions'; 
 import { useToast } from '@/hooks/use-toast';
-import { useAppState } from '@/context/AppStateContext'; // Import useAppState
+import { useAppState } from '@/context/AppStateContext'; 
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
@@ -21,7 +21,7 @@ export default function ShopPage() {
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { currentUser } = useAppState(); // Get current user
+  const { currentUser } = useAppState(); 
 
   useEffect(() => {
     async function fetchShopItems() {
@@ -56,7 +56,7 @@ export default function ShopPage() {
         itemPriceInCents: item.priceInCents, 
         quantity: 1,
         itemId: item.id,
-        userId: currentUser?.uid, // Pass userId if user is logged in
+        userId: currentUser?.uid, 
         crystallineBloomId: item.crystallineBloomId,
       });
 
@@ -74,16 +74,14 @@ export default function ShopPage() {
         console.error("Stripe redirect error:", error);
         toast({ title: "Redirect Error", description: error.message || "Failed to redirect to Stripe.", variant: "destructive" });
       }
-      // If redirectToCheckout is successful, user is navigated away.
-      // setLoadingItemId(null) will be handled if an error occurs or by component unmount.
+      
     } catch (err) {
       console.error("Checkout process error:", err);
       const message = err instanceof Error ? err.message : "An unexpected error occurred during checkout.";
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
-      // Only set loading to false if we didn't redirect
-      if (loadingItemId === item.id) { // Check if it's still the same item to avoid race conditions
-         // A small delay to ensure redirect has time to initiate if successful
+      
+      if (loadingItemId === item.id) { 
         setTimeout(() => {
             setLoadingItemId(null);
         }, 1000);
@@ -97,7 +95,7 @@ export default function ShopPage() {
         <CardHeader className="text-center">
           <ShoppingCart className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Artist Shop</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Acquire prints, original works, merchandise, and digital goods directly from artists. Look for the 'Material Origin Link' on Artworks.</CardDescription>
            <Button asChild variant="outline" className="mt-4 mx-auto w-fit">
             <Link href="/my-shop/manage">Manage My Shop Items</Link>

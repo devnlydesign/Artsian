@@ -83,7 +83,7 @@ export default function ProcessSymphonyPage() {
         <CardHeader className="text-center">
           <Music className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">AI Process Symphony</CardTitle>
-           <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+           <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Generate a unique ambient audio track based on the rhythm, energy, and style of your work session.</CardDescription>
         </CardHeader>
         <CardContent>

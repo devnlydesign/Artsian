@@ -44,7 +44,7 @@ export default function SchedulingPage() {
         <CardHeader className="text-center">
           <CalendarClock className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Creative Bloom Cycles</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Schedule new artwork, process updates, or announcements. Pre-program when Crystalline Blooms visually emerge.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">

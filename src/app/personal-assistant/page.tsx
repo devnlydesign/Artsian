@@ -61,7 +61,7 @@ export default function PersonalAssistantPage() {
         <CardHeader className="text-center">
           <Bot className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Your Personal AI Assistant</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Need help tailoring Charis Art Hub? Describe what you'd like to change, or how you're feeling, and I'll provide suggestions for app personalization!</CardDescription>
         </CardHeader>
         <CardContent>

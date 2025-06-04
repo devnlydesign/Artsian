@@ -35,7 +35,7 @@ export default function SearchPage() {
         </CardHeader>
         <CardContent>
           <CardTitle className="text-2xl mb-1 text-center text-gradient-primary-accent">Discover & Explore</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5 text-center">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-0.5 text-center">Created by Charis Mul</p>
            <p className="text-muted-foreground text-center mb-6 mt-2">
             Find inspiration, connect with creators, or explore new creative avenues within the Charis Art Hub ecosystem.
           </p>

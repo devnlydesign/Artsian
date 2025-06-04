@@ -4,15 +4,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, BarChart2, Palette, Smile, Loader2, Edit3, Sparkles, Brain } from "lucide-react"; // Added Sparkles, Brain
+import { Activity, BarChart2, Palette, Smile, Loader2, Edit3, Sparkles, Brain, Check } from "lucide-react"; // Added Check
 import Image from "next/image";
 import { useAppState } from '@/context/AppStateContext';
 import { getUserProfile, saveUserProfile, type UserProfileData, type FluxSignature, type FluxEvolutionPoint } from '@/actions/userProfile';
-import { getArtworksByUserId, type ArtworkData } from '@/actions/artworkActions'; // Import artwork actions
-import { analyzeAndSuggestFluxSignature, type FluxSignatureAnalysisInput, type FluxSignatureAnalysisOutput } from '@/ai/flows/flux-signature-analysis-flow'; // Import new AI flow
+import { getArtworksByUserId, type ArtworkData } from '@/actions/artworkActions'; 
+import { analyzeAndSuggestFluxSignature, type FluxSignatureAnalysisInput, type FluxSignatureAnalysisOutput } from '@/ai/flows/flux-signature-analysis-flow'; 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"; // For displaying suggestions
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"; 
 
 const defaultFluxSignature: FluxSignature = {
   style: "Not yet defined",
@@ -66,13 +66,11 @@ export default function FluxSignaturePage() {
         keywords: aiSuggestions.suggestedKeywords,
         style: aiSuggestions.suggestedStyleDescription,
         dominantColors: aiSuggestions.suggestedDominantColors,
-        // visualRepresentation: updatedSignature.visualRepresentation, // Keep current visual, or update if AI suggests a theme that can be translated
-        currentMood: updatedSignature.currentMood, // Mood is input to AI, not output
+        currentMood: updatedSignature.currentMood, 
       };
       evolutionChangeDescription = `Signature updated with AI suggestions. New keywords: ${aiSuggestions.suggestedKeywords.join(', ')}. Style: ${aiSuggestions.suggestedStyleDescription.substring(0,30)}...`;
       toast({ title: "AI Suggestions Applied!", description: "Your Flux Signature has been updated with AI insights." });
     } else {
-      // Original mock update logic
       const currentSignature = profileData.fluxSignature || { ...defaultFluxSignature };
       const newKeywords = [...(currentSignature.keywords || []), `Update-${Math.floor(Math.random() * 100)}`];
       const newDominantColors = [...(currentSignature.dominantColors || []), `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`].slice(-4);
@@ -101,9 +99,9 @@ export default function FluxSignaturePage() {
     });
 
     if (result.success) {
-      const data = await getUserProfile(currentUser.uid); // Re-fetch to update UI
+      const data = await getUserProfile(currentUser.uid); 
       setProfileData(data);
-      setAiSuggestions(null); // Clear suggestions after applying
+      setAiSuggestions(null); 
     } else {
       toast({ title: "Error", description: result.message || "Could not update signature.", variant: "destructive" });
     }
@@ -122,7 +120,7 @@ export default function FluxSignaturePage() {
       let artworksSummary = "No artworks found.";
       if (artworks.length > 0) {
         artworksSummary = artworks
-          .slice(0, 5) // Limit to 5 most recent artworks for brevity
+          .slice(0, 5) 
           .map(art => `Title: "${art.title}", Type: ${art.type}, Description: ${art.description.substring(0, 100)}...`)
           .join("\n");
       }
@@ -182,7 +180,7 @@ export default function FluxSignaturePage() {
             <Palette className="h-10 w-10 md:h-12 md:w-12" />
             <div>
               <CardTitle className="text-3xl md:text-4xl">My Artistic Style</CardTitle>
-              <p className="text-xs text-primary-foreground/70 mt-0.5">Created by Charis</p>
+              <p className="text-xs text-primary-foreground/70 mt-0.5">Created by Charis Mul</p>
               <CardDescription className="text-primary-foreground/80 text-md md:text-lg">A dynamic look at your unique creative fingerprint.</CardDescription>
             </div>
           </div>

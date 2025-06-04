@@ -37,7 +37,7 @@ export default function NotificationsPage() {
         <CardHeader className="text-center">
           <Bell className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Notifications</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Stay updated with the latest activity related to your Charis Art Hub presence.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-end p-4 border-t">

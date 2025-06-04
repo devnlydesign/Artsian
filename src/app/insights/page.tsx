@@ -1,7 +1,7 @@
 
-"use client"; // Required for Recharts client-side rendering
+"use client"; 
 
-import React from 'react'; // Import React
+import React from 'react'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChartBig, Zap, Users, TrendingUp, Percent, ShieldCheck, Info } from "lucide-react";
 import Image from "next/image";
@@ -10,9 +10,6 @@ import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, Respons
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
-// --- MOCK DATA ---
-// In a real application, this data would be fetched from the backend,
-// where it would be aggregated by Firebase Cloud Functions or similar server-side processes.
 const attentionData = [
   { source: 'Crystalline Blooms', attention: 45, fill: 'hsl(var(--chart-1))' },
   { source: 'Flux Signature Profile', attention: 30, fill: 'hsl(var(--chart-2))' },
@@ -38,7 +35,6 @@ const chartConfig = {
     color: "hsl(var(--primary))",
   }
 } satisfies import("@/components/ui/chart").ChartConfig;
-// --- END MOCK DATA ---
 
 
 export default function InsightsPage() {
@@ -48,7 +44,7 @@ export default function InsightsPage() {
         <CardHeader className="text-center">
           <BarChartBig className="mx-auto h-12 w-12 text-primary mb-2" />
           <CardTitle className="text-3xl text-gradient-primary-accent">Energy Flow Patterns</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Created by Charis</p>
+          <p className="text-xs text-muted-foreground mt-1">Created by Charis Mul</p>
           <CardDescription>Analyze attention pooling and network growth velocity around your Flux Signature and Private Biomes.</CardDescription>
         </CardHeader>
       </Card>
@@ -70,17 +66,6 @@ export default function InsightsPage() {
             <CardDescription>Where your audience's attention is currently focused (Mock Data).</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* 
-              Backend Task for "Attention Pooling":
-              - A scheduled Firebase Cloud Function would analyze interaction data:
-                - Views on different Crystalline Bloom types (artwork, sketch, process).
-                - Views on Flux Signature profiles.
-                - Activity within Biomes (e.g., post views, comments).
-                - Clicks on shop links from Material Origin Links.
-              - This data would be aggregated periodically (e.g., daily/weekly) and stored in a user-specific
-                document in Firestore (e.g., /users/{userId}/insights/attention).
-              - This page would then fetch and display this aggregated data.
-            */}
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -103,15 +88,6 @@ export default function InsightsPage() {
             <CardDescription>How quickly your connected network is expanding (Mock Data).</CardDescription>
           </CardHeader>
           <CardContent>
-            {/*
-              Backend Task for "Network Growth Velocity":
-              - A scheduled Firebase Cloud Function would analyze:
-                - New followers over time (e.g., daily/weekly changes in followersCount on UserProfileData).
-                - New members joining the user's Biomes.
-                - Growth in interactions on user's content.
-              - This velocity data would be aggregated (e.g., monthly growth percentages) and stored in Firestore.
-              - This page would fetch and display this time-series growth data.
-            */}
              <ChartContainer config={chartConfig} className="h-[300px] w-full">
               <RechartsBarChart data={growthData} accessibilityLayer>
                 <CartesianGrid vertical={false} />
@@ -130,12 +106,6 @@ export default function InsightsPage() {
             <CardTitle>Key Metrics (Mock Data)</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/*
-              Backend Task for "Key Metrics":
-              - These would be derived from UserProfileData (followersCount), BiomeData (memberCount for owned biomes),
-                and aggregated interaction data (e.g., total artwork views, engagement rate calculated from likes/comments/views).
-              - Some metrics might be directly available (followersCount), others would require calculation by Cloud Functions.
-            */}
             <div className="p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-center text-sm text-muted-foreground"><Users className="h-4 w-4 mr-1" /> Followers</div>
                 <div className="text-2xl font-bold">1,234</div>
@@ -165,16 +135,6 @@ export default function InsightsPage() {
           <CardDescription>An interactive map showing connections and energy intensity. (Conceptual - requires significant backend data processing)</CardDescription>
         </CardHeader>
         <CardContent className="text-center">
-          {/*
-            Backend Task for "Detailed Energy Flow Visualization":
-            - This is the most complex. It would require:
-              - Tracking various types of interactions between users, artworks, and biomes.
-              - Analyzing these interactions to determine "energy" or "attention" flow.
-              - Storing this complex graph-like data in a way that's queryable for visualization
-                (Firestore might be challenging for this at scale; a graph database or specialized
-                 data store might be considered for a very advanced version).
-              - Providing an API or server actions to feed data to a frontend graph visualization library.
-          */}
           <Image src="https://placehold.co/800x450.png" alt="Energy Flow Visualization Placeholder" width={800} height={450} className="rounded-md object-cover mx-auto" data-ai-hint="network graph" />
           <p className="mt-2 text-sm text-muted-foreground">This area will feature a dynamic, interactive graph visualizing the energy flow patterns once backend aggregation is implemented.</p>
         </CardContent>

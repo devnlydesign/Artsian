@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -9,6 +10,11 @@ export default {
   ],
   theme: {
   	extend: {
+      fontFamily: {
+        sans: ['var(--font-roboto)', 'system-ui', 'sans-serif'], // Body text: Roboto
+        header: ['Helvetica', 'Arial', 'sans-serif'],           // Headers: Helvetica
+        'neue-regrade': ['"Neue Regrade"', 'sans-serif'],      // Custom wordmark font
+      },
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
