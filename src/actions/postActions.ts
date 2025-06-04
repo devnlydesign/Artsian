@@ -2,11 +2,9 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, deleteDoc, getDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, deleteDoc, getDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import type { PostData } from '@/models/contentTypes';
 import type { UserProfileData } from './userProfile';
-
-// Server actions for managing Posts
 
 export async function createPost(
   userId: string,
@@ -18,6 +16,7 @@ export async function createPost(
   if (!postDetails.contentType || (!postDetails.caption && !postDetails.contentUrl)) {
     return { success: false, message: "Content type and caption or content URL are required." };
   }
+  console.info(`[createPost] Attempting for userId: ${userId}`);
 
   try {
     const postsCollectionRef = collection(db, 'posts');
@@ -32,8 +31,9 @@ export async function createPost(
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    // TODO: Trigger Cloud Function to update user's postsCount
-    // TODO: Trigger content moderation Cloud Function
+    console.info(`[createPost] Successfully created postId: ${newPostRef.id} for userId: ${userId}. Moderation: pending.`);
+    // Cloud Function (onCreatePost) will handle user's postsCount update.
+    // Cloud Function (onCreatePost) can trigger content moderation.
     return { success: true, postId: newPostRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error.";
@@ -43,12 +43,23 @@ export async function createPost(
 }
 
 export async function getPostById(postId: string): Promise<PostData | null> {
+  if (!postId) {
+    console.warn("[getPostById] Missing postId.");
+    return null;
+  }
   try {
     const postRef = doc(db, 'posts', postId);
     const postSnap = await getDoc(postRef);
     if (postSnap.exists()) {
-      return { id: postSnap.id, ...postSnap.data() } as PostData;
+      const data = postSnap.data() as PostData;
+      // Basic visibility check, more robust checks in security rules
+      if (data.moderationStatus === 'approved' || data.isPublic) { 
+        return { id: postSnap.id, ...data };
+      }
+      console.warn(`[getPostById] Post ${postId} exists but not approved/public for general view.`);
+      return null; 
     }
+    console.warn(`[getPostById] Post ${postId} not found.`);
     return null;
   } catch (error) {
     console.error("[getPostById] Error:", error);
@@ -57,13 +68,16 @@ export async function getPostById(postId: string): Promise<PostData | null> {
 }
 
 export async function getPostsByUserId(userId: string, count: number = 10): Promise<PostData[]> {
-    if (!userId) return [];
+    if (!userId) {
+        console.warn("[getPostsByUserId] Missing userId.");
+        return [];
+    }
     try {
         const postsRef = collection(db, 'posts');
         const q = query(
             postsRef, 
             where("userId", "==", userId), 
-            where("moderationStatus", "==", "approved"), // Only show approved posts
+            // Optionally, only show approved on profile: where("moderationStatus", "==", "approved"), 
             orderBy("createdAt", "desc"), 
             limit(count)
         );
@@ -75,5 +89,6 @@ export async function getPostsByUserId(userId: string, count: number = 10): Prom
     }
 }
 
-// Add updatePost, deletePost, etc. as needed
+// TODO: Add updatePost, deletePost actions.
+// deletePost should trigger a Cloud Function (onDeletePost) to handle media deletion from Storage & cleanup interactions.
     

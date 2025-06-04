@@ -19,8 +19,8 @@ export interface UserProfileData {
   followersCount?: number; // Initial: 0
   followingCount?: number; // Initial: 0
   lastSeen?: Timestamp;
-  postsCount?: number; // For posts, reels, music, otherArt - can be aggregated
-  storiesCount?: number;
+  postsCount?: number; // Initial: 0
+  storiesCount?: number; // Initial: 0
   // --- Existing fields from ARTISAN PRD ---
   fullName?: string; // Can be derived or explicitly set
   genre?: string; // Artist-specific
@@ -51,7 +51,7 @@ export interface UserProfileData {
     checkedAt?: Timestamp;
     reason?: string;
     autoModerated?: boolean;
-    fields?: ('username' | 'bio' | 'profileImageUrl' | 'bannerURL')[]; // Adjusted to profileImageUrl
+    fields?: ('username' | 'bio' | 'profileImageUrl' | 'bannerURL')[];
   };
 }
 
@@ -101,14 +101,16 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       }
     });
     
-    // Handle image URL updates carefully
     if (data.profileImageUrl && (!profileSnapshot.exists() || data.profileImageUrl !== profileSnapshot.data()?.profileImageUrl)) {
-      // Assuming profileImageUrl from input is the new original.
-      // The actual `photoURL` for display (like small avatars) might be a derived/resized version.
-      // For simplicity, if `profileImageUrl` changes, we update `photoURL` (for display) and `photoURLOriginal`.
-      dataToSave.photoURL = data.profileImageUrl;
+      dataToSave.photoURL = data.profileImageUrl; // Ensure photoURL (used by AppStateContext) is also updated
       dataToSave.photoURLOriginal = data.profileImageUrl;
+    } else if (data.photoURL && (!profileSnapshot.exists() || data.photoURL !== profileSnapshot.data()?.photoURL)) {
+        // If only photoURL is provided (e.g. from Google Sign-in), use it for profileImageUrl as well
+        dataToSave.profileImageUrl = data.photoURL;
+        dataToSave.photoURLOriginal = data.photoURL;
     }
+
+
     if (data.bannerURL && (!profileSnapshot.exists() || data.bannerURL !== profileSnapshot.data()?.bannerURL)) {
       dataToSave.bannerURLOriginal = data.bannerURL;
     }
@@ -125,20 +127,20 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
     if (profileSnapshot.exists()) {
       console.info(`[saveUserProfile] Updating existing profile for userId: ${userId}`);
       const existingData = profileSnapshot.data() as UserProfileData;
-      const potentiallyModeratedFields: (keyof UserProfileData)[] = ['bio', 'username', 'profileImageUrl', 'bannerURL'];
+      const potentiallyModeratedFields: (keyof UserProfileData)[] = ['bio', 'username', 'profileImageUrl', 'bannerURL', 'fullName'];
       let needsModerationCheck = false;
       let changedFieldsForModeration: ('username' | 'bio' | 'profileImageUrl' | 'bannerURL')[] = [];
 
       potentiallyModeratedFields.forEach(field => {
         if (dataToSave[field] !== undefined && dataToSave[field] !== existingData[field]) {
           needsModerationCheck = true;
-          if (field === 'username' || field === 'bio' || field === 'profileImageUrl' || field === 'bannerURL') {
+           if (field === 'username' || field === 'bio' || field === 'profileImageUrl' || field === 'bannerURL') {
             changedFieldsForModeration.push(field);
           }
         }
       });
 
-      if (needsModerationCheck && changedFieldsForModeration.length > 0) {
+      if (needsModerationCheck && changedFieldsForModeration.length > 0 && existingData.moderationStatus !== 'pending') {
         dataToSave.moderationStatus = 'pending';
         dataToSave.moderationInfo = { fields: changedFieldsForModeration, autoModerated: false, reason: 'Profile content updated.' };
         console.info(`[saveUserProfile] Profile fields (${changedFieldsForModeration.join(', ')}) for ${userId} changed, setting moderationStatus to pending.`);
@@ -147,7 +149,7 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       dataToSave.lastSeen = now;
       await updateDoc(userProfileRef, {
         ...dataToSave,
-        updatedAt: now, // Keep updatedAt for general profile updates
+        updatedAt: now, 
       });
       console.info(`[saveUserProfile] Successfully updated profile for userId: ${userId}`);
     } else {
@@ -155,12 +157,12 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
       const newProfileData: UserProfileData = {
         uid: userId,
         email: data.email ?? null,
-        username: data.username ?? '',
-        profileImageUrl: data.profileImageUrl ?? null,
-        photoURL: data.profileImageUrl ?? null, // Use profileImageUrl for photoURL on creation
-        photoURLOriginal: data.profileImageUrl ?? null,
+        username: data.username || data.email?.split('@')[0] || `user_${userId.substring(0,6)}`,
+        profileImageUrl: data.profileImageUrl ?? data.photoURL ?? null,
+        photoURL: data.photoURL ?? data.profileImageUrl ?? null, 
+        photoURLOriginal: data.photoURLOriginal ?? data.profileImageUrl ?? data.photoURL ?? null,
         bannerURL: data.bannerURL ?? null,
-        bannerURLOriginal: data.bannerURL ?? null,
+        bannerURLOriginal: data.bannerURLOriginal ?? data.bannerURL ?? null,
         bio: data.bio ?? '',
         followersCount: 0,
         followingCount: 0,
@@ -168,17 +170,16 @@ export async function saveUserProfile(userId: string, data: Partial<UserProfileD
         storiesCount: 0,
         isPremium: data.isPremium ?? false,
         premiumTier: data.premiumTier ?? "none",
-        // ... other existing fields from ARTISAN PRD with defaults
         fluxSignature: data.fluxSignature ?? { dominantColors: [], keywords: [] },
         hasFluxSignature: !!(data.fluxSignature && Object.keys(data.fluxSignature).length > 0),
         fluxEvolutionPoints: data.fluxEvolutionPoints ?? [],
         emailOptIn: data.emailOptIn ?? false,
         themeSettings: data.themeSettings ?? { baseMode: 'system', customColors: { light: {}, dark: {} } },
-        moderationStatus: 'pending', // New profiles go to pending moderation
-        moderationInfo: null,
-        ...dataToSave, // Merge any other provided data
+        moderationStatus: 'pending', 
+        moderationInfo: { reason: 'New profile creation.' }, // Indicate new profile for moderation context
+        ...dataToSave, 
         createdAt: now,
-        updatedAt: now,
+        updatedAt: now, // Add updatedAt on creation as well
         lastSeen: now,
       };
       await setDoc(userProfileRef, newProfileData);
@@ -202,11 +203,12 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
     if (docSnap.exists()) {
       const profile = docSnap.data() as UserProfileData;
       
+      // Ensure all fields have default values if not present
       profile.username = profile.username ?? '';
       profile.email = profile.email ?? null;
-      profile.profileImageUrl = profile.profileImageUrl ?? null;
-      profile.photoURL = profile.photoURL ?? profile.profileImageUrl ?? null; // Fallback logic
-      profile.photoURLOriginal = profile.photoURLOriginal ?? profile.profileImageUrl ?? null;
+      profile.profileImageUrl = profile.profileImageUrl ?? profile.photoURL ?? null;
+      profile.photoURL = profile.photoURL ?? profile.profileImageUrl ?? null; 
+      profile.photoURLOriginal = profile.photoURLOriginal ?? profile.profileImageUrl ?? profile.photoURL ?? null;
       profile.bannerURL = profile.bannerURL ?? null;
       profile.bannerURLOriginal = profile.bannerURLOriginal ?? profile.bannerURL ?? null;
       profile.bio = profile.bio ?? '';
@@ -214,7 +216,6 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.followingCount = profile.followingCount ?? 0;
       profile.postsCount = profile.postsCount ?? 0;
       profile.storiesCount = profile.storiesCount ?? 0;
-      // --- Initialize existing ARTISAN fields if not present ---
       profile.fullName = profile.fullName ?? '';
       profile.fluxSignature = profile.fluxSignature ?? { dominantColors: [], keywords: [] };
       profile.hasFluxSignature = profile.hasFluxSignature ?? !!(profile.fluxSignature && Object.keys(profile.fluxSignature).length > 0);
@@ -223,7 +224,7 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       profile.premiumTier = profile.premiumTier ?? "none";
       profile.emailOptIn = profile.emailOptIn ?? false;
       profile.themeSettings = profile.themeSettings ?? { baseMode: 'system', customColors: {light: {}, dark: {}} };
-      profile.moderationStatus = profile.moderationStatus ?? 'approved'; // Default to approved if not set for existing users
+      profile.moderationStatus = profile.moderationStatus ?? 'approved'; 
       profile.moderationInfo = profile.moderationInfo ?? null;
       
       return profile;

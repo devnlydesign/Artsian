@@ -1,7 +1,7 @@
 
 import type { Timestamp } from 'firebase/firestore';
 
-export type ContentType = 'post' | 'story' | 'reel' | 'music' | 'otherArt' | 'userProfile' | 'artwork'; // artwork for existing ArtworkData
+export type ContentType = 'post' | 'story' | 'reel' | 'music' | 'otherArt' | 'userProfile' | 'artwork' | 'communityPost' | 'comment';
 
 export interface CommentData {
   id: string; // Auto-generated
@@ -11,7 +11,7 @@ export interface CommentData {
   commentText: string;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
-  likesCount?: number; // For comment likes
+  likesCount?: number; // For comment likes, Initial: 0
   parentId?: string | null; // For threaded comments/replies
   mentionedUserIds?: string[];
   moderationStatus?: 'pending' | 'approved' | 'rejected';
@@ -34,7 +34,6 @@ export interface BookmarkData {
   createdAt: Timestamp;
 }
 
-// For followers, this replaces src/actions/connectionActions.ts ConnectionData
 export interface FollowData {
   id: string; // Composite ID: followerId_followingId
   followerId: string; // User initiating the follow
@@ -45,20 +44,19 @@ export interface FollowData {
 export interface NotificationData {
   id: string; // Auto-generated
   recipientId: string; // User who receives the notification
-  senderId?: string | null; // User who triggered the notification (e.g., liker, commenter, follower)
-  senderName?: string | null; // Denormalized for quick display
-  senderAvatarUrl?: string | null; // Denormalized
-  type: 'like' | 'comment' | 'follow' | 'mention' | 'new_post_from_followed_user' | 'system_message' | 'content_moderation_update';
-  contentId?: string | null; // Optional, reference to the content involved (post, comment, etc.)
-  contentType?: ContentType | null;
+  actorId?: string | null; // User who triggered the notification (e.g., liker, commenter, follower)
+  actorName?: string | null; // Denormalized for quick display
+  actorAvatarUrl?: string | null; // Denormalized
+  type: 'new_follower' | 'artwork_like' | 'artwork_comment' | 'community_post' | 'mention' | 'system_message' | 'content_moderation_update' | 'post_like' | 'post_comment' | 'reel_like' | 'reel_comment' | 'music_like' | 'music_comment' | 'otherArt_like' | 'otherArt_comment' | 'comment_like'; // Added more types
+  entityId?: string | null; // Reference to the content involved (post, comment, etc.)
+  entityType?: ContentType | null;
   message: string; // Display text for the notification
   linkTo?: string | null; // In-app navigation path
   read: boolean; // Default: false
   createdAt: Timestamp;
 }
 
-// For messages, this replaces src/actions/messageActions.ts ChatChannelData & ChatMessageData
-export interface ConversationData { // Replaces ChatChannelData
+export interface ConversationData { 
   id: string; // Auto-generated or composite of participant UIDs
   participants: string[]; // Array of User UIDs involved in the chat
   participantInfo?: {
@@ -70,33 +68,32 @@ export interface ConversationData { // Replaces ChatChannelData
   lastMessageText?: string | null;
   lastMessageTimestamp?: Timestamp | null;
   lastMessageSenderId?: string | null;
-  unreadCounts?: { // For unread messages per user in this conversation
+  unreadCounts?: { 
     [userId: string]: number;
   };
   isGroupChat: boolean; // Default: false
-  groupName?: string | null; // If isGroupChat is true
-  groupAvatarUrl?: string | null; // If isGroupChat is true
-  createdBy?: string; // UserID of group creator
-  admins?: string[]; // UserIDs of group admins
+  groupName?: string | null; 
+  groupAvatarUrl?: string | null; 
+  createdBy?: string; 
+  admins?: string[]; 
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
-export interface MessageData { // Replaces ChatMessageData, subcollection under ConversationData
+export interface MessageData { 
   id: string; // Auto-generated
   senderId: string;
-  senderName?: string; // Denormalized
-  senderAvatar?: string | null; // Denormalized
-  messageText?: string | null; // Text content
-  mediaUrl?: string | null; // For images, videos, audio in messages
+  senderName?: string; 
+  senderAvatar?: string | null; 
+  messageText?: string | null; 
+  mediaUrl?: string | null; 
   mediaType?: 'image' | 'video' | 'audio' | 'file';
   timestamp: Timestamp;
-  readBy?: string[]; // User UIDs who have read the message
-  reactions?: { // For message reactions
-    [emoji: string]: string[]; // emoji: [userId1, userId2]
+  readBy?: string[]; 
+  reactions?: { 
+    [emoji: string]: string[]; 
   };
   isDeleted?: boolean;
-  deletedFor?: string[]; // UserIDs for whom this message is deleted
+  deletedFor?: string[]; 
 }
-
     

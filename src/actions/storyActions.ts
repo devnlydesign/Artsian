@@ -2,10 +2,8 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, where, getDocs, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, query, where, getDocs, orderBy, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import type { StoryData } from '@/models/contentTypes';
-
-// Server actions for managing Stories
 
 const STORY_EXPIRY_HOURS = 24;
 
@@ -19,6 +17,7 @@ export async function createStory(
   if (!storyDetails.mediaUrl || !storyDetails.mediaType) {
     return { success: false, message: "Media URL and type are required." };
   }
+  console.info(`[createStory] Attempting for userId: ${userId}`);
 
   try {
     const storiesCollectionRef = collection(db, 'stories');
@@ -31,11 +30,11 @@ export async function createStory(
       viewsCount: 0,
       seenBy: [],
       moderationStatus: 'pending',
-      createdAt: serverTimestamp(), // Will be set by server
+      createdAt: serverTimestamp(), 
       expiresAt,
     });
-    // TODO: Trigger Cloud Function to update user's storiesCount
-    // TODO: Trigger content moderation Cloud Function
+    console.info(`[createStory] Successfully created storyId: ${newStoryRef.id} for userId: ${userId}. Moderation: pending.`);
+    // Cloud Function (onCreateStory) will handle user's storiesCount update & content moderation.
     return { success: true, storyId: newStoryRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error.";
@@ -45,15 +44,18 @@ export async function createStory(
 }
 
 export async function getActiveStoriesByUserId(userId: string): Promise<StoryData[]> {
-  if (!userId) return [];
+  if (!userId) {
+    console.warn("[getActiveStoriesByUserId] Missing userId.");
+    return [];
+  }
   try {
     const storiesRef = collection(db, 'stories');
     const q = query(
       storiesRef,
       where("userId", "==", userId),
       where("expiresAt", ">", Timestamp.now()),
-      where("moderationStatus", "==", "approved"),
-      orderBy("expiresAt", "asc"), // Show soonest to expire first, or createdAt desc for newest
+      where("moderationStatus", "==", "approved"), // Only show approved stories
+      orderBy("expiresAt", "asc"), 
       orderBy("createdAt", "desc") 
     );
     const snapshot = await getDocs(q);
@@ -64,12 +66,24 @@ export async function getActiveStoriesByUserId(userId: string): Promise<StoryDat
   }
 }
 
-export async function deleteStory(storyId: string, userId: string): Promise<{success: boolean, message?:string}> {
-    // TODO: Add security check to ensure userId is owner of story
+export async function deleteStory(storyId: string, requestingUserId: string): Promise<{success: boolean, message?:string}> {
+    if (!storyId || !requestingUserId) {
+        return { success: false, message: "Story ID and User ID are required." };
+    }
+    console.info(`[deleteStory] Attempting deletion of story ${storyId} by user ${requestingUserId}`);
     try {
-        await deleteDoc(doc(db, 'stories', storyId));
-        // TODO: Trigger Cloud Function to delete associated media from Storage
-        // TODO: Trigger Cloud Function to update user's storiesCount
+        const storyDocRef = doc(db, 'stories', storyId);
+        const storySnap = await getDoc(storyDocRef);
+        if (!storySnap.exists()) {
+            return { success: false, message: "Story not found." };
+        }
+        if (storySnap.data()?.userId !== requestingUserId) {
+            return { success: false, message: "User not authorized to delete this story." };
+        }
+        
+        await deleteDoc(storyDocRef);
+        console.info(`[deleteStory] Successfully deleted story ${storyId}`);
+        // Cloud Function (onDeleteStory) will handle media deletion from Storage & user's storiesCount update.
         return { success: true };
     } catch (error) {
         const msg = error instanceof Error ? error.message : "Unknown error";
@@ -78,19 +92,29 @@ export async function deleteStory(storyId: string, userId: string): Promise<{suc
     }
 }
 
-// Function to delete expired stories (can be run by a scheduled Cloud Function)
 export async function deleteExpiredStories(): Promise<void> {
   const now = Timestamp.now();
   const storiesRef = collection(db, 'stories');
   const q = query(storiesRef, where('expiresAt', '<=', now));
-  const snapshot = await getDocs(q);
   
-  const batch = db.batch(); // Assuming db is Firestore instance from firebaseAdmin
-  snapshot.forEach(doc => {
-    batch.delete(doc.ref);
-    // TODO: Trigger deletion of associated media from Firebase Storage
-  });
-  await batch.commit();
-  console.log(`Deleted ${snapshot.size} expired stories.`);
+  try {
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      console.log("[deleteExpiredStories] No expired stories to delete.");
+      return;
+    }
+    
+    const batch = writeBatch(db); 
+    snapshot.forEach(doc => {
+      batch.delete(doc.ref);
+      // Cloud Function (onDeleteStory) should be robust enough to be triggered by this
+      // or you can directly call a helper to delete storage media if needed here, but triggers are cleaner.
+    });
+    await batch.commit();
+    console.log(`[deleteExpiredStories] Deleted ${snapshot.size} expired stories.`);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[deleteExpiredStories] Error: ${msg}`);
+  }
 }
     
