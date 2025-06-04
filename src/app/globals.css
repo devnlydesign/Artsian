@@ -115,6 +115,7 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
   }
 
   /* Unauthenticated theme overrides (Strict Black & White style) */
+  /* Light mode for unauthenticated users */
   :root.unauthenticated-theme {
     --background: 0 0% 100%; /* White */
     --foreground: 0 0% 0%;   /* Black */
@@ -130,17 +131,17 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     --muted-foreground: 0 0% 35%;
     --accent: 0 0% 25%; /* Darker Gray for accents */
     --accent-foreground: 0 0% 100%; /* White text on accent */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 0% 15%; /* Dark gray instead of red */
+    --destructive-foreground: 0 0% 100%;
     --border: 0 0% 85%; /* Light gray border */
     --input: 0 0% 92%; /* Lighter gray input background */
     --ring: 0 0% 20%; /* Dark gray ring */
 
-    --sidebar-background: 0 0% 100%; /* White sidebar */
-    --sidebar-foreground: 0 0% 0%;   /* Black text */
-    --sidebar-primary: 0 0% 15%;      /* Dark Gray for active/hover */
+    --sidebar-background: 0 0% 100%; 
+    --sidebar-foreground: 0 0% 0%;   
+    --sidebar-primary: 0 0% 15%;      
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 90%;       /* Light Gray for hover */
+    --sidebar-accent: 0 0% 90%;       
     --sidebar-accent-foreground: 0 0% 0%;
     --sidebar-border: 0 0% 85%;
     --sidebar-ring: 0 0% 20%;
@@ -152,6 +153,7 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     --chart-5: 0 0% 50%;
   }
 
+  /* Dark mode for unauthenticated users */
   .dark.unauthenticated-theme {
     --background: 0 0% 0%;   /* Black */
     --foreground: 0 0% 100%; /* White */
@@ -167,17 +169,17 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     --muted-foreground: 0 0% 65%;
     --accent: 0 0% 75%; /* Lighter Gray for accents */
     --accent-foreground: 0 0% 0%; /* Black text on accent */
-    --destructive: 0 70% 50%; 
-    --destructive-foreground: 0 0% 95%; 
+    --destructive: 0 0% 85%; /* Light gray instead of red */
+    --destructive-foreground: 0 0% 0%; 
     --border: 0 0% 20%; /* Dark gray border */
     --input: 0 0% 12%; /* Darker gray input background */
     --ring: 0 0% 80%; /* Light gray ring */
 
-    --sidebar-background: 0 0% 0%; /* Black sidebar */
-    --sidebar-foreground: 0 0% 100%; /* White text */
-    --sidebar-primary: 0 0% 85%;     /* Light Gray for active/hover */
+    --sidebar-background: 0 0% 0%; 
+    --sidebar-foreground: 0 0% 100%; 
+    --sidebar-primary: 0 0% 85%;     
     --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 20%;      /* Dark Gray for hover */
+    --sidebar-accent: 0 0% 20%;      
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 0 0% 15%;
     --sidebar-ring: 0 0% 80%;
@@ -189,63 +191,6 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     --chart-5: 0 0% 50%;
   }
 
-  /* Welcome page specific B&W override */
-  .welcome-page-theme-override {
-    --background: 0 0% 100% !important;
-    --foreground: 0 0% 0% !important;
-    --primary: 0 0% 15% !important;
-    --primary-foreground: 0 0% 100% !important;
-    --accent: 0 0% 25% !important;
-    --accent-foreground: 0 0% 100% !important;
-    --border: 0 0% 85% !important;
-    --card: 0 0% 100% !important;
-    --card-foreground: 0 0% 0% !important;
-    --popover: 0 0% 100% !important;
-    --popover-foreground: 0 0% 0% !important;
-    --muted-foreground: 0 0% 30% !important;
-  }
-
-  .dark .welcome-page-theme-override {
-    --background: 0 0% 0% !important; 
-    --foreground: 0 0% 100% !important;
-    --primary: 0 0% 85% !important;
-    --primary-foreground: 0 0% 0% !important;
-    --accent: 0 0% 75% !important;
-    --accent-foreground: 0 0% 0% !important;
-    --border: 0 0% 20% !important;
-    --card: 0 0% 0% !important;
-    --card-foreground: 0 0% 100% !important;
-    --popover: 0 0% 0% !important;
-    --popover-foreground: 0 0% 100% !important;
-    --muted-foreground: 0 0% 70% !important;
-  }
-
-  /* Ensure welcome page buttons get the B&W theme properly */
-  .welcome-page-theme-override .ui-button-primary-themed {
-    background-color: hsl(var(--primary)) !important;
-    color: hsl(var(--primary-foreground)) !important;
-  }
-   .welcome-page-theme-override .ui-button-outline-themed {
-    border-color: hsl(var(--primary)) !important;
-    color: hsl(var(--primary)) !important;
-    background-color: transparent !important;
-  }
-  .welcome-page-theme-override .ui-button-ghost-themed {
-    color: hsl(var(--primary)) !important;
-    background-color: transparent !important;
-  }
-  /* Text color for elements like the logo in welcome page */
-  .welcome-page-theme-override .text-primary {
-     color: hsl(var(--primary)) !important;
-  }
-  /* Ensure welcome page title (gradient) uses foreground if it was primary/accent before */
-   .welcome-page-theme-override .text-gradient-primary-accent {
-    background: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--foreground)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-fill-color: transparent;
-  }
 }
 
 @layer base {
@@ -284,26 +229,30 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     transform-origin: left center; 
   }
 
+  /* Default gradient style for authenticated users */
   .bg-gradient-primary-accent {
     background-image: linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%);
     background-size: 200% auto; 
     background-position: 0% 0%; 
     transition: background-position 0.4s ease-in-out, box-shadow 0.3s ease-in-out, filter 0.3s ease-in-out;
   }
-  /* For unauthenticated theme, make gradient buttons solid primary (dark gray / light gray) */
-  .unauthenticated-theme .bg-gradient-primary-accent {
-    background-image: none;
-    background-color: hsl(var(--primary));
-  }
   .bg-gradient-primary-accent:hover {
     background-position: 100% 0%; 
     filter: brightness(1.15); 
   }
-  .unauthenticated-theme .bg-gradient-primary-accent:hover {
-     filter: brightness(1.1); /* Slightly less bright for B&W */
+  
+  /* For unauthenticated theme, make gradient buttons solid primary */
+  .unauthenticated-theme .bg-gradient-primary-accent {
+    background-image: none !important; /* Use important to override inline styles if necessary, though hsl variables should work */
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+   .unauthenticated-theme .bg-gradient-primary-accent:hover {
+     filter: brightness(1.1) !important; 
   }
 
 
+  /* Default text gradient style for authenticated users */
   .text-gradient-primary-accent {
     background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
     -webkit-background-clip: text;
@@ -312,13 +261,13 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     text-fill-color: transparent; 
   }
   /* For unauthenticated theme, make gradient text solid foreground */
-  .unauthenticated-theme .text-gradient-primary-accent {
-    background: none;
-    -webkit-background-clip: initial;
-    -webkit-text-fill-color: initial;
-    background-clip: initial;
-    text-fill-color: initial;
-    color: hsl(var(--foreground));
+   .unauthenticated-theme .text-gradient-primary-accent {
+    background: none !important;
+    -webkit-background-clip: initial !important;
+    -webkit-text-fill-color: initial !important;
+    background-clip: initial !important;
+    text-fill-color: initial !important;
+    color: hsl(var(--foreground)) !important;
   }
 
 
@@ -330,7 +279,7 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
     box-shadow: 0 10px 15px -3px hsl(var(--primary) / 0.2), 0 4px 6px -4px hsl(var(--primary) / 0.2);
   }
   .unauthenticated-theme .card-interactive-hover:hover {
-    box-shadow: 0 10px 15px -3px hsl(var(--foreground) / 0.1), 0 4px 6px -4px hsl(var(--foreground) / 0.1); /* Subtler shadow for B&W */
+    box-shadow: 0 10px 15px -3px hsl(var(--foreground) / 0.1), 0 4px 6px -4px hsl(var(--foreground) / 0.1) !important; /* Subtler shadow for B&W */
   }
 
 
@@ -343,3 +292,22 @@ h1, h2, h3, h4, h5, h6, .font-header, .card-title { /* .card-title from previous
   }
 }
 
+/* Specific overrides for unauthenticated welcome page buttons if needed */
+.unauthenticated-theme .welcome-page-buttons .ui-button-primary-themed {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    border-color: hsl(var(--primary)) !important;
+}
+.unauthenticated-theme .welcome-page-buttons .ui-button-outline-themed {
+    border-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary)) !important;
+    background-color: transparent !important;
+}
+ .unauthenticated-theme .welcome-page-buttons .ui-button-ghost-themed {
+    color: hsl(var(--primary)) !important;
+    background-color: transparent !important;
+}
+/* Ensure text elements like the logo on welcome page get correct color from foreground */
+.unauthenticated-theme .welcome-page-text-primary {
+     color: hsl(var(--foreground)) !important;
+}

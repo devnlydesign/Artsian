@@ -33,16 +33,18 @@ export default function WelcomePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center welcome-page-theme-override p-4">
+    // Removed welcome-page-theme-override, relying on global .unauthenticated-theme on <html>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4"> 
       <Card className="w-full max-w-md shadow-2xl bg-card text-card-foreground">
         <CardHeader className="text-center">
-          <CharisMonogramLogo className="mx-auto h-20 w-20 text-primary mb-4" />
+          {/* Added welcome-page-text-primary for specific logo color control if needed, but currentColor should work */}
+          <CharisMonogramLogo className="mx-auto h-20 w-20 text-foreground mb-4 welcome-page-text-primary" /> 
           <CardTitle className="text-4xl font-bold text-gradient-primary-accent">Welcome to Charisarthub</CardTitle>
           <CardDescription className="text-lg text-muted-foreground mt-2">
             Your dynamic platform for creative expression and connection.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 welcome-page-buttons">
           <Button 
             className="w-full text-lg py-6 transition-transform hover:scale-105 ui-button-primary-themed" 
             onClick={() => handleAuthRedirect('/auth/signup')}>
