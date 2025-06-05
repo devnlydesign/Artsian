@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Trash2, Link as LinkIconLucide, BarChart2, Loader2, UserCircle } from "lucide-react";
@@ -15,6 +15,7 @@ import { type User as FirebaseUser } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { deletePost } from '@/actions/postActions'; // Import deletePost
 
 import {
   toggleLike,
@@ -36,26 +37,28 @@ interface ContentData {
     username?: string;
     dataAiHintAvatar?: string;
   };
-  contentType?: 'post' | 'reel' | 'music' | 'otherArt' | 'artwork'; // More specific than interactionTypes ContentType
+  contentType?: 'text' | 'image' | 'video' | 'audio' | 'livestream_upcoming' | 'livestream_live' | 'livestream_ended' | 'post';
   contentUrl?: string | null; // For image, video, audio
   caption?: string | null;
   createdAt: Timestamp;
   likesCount: number;
   commentsCount: number;
   isPublic?: boolean;
-  // Specific fields for different types can be added if needed
   videoUrl?: string | null; 
   dataAiHintImage?: string;
   dataAiHintVideo?: string;
+  // Add sharesCount if it's part of your PostData or other content types
+  sharesCount?: number; 
 }
 
 
 interface ContentCardProps {
   content: ContentData;
   currentUser: FirebaseUser | null;
+  onPostDeleted?: (postId: string) => void; // Callback for when a post is deleted
 }
 
-export function ContentCard({ content, currentUser }: ContentCardProps) {
+export function ContentCard({ content, currentUser, onPostDeleted }: ContentCardProps) {
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -65,8 +68,10 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
   const [isLoadingComments, setIsLoadingComments] = useState(true);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [optimisticComments, setOptimisticComments] = useState<CommentData[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const contentTypeForInteractions = content.contentType || 'post'; // Default to 'post' if not specified
+
+  const contentTypeForInteractions = content.contentType || 'post';
 
   const fetchInteractionStatus = useCallback(async () => {
     if (currentUser && content.id && contentTypeForInteractions) {
@@ -116,11 +121,10 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
 
     const result = await toggleLike(currentUser.uid, content.id, contentTypeForInteractions);
     if (!result.success) {
-      setIsLiked(originalLikedState); // Revert optimistic update
+      setIsLiked(originalLikedState); 
       setCurrentLikes(originalLikesCount);
       toast({ title: "Error", description: result.message || "Failed to update like.", variant: "destructive" });
     }
-    // No need to re-fetch status, it's handled by the action. Count will be updated by triggers.
   };
 
   const handleBookmarkToggle = async () => {
@@ -131,11 +135,11 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
      if (!content.id || !contentTypeForInteractions) return;
 
     const originalBookmarkedState = isBookmarked;
-    setIsBookmarked(!originalBookmarkedState); // Optimistic update
+    setIsBookmarked(!originalBookmarkedState);
 
     const result = await toggleBookmark(currentUser.uid, content.id, contentTypeForInteractions);
     if (!result.success) {
-      setIsBookmarked(originalBookmarkedState); // Revert
+      setIsBookmarked(originalBookmarkedState);
       toast({ title: "Error", description: result.message || "Failed to update bookmark.", variant: "destructive" });
     } else {
       toast({ title: isBookmarked ? "Removed from Saved" : "Saved!", description: isBookmarked ? "Content removed from your saved items." : "Content added to your saved items." });
@@ -163,7 +167,7 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
       createdAt: Timestamp.now(),
       likesCount: 0,
     };
-    setOptimisticComments(prev => [optimisticComment, ...prev]); // Add to top for immediate visibility
+    setOptimisticComments(prev => [optimisticComment, ...prev]);
     const commentToSubmit = newComment;
     setNewComment("");
 
@@ -173,15 +177,14 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
       content.id,
       contentTypeForInteractions,
       commentToSubmit,
-      null, // parentId for replies, null for top-level
+      null,
       currentUser.displayName || "User",
       currentUser.photoURL
     );
 
     if (result.success) {
-      // Remove optimistic comment if it matches the pattern, real one will come from fetch
       setOptimisticComments(prev => prev.filter(c => c.id !== tempCommentId));
-      await fetchComments(); // Re-fetch comments to get the new one with actual ID
+      await fetchComments(); 
     } else {
       setOptimisticComments(prev => prev.filter(c => c.id !== tempCommentId));
       toast({ title: "Error", description: result.message || "Failed to add comment.", variant: "destructive" });
@@ -195,14 +198,35 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
       .then(() => toast({ title: "Link Copied!", description: "Content link copied to clipboard." }))
       .catch(() => toast({ title: "Error", description: "Could not copy link.", variant: "destructive" }));
   };
+
+  const handleDeletePost = async () => {
+    if (!currentUser || currentUser.uid !== content.userId || !content.id) {
+      toast({ title: "Error", description: "You are not authorized to delete this post or post ID is missing.", variant: "destructive" });
+      return;
+    }
+    const confirmDelete = window.confirm("Are you sure you want to delete this post? This action cannot be undone.");
+    if (!confirmDelete) return;
+
+    setIsDeleting(true);
+    const result = await deletePost(content.id, currentUser.uid);
+    if (result.success) {
+      toast({ title: "Post Deleted", description: result.message });
+      if (onPostDeleted) {
+        onPostDeleted(content.id); // Callback to parent to update feed
+      }
+    } else {
+      toast({ title: "Error", description: result.message || "Failed to delete post.", variant: "destructive" });
+    }
+    setIsDeleting(false);
+  };
   
   const displayComments = [...optimisticComments, ...comments].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis());
   const authorName = content.author?.name || "Charis Artist";
   const authorUsername = content.author?.username || content.userId.substring(0,8);
   const authorAvatar = content.author?.avatarUrl;
   const authorAvatarHint = content.author?.dataAiHintAvatar || "artist avatar";
-  const mediaUrl = content.videoUrl || content.contentUrl; // Prioritize videoUrl for reels
-  const mediaType = content.videoUrl ? 'video' : (content.contentUrl?.match(/\.(jpeg|jpg|gif|png)$/) ? 'image' : 'other');
+  const mediaUrl = content.videoUrl || content.contentUrl;
+  const mediaType = content.videoUrl ? 'video' : (content.contentUrl?.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? 'image' : 'other');
   const dataAiHint = content.dataAiHintVideo || content.dataAiHintImage || "content media";
 
   return (
@@ -220,26 +244,28 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
         </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
-              <MoreHorizontal className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MoreHorizontal className="h-5 w-5" />}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={handleShare}>Copy Link</DropdownMenuItem>
             {currentUser?.uid === content.userId && (
               <>
-                <DropdownMenuItem>Edit Post (Not Implemented)</DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete Post (Not Implemented)
+                <DropdownMenuItem disabled>Edit Post (Not Implemented)</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleDeletePost} className="text-destructive focus:text-destructive focus:bg-destructive/10" disabled={isDeleting}>
+                  <Trash2 className="mr-2 h-4 w-4" /> {isDeleting ? "Deleting..." : "Delete Post"}
                 </DropdownMenuItem>
-                 <DropdownMenuItem asChild>
-                  <Link href={`/insights/${contentTypeForInteractions}/${content.id}`}>
-                    <BarChart2 className="mr-2 h-4 w-4" /> View Insights
-                  </Link>
-                </DropdownMenuItem>
+                 <DropdownMenuSeparator />
               </>
             )}
-             <DropdownMenuItem>Report Content (Not Implemented)</DropdownMenuItem>
+             <DropdownMenuItem asChild>
+                <Link href={`/insights/${contentTypeForInteractions}/${content.id}`}>
+                <BarChart2 className="mr-2 h-4 w-4" /> View Insights
+                </Link>
+            </DropdownMenuItem>
+             <DropdownMenuItem disabled>Report Content (Not Implemented)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>
@@ -265,7 +291,7 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
       <CardFooter className="flex flex-col items-start p-3 space-y-2">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button variant="ghost" size="icon" onClick={handleLikeToggle} disabled={!currentUser && !content.isPublic} className={cn("active:scale-90", isLiked && "text-red-500 hover:text-red-600", !currentUser && "text-muted-foreground")}>
+            <Button variant="ghost" size="icon" onClick={handleLikeToggle} className={cn("active:scale-90", isLiked && "text-red-500 hover:text-red-600")}>
               <Heart className={cn("h-6 w-6", isLiked && "fill-current")}/>
             </Button>
             <Button variant="ghost" size="icon" className="hover:text-primary active:scale-90" onClick={() => document.getElementById(`comment-input-${content.id}`)?.focus()}>
@@ -275,7 +301,7 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
               <LinkIconLucide className="h-6 w-6" />
             </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleBookmarkToggle} disabled={!currentUser && !content.isPublic} className={cn("active:scale-90", isBookmarked && "text-primary hover:text-primary/90", !currentUser && "text-muted-foreground")}>
+          <Button variant="ghost" size="icon" onClick={handleBookmarkToggle} className={cn("active:scale-90", isBookmarked && "text-primary hover:text-primary/90")}>
              <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-current")} />
           </Button>
         </div>
@@ -303,7 +329,7 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
             <div className="text-xs text-muted-foreground">Loading comments...</div>
           ) : (
             <div className="space-y-2 max-h-32 overflow-y-auto text-xs pr-2">
-              {displayComments.slice(0, 2).map(comment => ( // Show latest 2 comments initially
+              {displayComments.slice(0, 2).map(comment => (
                 <div key={comment.id} className="flex gap-1.5">
                     <Link href={`/profile/${comment.userId}`} className="font-semibold hover:underline shrink-0">
                         {comment.creatorName || comment.userId.substring(0,6)}:
@@ -336,3 +362,5 @@ export function ContentCard({ content, currentUser }: ContentCardProps) {
     </Card>
   );
 }
+
+    

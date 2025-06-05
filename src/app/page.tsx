@@ -1,21 +1,27 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import NextImage from "next/image";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, UserPlus, Users, Palette, Sparkles, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, UserPlus, Users, Palette, Sparkles, Loader2, Image as ImageIcon, UploadCloud } from "lucide-react"; // Added ImageIcon
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { ContentCard } from '@/components/content/ContentCard'; // Import ContentCard
+import { ContentCard } from '@/components/content/ContentCard';
 import { useAppState } from '@/context/AppStateContext';
-import type { PostData } from '@/models/contentTypes'; // Import PostData type
-import { getPublicPosts } from '@/actions/postActions'; // Import getPublicPosts
-import { Timestamp } from 'firebase/firestore';
+import type { PostData } from '@/models/contentTypes';
+import { getPublicPosts, createPost } from '@/actions/postActions'; // Import createPost
+import { db, storage } from '@/lib/firebase'; // Import db for onSnapshot
+import { collection, query, where, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea'; // Added Textarea
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; // For image upload
+
 
 const placeholderPosts: PostData[] = [
+  // ... (keeping existing placeholders for initial visual if needed, will be replaced by live data)
   {
     id: "ph1",
     userId: "userCosmic",
@@ -42,33 +48,17 @@ const placeholderPosts: PostData[] = [
     dataAiHintImage: "generative patterns code",
     isPublic: true,
   },
-  {
-    id: "ph3",
-    userId: "userAIMuse",
-    author: { name: "AI Muse", username: "aimuseofficial", avatarUrl: "https://placehold.co/40x40.png?text=AI", dataAiHintAvatar: "robot face icon" },
-    contentUrl: "https://placehold.co/600x400.png",
-    contentType: 'post',
-    caption: "Generated this piece using my AI Idea Sparker! Prompt: 'A forest made of crystal'. Try it yourself on Charisarthub! #aiart #ideasparker #charisarthub",
-    likesCount: 2345,
-    commentsCount: 150,
-    createdAt: Timestamp.fromMillis(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-    dataAiHintImage: "crystal forest ai",
-    isPublic: true,
-  },
 ];
 
 const stories = [
     { id: "s1", name: "Your Story", avatar: "https://placehold.co/64x64.png", dataAiHint: "user plus icon", isOwn: true },
     { id: "s2", name: "Elena V.", avatar: "https://placehold.co/64x64.png", dataAiHint: "female artist avatar" },
     { id: "s3", name: "Marcus R.", avatar: "https://placehold.co/64x64.png", dataAiHint: "male designer avatar" },
-    { id: "s4", name: "Anya S.", avatar: "https://placehold.co/64x64.png", dataAiHint: "female musician avatar" },
-    { id: "s5", name: "Kai G.", avatar: "https://placehold.co/64x64.png", dataAiHint: "male tech avatar" },
 ];
 
 const suggestions = [
     { id: "u1", name: "Future Artist", avatar: "https://placehold.co/40x40.png", dataAiHint: "futuristic person avatar", bio: "Exploring digital frontiers." },
     { id: "u2", name: "PixelPerfect", avatar: "https://placehold.co/40x40.png", dataAiHint: "pixel character avatar", bio: "Lover of all things 8-bit." },
-    { id: "u3", name: "SoundSculptor", avatar: "https://placehold.co/40x40.png", dataAiHint: "sound wave abstract", bio: "Crafting sonic landscapes." },
 ];
 
 const StoriesBar = () => (
@@ -91,31 +81,166 @@ const StoriesBar = () => (
   </Card>
 );
 
+function CreatePostForm({ onPostCreated }: { onPostCreated: () => void }) {
+  const { currentUser } = useAppState();
+  const { toast } = useToast();
+  const [caption, setCaption] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    } else if (file) {
+      toast({ title: "Invalid File", description: "Please select an image file.", variant: "destructive" });
+      setImageFile(null);
+      setImagePreview(null);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to create a post.", variant: "default" });
+      return;
+    }
+    if (!caption.trim() && !imageFile) {
+      toast({ title: "Empty Post", description: "Please write something or add an image.", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    let contentUrl: string | undefined = undefined;
+    let dataAiHintImage: string | undefined = undefined;
+
+    try {
+      if (imageFile) {
+        const imagePath = `posts/${currentUser.uid}/${Date.now()}_${imageFile.name}`;
+        const imageStorageRef = storageRef(storage, imagePath);
+        await uploadBytes(imageStorageRef, imageFile);
+        contentUrl = await getDownloadURL(imageStorageRef);
+        dataAiHintImage = "user uploaded post image"; // Generic hint
+      }
+
+      const authorDetails = {
+        name: currentUser.displayName || currentUser.email?.split('@')[0] || "Charis User",
+        avatarUrl: currentUser.photoURL,
+        username: currentUser.email?.split('@')[0] || currentUser.uid.substring(0,8), // Or fetch from user profile
+        dataAiHintAvatar: "user avatar",
+      };
+      
+      const result = await createPost(currentUser.uid, {
+        contentType: imageFile ? 'image' : 'text',
+        caption: caption.trim() || null,
+        contentUrl: contentUrl,
+        dataAiHintImage: dataAiHintImage,
+        isPublic: true, // Default to public
+      }, authorDetails);
+
+      if (result.success) {
+        toast({ title: "Post Created!", description: "Your post is now live." });
+        setCaption("");
+        setImageFile(null);
+        setImagePreview(null);
+        if(fileInputRef.current) fileInputRef.current.value = "";
+        onPostCreated(); // Callback to refresh feed or optimistic update
+      } else {
+        toast({ title: "Error", description: result.message || "Could not create post.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error creating post:", error);
+      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="mb-6 md:mb-8 card-interactive-hover">
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "User"} />
+            <AvatarFallback>{currentUser?.displayName?.substring(0,1) || "U"}</AvatarFallback>
+          </Avatar>
+          Create Post
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <Textarea
+            placeholder={`What's on your mind, ${currentUser?.displayName || 'artist'}?`}
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            rows={3}
+            disabled={isSubmitting}
+          />
+          {imagePreview && (
+            <div className="mt-2 relative w-full max-w-xs h-40 rounded border bg-muted">
+              <NextImage src={imagePreview} alt="Image preview" layout="fill" objectFit="contain" />
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>
+              <ImageIcon className="mr-2 h-4 w-4" /> {imageFile ? "Change Image" : "Add Image"}
+            </Button>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+            <Button type="submit" disabled={isSubmitting || (!caption.trim() && !imageFile)} variant="gradientPrimary">
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {isSubmitting ? "Posting..." : "Post"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function HomePage() {
   const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
-  const [feedPosts, setFeedPosts] = useState<PostData[]>([]);
+  const [feedPosts, setFeedPosts] = useState<PostData[]>(placeholderPosts); // Start with placeholders
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    async function loadFeed() {
-      setIsLoadingFeed(true);
-      if (isAuthenticated) {
-        // TODO: Fetch personalized feed for authenticated users
-        // For now, show public posts or placeholders if no personalized feed logic
-        const publicPosts = await getPublicPosts(20); 
-        setFeedPosts(publicPosts.length > 0 ? publicPosts : placeholderPosts);
-      } else {
-        const publicPosts = await getPublicPosts(20);
-        setFeedPosts(publicPosts);
-      }
-      setIsLoadingFeed(false);
-    }
+    setIsLoadingFeed(true);
+    const postsRef = collection(db, 'posts');
+    const q = query(
+        postsRef,
+        where("isPublic", "==", true),
+        where("moderationStatus", "==", "approved"),
+        orderBy("createdAt", "desc"),
+        limit(20) // Fetch initial 20 public posts
+    );
 
-    if (!isLoadingAuth) {
-      loadFeed();
-    }
-  }, [isAuthenticated, isLoadingAuth]);
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const publicPosts: PostData[] = [];
+        querySnapshot.forEach((doc) => {
+            publicPosts.push({ id: doc.id, ...doc.data() } as PostData);
+        });
+        setFeedPosts(publicPosts.length > 0 ? publicPosts : []); // Clear placeholders if live data comes
+        setIsLoadingFeed(false);
+    }, (error) => {
+        console.error("Error fetching public posts in real-time: ", error);
+        toast({title: "Feed Error", description: "Could not load live feed updates.", variant: "destructive"});
+        setFeedPosts(placeholderPosts); // Fallback to placeholders on error
+        setIsLoadingFeed(false);
+    });
+
+    return () => unsubscribe(); // Cleanup listener on component unmount
+  }, [toast]);
+
+
+  const handlePostCreated = () => {
+    // The onSnapshot listener should automatically update the feed.
+    // If more immediate optimistic update is needed, that logic would go here.
+    // For now, relying on the listener.
+  };
 
 
   return (
@@ -123,16 +248,18 @@ export default function HomePage() {
       <div className="lg:col-span-2 space-y-6 md:space-y-8">
         <StoriesBar />
 
-        {isLoadingFeed ? (
+        {isAuthenticated && <CreatePostForm onPostCreated={handlePostCreated} />}
+
+        {isLoadingAuth || isLoadingFeed ? (
           <div className="flex justify-center items-center py-10">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
             <p className="ml-3 text-lg">Loading feed...</p>
           </div>
-        ) : feedPosts.length === 0 && !isAuthenticated ? (
+        ) : feedPosts.length === 0 ? (
              <Card className="text-center py-10 card-interactive-hover">
                 <CardContent>
                     <Palette className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
-                    <p className="text-muted-foreground">No public posts found yet. Explore or create something new!</p>
+                    <p className="text-muted-foreground">No public posts found yet. Be the first to create one!</p>
                 </CardContent>
             </Card>
         ) : (
@@ -140,10 +267,10 @@ export default function HomePage() {
             <ContentCard key={post.id} content={post} currentUser={currentUser} />
           ))
         )}
-        {!isAuthenticated && !isLoadingFeed && feedPosts.length > 0 && (
+        {!isAuthenticated && !isLoadingFeed && (
             <Card className="mt-6 text-center p-4 bg-primary/10 border-primary/30">
                 <CardDescription>
-                    You are viewing public posts. <Link href="/auth/login" className="text-primary font-semibold hover:underline">Log in</Link> or <Link href="/auth/signup" className="text-primary font-semibold hover:underline">sign up</Link> to see a personalized feed and interact!
+                    You are viewing public posts. <Link href="/auth/login" className="text-primary font-semibold hover:underline">Log in</Link> or <Link href="/auth/signup" className="text-primary font-semibold hover:underline">sign up</Link> to create posts and see a personalized feed!
                 </CardDescription>
             </Card>
         )}
@@ -183,7 +310,7 @@ export default function HomePage() {
             <CardContent className="space-y-1">
                  <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/algorithmic-muse">AI Idea Sparker</Link></Button>
                  <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/process-symphony">Creative Soundtracks</Link></Button>
-                 <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/create">Create New Artwork</Link></Button>
+                 <Button variant="ghost" className="w-full justify-start hover:text-accent" asChild><Link href="/crystalline-blooms/new">Create New Artwork</Link></Button>
             </CardContent>
         </Card>
         <div className="text-xs text-muted-foreground space-x-2">
@@ -198,3 +325,4 @@ export default function HomePage() {
   );
 }
 
+    

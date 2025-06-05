@@ -1,285 +1,229 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper Functions
     function isAuthenticated() {
       return request.auth != null;
     }
+
     function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    function isResourceOwner(resource) {
-      return request.auth.uid == resource.data.userId;
-    }
-    function isModerationStatusApproved(data) {
-      return data.moderationStatus == 'approved';
-    }
-    function isPublishedAndApproved(data) {
-      return data.isPublic == true && isModerationStatusApproved(data); // For posts, otherArt
-    }
-    function isReelPublishedAndApproved(data) {
-        return data.isPublished == true && isModerationStatusApproved(data); // For reels, music
-    }
-    function getRole(userId) { // Example, implement actual role fetching if needed
-      return getUserData(userId).role;
-    }
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-    function isUserPremium(userId) {
-      return getUserData(userId).isPremium == true;
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      // In a real app, manage admins via custom claims or a dedicated collection
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
 
-    // Users Collection (formerly UserProfileData)
+    function isPublicAndApproved(docData) {
+      return docData.isPublic == true && docData.moderationStatus == 'approved';
+    }
+    
+    function isModerationUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['moderationStatus', 'moderationInfo', 'updatedAt']);
+    }
+    
+    function isCountUpdate(allowedFields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields.concat(['updatedAt']));
+    }
+
+    function isParticipant(conversationId) {
+      return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+    }
+
+    // User Profiles
     match /users/{userId} {
-      allow read: if true; // Publicly readable profiles
-      allow create: if isOwner(userId) &&
-                       request.resource.data.username != null &&
-                       request.resource.data.email == request.auth.token.email &&
-                       request.resource.data.followersCount == 0 &&
-                       request.resource.data.followingCount == 0 &&
-                       request.resource.data.postsCount == 0 &&
-                       request.resource.data.isPremium == false &&
-                       request.resource.data.createdAt == request.time;
-      allow update: if isOwner(userId) &&
-                       request.resource.data.email == resource.data.email && // Email cannot be changed by client
-                       request.resource.data.uid == resource.data.uid && // UID cannot be changed
-                       !(request.resource.data.followersCount != resource.data.followersCount) && // Counts managed by triggers
-                       !(request.resource.data.followingCount != resource.data.followingCount) &&
-                       !(request.resource.data.postsCount != resource.data.postsCount) &&
-                       !(request.resource.data.isPremium != resource.data.isPremium) && // Premium status managed by backend
-                       !(request.resource.data.premiumTier != resource.data.premiumTier) &&
-                       !(request.resource.data.subscriptionId != resource.data.subscriptionId) &&
-                       !(request.resource.data.subscriptionStatus != resource.data.subscriptionStatus) &&
-                       !(request.resource.data.currentPeriodEnd != resource.data.currentPeriodEnd) &&
-                       !(request.resource.data.stripeCustomerId != resource.data.stripeCustomerId) &&
-                       request.resource.data.updatedAt == request.time;
-                       // Allow client to update: username, profileImageUrl, bio, location, website, socialMedia, portfolioLink, emailOptIn, themeSettings, fluxSignature
-                       // ModerationStatus is handled by backend.
-      // No client-side delete for users typically
+      allow read: if true;
+      allow create: if isOwner(userId) && request.resource.data.createdAt == request.time;
+      allow update: if isOwner(userId) || isAdmin();
+      // No direct delete by users; handled by admin or retention policies.
     }
 
-    // Posts Collection
-    match /posts/{postId} {
-      allow read: if isPublishedAndApproved(resource.data) || isResourceOwner(resource);
-        // Future: || request.auth.uid in get(/databases/$(database)/documents/followers/$(resource.data.userId)_$(request.auth.uid))).data.followerId); // If follower can read non-public
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) &&
-                       request.resource.data.moderationStatus == 'pending' &&
+    // Generic Content (posts, reels, music, otherArt, artworks)
+    match /{collectionName}/{contentId}
+      where collectionName in ['posts', 'reels', 'music', 'otherArt', 'artworks'] {
+      allow read: if isPublicAndApproved(resource.data) || 
+                     (isAuthenticated() && request.auth.uid == resource.data.userId) || 
+                     isAdmin();
+                     // Consider follower-only logic: exists(/databases/$(database)/documents/followers/$(request.auth.uid)_$(resource.data.userId))
+
+      allow create: if isOwner(request.resource.data.userId) &&
+                       request.resource.data.createdAt == request.time &&
                        request.resource.data.likesCount == 0 &&
                        request.resource.data.commentsCount == 0 &&
-                       request.resource.data.sharesCount == 0;
-      allow update: if isResourceOwner(resource) &&
-                       request.resource.data.userId == resource.data.userId && // Cannot change owner
-                       !(request.resource.data.likesCount != resource.data.likesCount) && // Counts managed by triggers
-                       !(request.resource.data.commentsCount != resource.data.commentsCount) &&
-                       !(request.resource.data.sharesCount != resource.data.sharesCount);
-                       // Allow caption, hashtags, isPublic, contentUrl updates by owner (may re-trigger moderation)
-      allow delete: if isResourceOwner(resource);
+                       request.resource.data.sharesCount == 0 && // Assuming sharesCount for generic content
+                       (request.resource.data.viewsCount == 0 || request.resource.data.viewsCount == null) && // For reels/stories
+                       (request.resource.data.moderationStatus == 'pending' || request.resource.data.moderationStatus == 'approved'); // Allow approved if pre-moderated
+
+      allow update: if (isOwner(resource.data.userId) && !isModerationUpdate() && !isCountUpdate(['likesCount', 'commentsCount', 'sharesCount', 'viewsCount'])) || 
+                       (isAdmin() && (isModerationUpdate() || !isCountUpdate(['likesCount', 'commentsCount', 'sharesCount', 'viewsCount']))) ||
+                       (isAuthenticated() && isCountUpdate(['likesCount', 'commentsCount', 'sharesCount', 'viewsCount'])); // Allow functions/triggers to update counts
+
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
-    // Stories Collection
+    // Stories
     match /stories/{storyId} {
-      allow read: if resource.data.expiresAt > request.time && isModerationStatusApproved(resource.data);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) &&
+      allow read: if (resource.data.moderationStatus == 'approved' && resource.data.expiresAt > request.time) || 
+                     (isAuthenticated() && request.auth.uid == resource.data.userId) ||
+                     isAdmin();
+      allow create: if isOwner(request.resource.data.userId) && 
+                       request.resource.data.createdAt == request.time &&
                        request.resource.data.expiresAt > request.time &&
-                       request.resource.data.moderationStatus == 'pending' &&
-                       request.resource.data.viewsCount == 0;
-      allow update: if isResourceOwner(resource) &&
-                       request.resource.data.userId == resource.data.userId; // Limited updates, e.g., seenBy
-      allow delete: if isResourceOwner(resource);
+                       request.resource.data.viewsCount == 0 &&
+                       (request.resource.data.moderationStatus == 'pending' || request.resource.data.moderationStatus == 'approved');
+      allow update: if (isOwner(resource.data.userId) && !isModerationUpdate() && !isCountUpdate(['viewsCount', 'seenBy'])) ||
+                       (isAdmin() && isModerationUpdate()) ||
+                       (isAuthenticated() && isCountUpdate(['viewsCount', 'seenBy']));
+      allow delete: if isOwner(resource.data.userId) || isAdmin() || resource.data.expiresAt <= request.time;
     }
 
-    // Reels Collection
-    match /reels/{reelId} {
-      allow read: if isReelPublishedAndApproved(resource.data) || isResourceOwner(resource);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) &&
-                       request.resource.data.moderationStatus == 'pending' &&
-                       request.resource.data.likesCount == 0 &&
-                       request.resource.data.commentsCount == 0 &&
-                       request.resource.data.sharesCount == 0;
-      allow update: if isResourceOwner(resource) &&
-                       request.resource.data.userId == resource.data.userId &&
-                       !(request.resource.data.likesCount != resource.data.likesCount) &&
-                       !(request.resource.data.commentsCount != resource.data.commentsCount) &&
-                       !(request.resource.data.sharesCount != resource.data.sharesCount);
-      allow delete: if isResourceOwner(resource);
+    // Shop Items
+    match /shopItems/{itemId} {
+      allow read: if isPublicAndApproved(resource.data) || 
+                     (isAuthenticated() && request.auth.uid == resource.data.artistId) ||
+                     isAdmin();
+      allow create: if isOwner(request.resource.data.artistId) &&
+                       (request.resource.data.moderationStatus == 'pending' || request.resource.data.moderationStatus == 'approved');
+      allow update: if (isOwner(resource.data.artistId) && !isModerationUpdate()) ||
+                       (isAdmin() && isModerationUpdate());
+      allow delete: if isOwner(resource.data.artistId) || isAdmin();
+    }
+    
+    // Orders
+    match /orders/{orderId} {
+        allow read, update: if isOwner(resource.data.userId) || 
+                               (isAuthenticated() && resource.data.items[0].itemId != null && request.auth.uid == get(/databases/$(database)/documents/shopItems/$(resource.data.items[0].itemId)).data.artistId) ||
+                               isAdmin();
+        allow create: if isOwner(request.resource.data.userId); // Stripe webhook should create this typically
     }
 
-    // Music Collection
-    match /music/{musicId} {
-      allow read: if isReelPublishedAndApproved(resource.data) || isResourceOwner(resource); // Using reel's approval logic
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) &&
-                       request.resource.data.moderationStatus == 'pending' &&
-                       request.resource.data.playsCount == 0 &&
-                       request.resource.data.likesCount == 0;
-      allow update: if isResourceOwner(resource) &&
-                       request.resource.data.userId == resource.data.userId &&
-                       !(request.resource.data.playsCount != resource.data.playsCount) &&
-                       !(request.resource.data.likesCount != resource.data.likesCount);
-      allow delete: if isResourceOwner(resource);
-    }
-
-    // OtherArt Collection
-    match /otherArt/{artId} {
-      allow read: if isPublishedAndApproved(resource.data) || isResourceOwner(resource);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) &&
-                       request.resource.data.moderationStatus == 'pending' &&
-                       request.resource.data.likesCount == 0 &&
-                       request.resource.data.commentsCount == 0 &&
-                       request.resource.data.sharesCount == 0;
-      allow update: if isResourceOwner(resource) &&
-                       request.resource.data.userId == resource.data.userId &&
-                       !(request.resource.data.likesCount != resource.data.likesCount) &&
-                       !(request.resource.data.commentsCount != resource.data.commentsCount) &&
-                       !(request.resource.data.sharesCount != resource.data.sharesCount);
-      allow delete: if isResourceOwner(resource);
-    }
-
-    // Comments Collection
+    // Comments
     match /comments/{commentId} {
-      // Read access depends on parent content's readability
-      allow read: if get(/databases/$(database)/documents/$(resource.data.contentType + 's')/$(resource.data.contentId)).data.isPublic == true ||
-                     get(/databases/$(database)/documents/$(resource.data.contentType + 's')/$(resource.data.contentId)).data.isPublished == true || // for reels/music
-                     isOwner(get(/databases/$(database)/documents/$(resource.data.contentType + 's')/$(resource.data.contentId)).data.userId);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) &&
-                       request.resource.data.moderationStatus == 'pending';
-      allow update: if isResourceOwner(resource) && request.resource.data.commentText != null; // Only allow updating text
-      allow delete: if isResourceOwner(resource) || isOwner(get(/databases/$(database)/documents/$(resource.data.contentType + 's')/$(resource.data.contentId)).data.userId); // Content owner can also delete comments
+      function getParentContent(docData) {
+        // Simplified: assumes collection name is contentType + 's'
+        // Needs robust mapping for production (e.g. 'artwork' -> 'artworks')
+        let collection = docData.contentType + (docData.contentType.endsWith('y') ? docData.contentType.slice(0, -1) + 'ies' : docData.contentType + 's');
+        if (docData.contentType == 'otherArt') collection = 'otherArt';
+        if (docData.contentType == 'music') collection = 'music';
+        if (docData.contentType == 'artwork') collection = 'artworks';
+        if (docData.contentType == 'communityPost') return /databases/$(database)/documents/communities/$(get(/databases/$(database)/documents/comments/$(commentId)).data.communityId)/posts/$(docData.contentId);
+
+        return /databases/$(database)/documents/$(collection)/$(docData.contentId);
+      }
+      
+      allow read: if true; // Comments are generally public if parent is. For stricter: get(getParentContent(resource.data)).data.isPublic == true
+      allow create: if isOwner(request.resource.data.userId) &&
+                       (request.resource.data.moderationStatus == 'pending' || request.resource.data.moderationStatus == 'approved');
+      allow update: if (isOwner(resource.data.userId) && !isModerationUpdate()) || 
+                       (isAdmin() && isModerationUpdate());
+      allow delete: if isOwner(resource.data.userId) || 
+                       (isAuthenticated() && request.auth.uid == get(getParentContent(resource.data)).data.userId) || 
+                       isAdmin(); // Comment owner, content owner, or admin
     }
 
-    // Likes Collection
+    // Likes
     match /likes/{likeId} {
-      allow read: if isAuthenticated(); // Or more specific if needed
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow delete: if isAuthenticated() && isOwner(resource.data.userId); // Composite ID means likeId contains userId
-                       // Example: request.auth.uid + '_' + request.resource.data.contentId + '_' + request.resource.data.contentType == likeId
+      allow read: if isAuthenticated(); // Allow any authenticated user to check if they liked something (for UI state)
+      allow create: if isOwner(request.resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
     }
 
-    // Bookmarks Collection
+    // Bookmarks
     match /bookmarks/{bookmarkId} {
-      allow read: if isAuthenticated() && isOwner(resource.data.userId);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow read, create, delete: if isOwner(resource.data.userId);
     }
 
-    // Followers Collection
+    // Followers (followerId_followingId)
     match /followers/{followId} {
-      allow read: if isAuthenticated(); // Publicly viewable who follows whom
-      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.followerId;
+      allow read: if true;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.followerId && request.auth.uid != request.resource.data.followingId;
       allow delete: if isAuthenticated() && request.auth.uid == resource.data.followerId;
     }
 
-    // Messages (Conversations) Collection
+    // Conversations (Direct Messages)
     match /conversations/{conversationId} {
-      allow read, update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow read, update: if isParticipant(conversationId) || isAdmin();
       allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
-      // Delete typically not allowed by clients, or only specific scenarios (e.g., leave group)
       
-      // Chat Subcollection (messages within a conversation)
       match /chat/{messageId} {
-        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-        allow create: if isAuthenticated() && isOwner(request.resource.data.senderId) && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-        allow update: if isAuthenticated() && isOwner(resource.data.senderId); // e.g., for marking as deleted, reactions
-        // Delete typically soft delete via update or admin only
+        allow read: if isParticipant(conversationId) || isAdmin();
+        allow create: if isOwner(request.resource.data.senderId) && isParticipant(conversationId);
+        allow update: if isOwner(resource.data.senderId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isDeleted', 'deletedFor', 'readBy']);
+        // No direct delete by users
       }
     }
 
-    // Notifications Collection
+    // Notifications
     match /notifications/{notificationId} {
-      allow read, update: if isAuthenticated() && isOwner(resource.data.recipientId); // Only recipient can read/update (e.g., mark as read)
-      allow delete: if isAuthenticated() && isOwner(resource.data.recipientId);
-      // Create is server-side only
-      allow create: if false;
+      allow read, update, delete: if isOwner(resource.data.recipientId) || isAdmin();
+      // Create typically handled by Cloud Functions
+      allow create: if isAuthenticated(); // Or check for service account/admin for function-based creation
     }
 
-    // --- Existing ARTISAN App Collections ---
-    // Keep existing rules for artworks (CrystallineBlooms), genesisTrails, museIdeas, etc.
-    // Update 'artworks' to reflect any new fields or if it's merged with 'otherArt' or 'posts'
-
-    // Artworks Collection (Crystalline Blooms)
-    match /artworks/{artworkId} {
-      allow read: if isPublishedAndApproved(resource.data) || isResourceOwner(resource);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) && request.resource.data.moderationStatus == 'pending';
-      allow update: if isResourceOwner(resource) &&
-                       request.resource.data.userId == resource.data.userId &&
-                       !(request.resource.data.isAmplified != resource.data.isAmplified); // Amplification managed by backend
-      allow delete: if isResourceOwner(resource);
-    }
-
-    // GenesisTrails Collection
-    match /genesisTrails/{trailId} {
-      allow read: if isResourceOwner(resource); // Typically private unless shared
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow update, delete: if false; // Immutable by client after creation
-    }
-    
-    // MuseIdeas Collection
-    match /museIdeas/{ideaId} {
-      allow read: if isResourceOwner(resource);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow update, delete: if false;
-    }
-
-    // Biomes & BiomeMemberships
+    // Biomes (Private Spaces)
     match /biomes/{biomeId} {
-      allow read: if true; // Publicly discoverable
-      allow create: if isAuthenticated() && isOwner(request.resource.data.creatorId);
-      allow update: if isOwner(resource.data.creatorId) && 
-                       !(request.resource.data.memberCount != resource.data.memberCount); // memberCount backend managed
-    }
-    match /biomeMemberships/{membershipId} {
-      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isOwner(get(/databases/$(database)/documents/biomes/$(resource.data.biomeId)).data.creatorId));
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId); // Joining logic in server action
-      allow delete: if isAuthenticated() && isOwner(resource.data.userId); // Leaving logic in server action
+      allow read: if true; 
+      allow create: if isOwner(request.resource.data.creatorId);
+      allow update: if (isOwner(resource.data.creatorId) && !isCountUpdate(['memberCount'])) || 
+                       isAdmin() ||
+                       (isAuthenticated() && isCountUpdate(['memberCount'])); // Cloud function updates memberCount
     }
 
-    // Communities & CommunityMemberships
+    match /biomeMemberships/{membershipId} {
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == resource.data.userId || 
+                      request.auth.uid == get(/databases/$(database)/documents/biomes/$(resource.data.biomeId)).data.creatorId ||
+                      isAdmin());
+      allow create: if isOwner(request.resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // Communities (Public Groups)
     match /communities/{communityId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isOwner(request.resource.data.creatorId);
-      allow update: if isOwner(resource.data.creatorId) && 
-                       !(request.resource.data.memberCount != resource.data.memberCount);
+      allow create: if isOwner(request.resource.data.creatorId);
+      allow update: if (isOwner(resource.data.creatorId) && !isCountUpdate(['memberCount'])) || 
+                       isAdmin() ||
+                       (isAuthenticated() && isCountUpdate(['memberCount']));
+      
       match /posts/{postId} { // Community Posts
-        allow read: if isModerationStatusApproved(resource.data);
-        allow create: if isAuthenticated() && 
-                         get(/databases/$(database)/documents/communityMemberships/$(request.auth.uid + '_' + communityId)).exists &&
-                         isOwner(request.resource.data.creatorId) &&
-                         request.resource.data.moderationStatus == 'pending';
-        allow update: if isOwner(resource.data.creatorId);
-        allow delete: if isOwner(resource.data.creatorId);
+        allow read: if resource.data.moderationStatus == 'approved';
+        allow create: if isOwner(request.resource.data.creatorId) &&
+                         exists(/databases/$(database)/documents/communityMemberships/$(request.auth.uid)_$(communityId)) &&
+                         (request.resource.data.moderationStatus == 'pending' || request.resource.data.moderationStatus == 'approved');
+        allow update: if (isOwner(resource.data.creatorId) && !isModerationUpdate()) || isAdmin();
+        allow delete: if isOwner(resource.data.creatorId) || isAdmin();
       }
     }
+
     match /communityMemberships/{membershipId} {
-      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isOwner(get(/databases/$(database)/documents/communities/$(resource.data.communityId)).data.creatorId));
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
-    }
-
-    // ArtistProducts (formerly ShopItems)
-    match /artistProducts/{productId} {
-      allow read: if isReelPublishedAndApproved(resource.data) || isOwner(resource.data.artistId); // Using reel's approval logic for published check
-      allow create: if isAuthenticated() && isOwner(request.resource.data.artistId) && request.resource.data.moderationStatus == 'pending';
-      allow update: if isOwner(resource.data.artistId) && request.resource.data.artistId == resource.data.artistId;
-      allow delete: if isOwner(resource.data.artistId);
-    }
-
-    // Orders
-    match /orders/{orderId} {
-      allow read: if isAuthenticated() && isOwner(resource.data.userId);
-      // Create, update, delete are server-side only (via webhooks ideally)
-      allow create, update, delete: if false; 
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.userId);
+      allow delete: if isOwner(resource.data.userId) || 
+                       isAdmin() || 
+                       (isAuthenticated() && request.auth.uid == get(/databases/$(database)/documents/communities/$(resource.data.communityId)).data.creatorId); // Community owner can remove member
     }
     
-    // LegalDocuments
-    match /LegalDocuments/{documentId} {
-      allow read: if true;
-      allow write: if request.auth.token.admin == true; // Conceptual admin check
+    // Admin only collections (example)
+    match /adminOnly/{docId} {
+        allow read, write: if isAdmin();
     }
 
+    // Existing specific collections (genesisTrails, museIdeas, LegalDocuments)
+    match /genesisTrails/{trailId} {
+      allow read, create: if isOwner(resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+    match /museIdeas/{ideaId} {
+      allow read, create: if isOwner(resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+    match /LegalDocuments/{docId} {
+        allow read: if true;
+        allow write: if isAdmin();
+    }
   }
 }
-    

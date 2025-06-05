@@ -1,14 +1,16 @@
 
 'use server';
 
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase'; // Added storage
 import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, deleteDoc, getDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { ref as storageRef, deleteObject } from 'firebase/storage'; // Added for deletePost
 import type { PostData } from '@/models/contentTypes';
 import type { UserProfileData } from './userProfile';
 
 export async function createPost(
   userId: string,
-  postDetails: Omit<PostData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'likesCount' | 'commentsCount' | 'sharesCount' | 'moderationStatus'>
+  postDetails: Omit<PostData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'likesCount' | 'commentsCount' | 'sharesCount' | 'moderationStatus' | 'author'>,
+  authorDetails: { name?: string; avatarUrl?: string | null; username?: string; dataAiHintAvatar?: string; }
 ): Promise<{ success: boolean; postId?: string; message?: string }> {
   if (!userId) {
     return { success: false, message: "User ID is required." };
@@ -23,6 +25,7 @@ export async function createPost(
     const newPostRef = await addDoc(postsCollectionRef, {
       ...postDetails,
       userId,
+      author: authorDetails, // Add denormalized author data
       isPublic: postDetails.isPublic === undefined ? true : postDetails.isPublic,
       likesCount: 0,
       commentsCount: 0,
@@ -109,7 +112,46 @@ export async function getPublicPosts(count: number = 10): Promise<PostData[]> {
     }
 }
 
+export async function deletePost(postId: string, userId: string): Promise<{ success: boolean; message?: string }> {
+  if (!postId || !userId) {
+    return { success: false, message: "Post ID and User ID are required for deletion." };
+  }
+  console.info(`[deletePost] User ${userId} attempting to delete post ${postId}`);
+  try {
+    const postRef = doc(db, 'posts', postId);
+    const postSnap = await getDoc(postRef);
 
-// TODO: Add updatePost, deletePost actions.
-// deletePost should trigger a Cloud Function (onDeletePost) to handle media deletion from Storage & cleanup interactions.
+    if (!postSnap.exists()) {
+      return { success: false, message: "Post not found." };
+    }
+
+    const postData = postSnap.data() as PostData;
+    if (postData.userId !== userId) {
+      // In a real app, you might also check for admin roles here
+      return { success: false, message: "You are not authorized to delete this post." };
+    }
+
+    // If the post has media in Firebase Storage, delete it
+    if (postData.contentUrl && postData.contentUrl.includes('firebasestorage.googleapis.com')) {
+      try {
+        const fileRef = storageRef(storage, postData.contentUrl);
+        await deleteObject(fileRef);
+        console.info(`[deletePost] Successfully deleted media for post ${postId} from Storage.`);
+      } catch (storageError: any) {
+        // Log error but don't fail deletion of Firestore doc if media deletion fails (e.g., already deleted)
+        console.warn(`[deletePost] Error deleting media for post ${postId} from Storage: ${storageError.message}`);
+      }
+    }
+
+    await deleteDoc(postRef);
+    console.info(`[deletePost] Successfully deleted post ${postId} from Firestore.`);
+    // Cloud Function (onDeletePost) will handle decrementing user's postsCount and deleting related comments/likes.
+    return { success: true, message: "Post deleted successfully." };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error.";
+    console.error(`[deletePost] Error deleting post ${postId}:`, errorMessage, error);
+    return { success: false, message: `Failed to delete post: ${errorMessage}` };
+  }
+}
+
     
