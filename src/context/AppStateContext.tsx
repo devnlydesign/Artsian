@@ -9,8 +9,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
-  GoogleAuthProvider, // Added
-  signInWithPopup,    // Added
+  GoogleAuthProvider,
+  signInWithPopup,
   type User as FirebaseUser 
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +23,7 @@ type AppStateContextType = {
   currentUserProfile: UserProfileData | null; 
   loginUser: (email: string, password: string) => Promise<FirebaseUser | null>;
   signupUser: (email: string, password: string) => Promise<FirebaseUser | null>;
-  signInWithGoogle: () => Promise<FirebaseUser | null>; // Added
+  signInWithGoogle: () => Promise<FirebaseUser | null>;
   logoutUser: () => Promise<void>;
   showWelcome: boolean;
   setShowWelcome: React.Dispatch<React.SetStateAction<boolean>>;
@@ -42,28 +42,26 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const { toast } = useToast();
 
-  const fetchAndSetUserProfile = async (user: FirebaseUser | null, isNewGoogleUser: boolean = false) => {
+  const fetchAndSetUserProfile = async (user: FirebaseUser | null, isNewUser: boolean = false) => {
     if (user) {
       try {
         let userProfile = await getUserProfile(user.uid);
         
-        // If it's a new Google user and their profile doesn't exist yet, create a basic one.
-        if (isNewGoogleUser && !userProfile) {
+        if (isNewUser && !userProfile) {
           const basicProfile: Partial<UserProfileData> = {
             uid: user.uid,
             email: user.email,
             fullName: user.displayName,
             photoURL: user.photoURL,
-            // Initialize other fields as needed from your Step 2 requirements
             username: user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
             followersCount: 0,
             followingCount: 0,
             postsCount: 0,
             storiesCount: 0,
-            moderationStatus: 'approved', // Or 'pending' if new Google user profiles need review
+            moderationStatus: 'approved', 
           };
           await saveUserProfile(user.uid, basicProfile);
-          userProfile = await getUserProfile(user.uid); // Re-fetch to get the saved profile
+          userProfile = await getUserProfile(user.uid); 
         }
         
         setCurrentUserProfile(userProfile);
@@ -99,20 +97,12 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
         
         const userProfileData = await fetchAndSetUserProfile(user);
 
-        // Check if it's an existing user by seeing if profile data implies onboarding was completed
-        // For simplicity, we assume if crucial profile fields like 'bio' or 'genre' (from your full spec) are missing, they need onboarding.
-        // Or, more simply, if they have a profile at all after fetchAndSetUserProfile.
-        const needsOnboarding = !userProfileData || (!userProfileData.bio && !userProfileData.fullName);
+        const needsOnboarding = !userProfileData || (!userProfileData.bio && !userProfileData.fullName); // Simple check
 
-
-        if (needsOnboarding) { 
-          if (pathname !== '/onboarding') { 
+        if (needsOnboarding && !pathname.startsWith('/onboarding')) { 
             router.push('/onboarding');
-          }
-        } else { 
-          if (pathname.startsWith('/auth/') || pathname === '/onboarding') {
+        } else if (!needsOnboarding && (pathname.startsWith('/auth/') || pathname === '/onboarding')) {
             router.push('/');
-          }
         }
 
       } else {
@@ -122,7 +112,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
         htmlElement.classList.add('unauthenticated-theme');
         if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true') {
           setShowWelcome(true);
-          if (!pathname.startsWith('/auth/welcome') && !pathname.startsWith('/auth/login') && !pathname.startsWith('/auth/signup')) {
+          if (!pathname.startsWith('/auth/welcome') && !pathname.startsWith('/auth/login') && !pathname.startsWith('/auth/signup') && !pathname.startsWith('/onboarding')) {
              router.push('/auth/welcome');
           }
         } else {
@@ -137,7 +127,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
     }
      if (typeof window !== 'undefined' && sessionStorage.getItem('hasSeenWelcome') !== 'true' && !auth.currentUser && !pathname.startsWith('/auth/')) {
         setShowWelcome(true);
-        if (!pathname.startsWith('/auth/welcome')) router.push('/auth/welcome');
+        if (!pathname.startsWith('/auth/welcome') && !pathname.startsWith('/onboarding')) router.push('/auth/welcome');
     } else {
       setShowWelcome(false);
     }
@@ -153,6 +143,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
     setIsLoadingAuth(true); 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle profile fetching and redirects
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -170,9 +161,8 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
     setIsLoadingAuth(true); 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // After successful signup with email/password, a basic profile should also be created
-      // or they should be redirected to onboarding. fetchAndSetUserProfile will handle this.
-      await fetchAndSetUserProfile(userCredential.user, true);
+      await fetchAndSetUserProfile(userCredential.user, true); // Pass true for isNewUser
+      // onAuthStateChanged will handle profile fetching and redirects, including onboarding
       return userCredential.user;
     } catch (error: any) {
       console.error("Firebase signup error:", error);
@@ -193,9 +183,8 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      // This will trigger the onAuthStateChanged listener, which will then call fetchAndSetUserProfile.
-      // We pass `true` for `isNewGoogleUser` to ensure profile creation if it's their first time.
-      await fetchAndSetUserProfile(result.user, true); 
+      await fetchAndSetUserProfile(result.user, true); // Pass true for isNewUser
+      // onAuthStateChanged will handle profile fetching and redirects, including onboarding
       return result.user;
     } catch (error: any) {
       console.error("Google sign-in error:", error);
@@ -215,6 +204,10 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
     try {
       await signOut(auth);
       sessionStorage.removeItem('hasSeenWelcome');
+      setCurrentUser(null); // Explicitly clear states
+      setIsAuthenticated(false);
+      setCurrentUserProfile(null);
+      router.push('/auth/welcome'); // Redirect to welcome after logout
     } catch (error) {
       console.error("Firebase logout error:", error);
       toast({ title: "Logout Error", description: "Failed to log out. Please try again.", variant: "destructive" });
@@ -229,7 +222,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       currentUserProfile,
       loginUser, 
       signupUser, 
-      signInWithGoogle, // Added
+      signInWithGoogle,
       logoutUser, 
       showWelcome, 
       setShowWelcome,
@@ -247,5 +240,3 @@ export const useAppState = () => {
   }
   return context;
 };
-
-    
