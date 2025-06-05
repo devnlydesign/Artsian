@@ -74,10 +74,11 @@ export async function getPostsByUserId(userId: string, count: number = 10): Prom
     }
     try {
         const postsRef = collection(db, 'posts');
+        // For fetching own posts for profile management or personal feed, no public filter needed here.
+        // Public filtering should happen when displaying other users' profiles or public feeds.
         const q = query(
             postsRef, 
             where("userId", "==", userId), 
-            // Optionally, only show approved on profile: where("moderationStatus", "==", "approved"), 
             orderBy("createdAt", "desc"), 
             limit(count)
         );
@@ -88,6 +89,26 @@ export async function getPostsByUserId(userId: string, count: number = 10): Prom
         return [];
     }
 }
+
+export async function getPublicPosts(count: number = 10): Promise<PostData[]> {
+    // console.info("[getPublicPosts] Fetching public posts.");
+    try {
+        const postsRef = collection(db, 'posts');
+        const q = query(
+            postsRef,
+            where("isPublic", "==", true),
+            where("moderationStatus", "==", "approved"),
+            orderBy("createdAt", "desc"),
+            limit(count)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PostData));
+    } catch (error) {
+        console.error("[getPublicPosts] Error fetching public posts:", error);
+        return [];
+    }
+}
+
 
 // TODO: Add updatePost, deletePost actions.
 // deletePost should trigger a Cloud Function (onDeletePost) to handle media deletion from Storage & cleanup interactions.

@@ -2,9 +2,9 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { 
-  collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, 
-  deleteDoc, getDoc, query, where, getDocs, runTransaction, increment, setDoc 
+import {
+  collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc,
+  deleteDoc, getDoc, query, where, getDocs, runTransaction, increment, setDoc, orderBy, limit
 } from 'firebase/firestore';
 import type { CommentData, LikeData, BookmarkData, FollowData, ContentType } from '@/models/interactionTypes';
 import { createPlatformNotification } from './notificationActions';
@@ -16,7 +16,9 @@ export async function addComment(
   contentId: string,
   contentType: ContentType,
   commentText: string,
-  parentId: string | null = null // Added parentId for replies
+  parentId: string | null = null, // Added parentId for replies
+  creatorName?: string | null, // Denormalized
+  creatorAvatarUrl?: string | null // Denormalized
 ): Promise<{ success: boolean; commentId?: string; message?: string }> {
   if (!userId || !contentId || !contentType || !commentText) {
     return { success: false, message: "Missing required fields for comment." };
@@ -29,6 +31,8 @@ export async function addComment(
       contentType,
       commentText,
       parentId,
+      creatorName: creatorName || "User",
+      creatorAvatarUrl: creatorAvatarUrl || null,
       likesCount: 0,
       moderationStatus: 'pending', // All comments start as pending
       createdAt: serverTimestamp(),
@@ -45,6 +49,27 @@ export async function addComment(
   }
 }
 
+export async function getCommentsByContentId(contentId: string, contentType: ContentType, count: number = 5): Promise<CommentData[]> {
+  if (!contentId || !contentType) return [];
+  try {
+    const commentsRef = collection(db, 'comments');
+    const q = query(
+      commentsRef,
+      where('contentId', '==', contentId),
+      where('contentType', '==', contentType),
+      where('moderationStatus', '==', 'approved'), // Only show approved comments
+      orderBy('createdAt', 'desc'),
+      limit(count)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommentData));
+  } catch (error) {
+    console.error(`[getCommentsByContentId] Error fetching comments for ${contentType} ${contentId}:`, error);
+    return [];
+  }
+}
+
+
 // --- Likes ---
 export async function toggleLike(
   userId: string,
@@ -55,10 +80,10 @@ export async function toggleLike(
     return { success: false, liked: false, message: "Missing required fields for like." };
   }
   console.info(`[toggleLike] User ${userId} toggling like for ${contentType} ${contentId}`);
-  
-  const likeId = `${userId}_${contentId}_${contentType}`; 
+
+  const likeId = `${userId}_${contentId}_${contentType}`;
   const likeRef = doc(db, 'likes', likeId);
-  
+
   try {
     const likeSnap = await getDoc(likeRef);
     if (likeSnap.exists()) { // Unlike
@@ -79,6 +104,19 @@ export async function toggleLike(
   }
 }
 
+export async function getLikeStatus(userId: string, contentId: string, contentType: ContentType): Promise<boolean> {
+  if (!userId || !contentId || !contentType) return false;
+  const likeId = `${userId}_${contentId}_${contentType}`;
+  const likeRef = doc(db, 'likes', likeId);
+  try {
+    const docSnap = await getDoc(likeRef);
+    return docSnap.exists();
+  } catch (error) {
+    console.error(`[getLikeStatus] Error checking like status for ${contentType} ${contentId}, user ${userId}:`, error);
+    return false;
+  }
+}
+
 // --- Bookmarks ---
 export async function toggleBookmark(
   userId: string,
@@ -91,7 +129,7 @@ export async function toggleBookmark(
   }
   console.info(`[toggleBookmark] User ${userId} toggling bookmark for ${contentType} ${contentId}`);
 
-  const bookmarkId = `${userId}_${contentId}_${contentType}`; 
+  const bookmarkId = `${userId}_${contentId}_${contentType}`;
   const bookmarkRef = doc(db, 'bookmarks', bookmarkId);
 
   try {
@@ -101,12 +139,12 @@ export async function toggleBookmark(
       console.info(`[toggleBookmark] Unbookmarked ${contentType} ${contentId} by ${userId}`);
       return { success: true, bookmarked: false };
     } else { // Bookmark
-      await setDoc(bookmarkRef, { 
-        userId, 
-        contentId, 
-        contentType, 
+      await setDoc(bookmarkRef, {
+        userId,
+        contentId,
+        contentType,
         collectionName: collectionName || null, // Store null if no collection name
-        createdAt: serverTimestamp() 
+        createdAt: serverTimestamp()
       });
       console.info(`[toggleBookmark] Bookmarked ${contentType} ${contentId} by ${userId}`);
       return { success: true, bookmarked: true };
@@ -117,6 +155,20 @@ export async function toggleBookmark(
     return { success: false, bookmarked: false, message: `Failed to toggle bookmark: ${msg}` };
   }
 }
+
+export async function getBookmarkStatus(userId: string, contentId: string, contentType: ContentType): Promise<boolean> {
+  if (!userId || !contentId || !contentType) return false;
+  const bookmarkId = `${userId}_${contentId}_${contentType}`;
+  const bookmarkRef = doc(db, 'bookmarks', bookmarkId);
+  try {
+    const docSnap = await getDoc(bookmarkRef);
+    return docSnap.exists();
+  } catch (error) {
+    console.error(`[getBookmarkStatus] Error checking bookmark status for ${contentType} ${contentId}, user ${userId}:`, error);
+    return false;
+  }
+}
+
 
 // --- Followers ---
 export async function followUser(
@@ -141,10 +193,10 @@ export async function followUser(
 
     await setDoc(followRef, {
       followerId: currentUserId,
-      followingId: targetUserId,
+      followingId: targetUserId, // Corrected from followedId to followingId for consistency
       createdAt: serverTimestamp(),
     });
-    
+
     // Follower/Following counts and notification will be handled by Cloud Function (onFollowUser trigger).
     console.info(`[followUser] Success: ${currentUserId} now follows ${targetUserId}. Follow record created.`);
     return { success: true };
@@ -174,7 +226,7 @@ export async function unfollowUser(
       console.info(`[unfollowUser] User ${currentUserId} is not following ${targetUserId}.`);
       return { success: false, message: "You are not following this user." };
     }
-    
+
     await deleteDoc(followRef);
     // Follower/Following counts decrement will be handled by Cloud Function (onUnfollowUser trigger).
     console.info(`[unfollowUser] Success: ${currentUserId} unfollowed ${targetUserId}. Follow record deleted.`);
@@ -190,7 +242,11 @@ export async function isFollowing(currentUserId: string, targetUserId: string): 
     if (!currentUserId || !targetUserId) return false;
     const followId = `${currentUserId}_${targetUserId}`;
     const followRef = doc(db, 'followers', followId);
-    const docSnap = await getDoc(followRef);
-    return docSnap.exists();
+    try {
+        const docSnap = await getDoc(followRef);
+        return docSnap.exists();
+    } catch (error) {
+        console.error(`[isFollowing] Error checking follow status for ${currentUserId} -> ${targetUserId}:`, error);
+        return false;
+    }
 }
-    

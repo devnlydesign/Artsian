@@ -45,7 +45,7 @@ export interface ArtworkData {
 
 export async function createArtwork(
   userId: string,
-  artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished' | 'status' | 'isAmplified' | 'amplifiedAt' | 'moderationStatus' | 'moderationInfo' | 'imageUrlOriginal'> & { isPublished?: boolean; scheduledPublishTime?: Timestamp | null; imageUrlOriginal?: string; layers?: LayerData[] }
+  artworkDetails: Omit<ArtworkData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isPublished' | 'status' | 'isAmplified' | 'amplifiedAt' | 'moderationStatus' | 'moderationInfo' | 'imageUrlOriginal'> & { isPublished?: boolean; scheduledPublishTime?: Timestamp | null; imageUrlOriginal?: string; layers?: LayerData[]; tags?: string[] }
 ): Promise<{ success: boolean; artworkId?: string; message?: string }> {
   if (!userId) {
     const msg = '[createArtwork] Missing userId.';
@@ -70,18 +70,15 @@ export async function createArtwork(
       published = false;
       console.info(`[createArtwork] Artwork "${artworkDetails.title}" is scheduled for publishing at ${artworkDetails.scheduledPublishTime.toDate().toISOString()}`);
     } else if (artworkDetails.isPublished === true && (!artworkDetails.scheduledPublishTime || artworkDetails.scheduledPublishTime.toDate() <= new Date())) {
-      // If explicitly set to published and not scheduled for future, set to pending_moderation.
-      // Actual publishing will happen post-moderation or via scheduled job.
       currentStatus = 'pending_moderation'; 
       published = false; 
       console.info(`[createArtwork] Artwork "${artworkDetails.title}" marked for publishing, will go to moderation first.`);
     } else {
-      currentStatus = 'draft'; // Default to draft if not explicitly published or scheduled.
+      currentStatus = 'draft'; 
       published = false;
       console.info(`[createArtwork] Artwork "${artworkDetails.title}" saved as draft.`);
     }
     
-    // Ensure moderation is pending if not draft
     if (currentStatus !== 'draft') {
         currentStatus = 'pending_moderation';
     }
@@ -91,19 +88,19 @@ export async function createArtwork(
       ...artworkDetails,
       userId: userId,
       layers: artworkDetails.layers || [],
-      isPublished: published, // isPublished is false initially, will be set true by moderation/scheduler
+      tags: artworkDetails.tags || [],
+      isPublished: published, 
       status: currentStatus,
       scheduledPublishTime: artworkDetails.scheduledPublishTime || null,
       imageUrlOriginal: artworkDetails.imageUrlOriginal || artworkDetails.imageUrl, 
       isAmplified: false,
       amplifiedAt: null,
-      moderationStatus: 'pending', // All new non-draft content goes to pending moderation
+      moderationStatus: 'pending', 
       moderationInfo: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     console.info(`[createArtwork] Successfully created artworkId: ${docRef.id} for userId: ${userId} with status: ${currentStatus}. Moderation status: pending.`);
-    // TODO: Trigger content moderation Cloud Function here for the new artwork (docRef.id)
     return { success: true, artworkId: docRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -112,17 +109,26 @@ export async function createArtwork(
   }
 }
 
-export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]> {
+export async function getArtworksByUserId(userId: string, requesterId?: string | null): Promise<ArtworkData[]> {
   if (!userId) {
-    const msg = '[getArtworksByUserId] Missing userId.';
-    console.warn(msg);
+    // console.warn('[getArtworksByUserId] Missing userId.'); // Can be noisy
     return [];
   }
-  // console.info(`[getArtworksByUserId] Fetching for userId: ${userId}`);
+  // console.info(`[getArtworksByUserId] Fetching for userId: ${userId}, requesterId: ${requesterId}`);
 
   try {
     const artworksCollectionRef = collection(db, 'artworks');
-    const q = query(artworksCollectionRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
+    let qConstraints = [where("userId", "==", userId), orderBy("createdAt", "desc")];
+
+    // If a requesterId is provided and it's different from the userId,
+    // or if no requesterId is provided (unauthenticated view), then filter for public/approved.
+    const isPublicView = !requesterId || requesterId !== userId;
+    if (isPublicView) {
+      qConstraints.unshift(where("isPublished", "==", true)); // unshift to add to beginning for better index usage potentially
+      qConstraints.unshift(where("moderationStatus", "==", "approved"));
+    }
+    
+    const q = query(artworksCollectionRef, ...qConstraints);
     const querySnapshot = await getDocs(q);
 
     const artworks: ArtworkData[] = [];
@@ -133,7 +139,7 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
             artworks.push({
               id: doc.id,
               ...data,
-              layers: Array.isArray(data.layers) ? data.layers : [], // Ensure layers is always an array
+              layers: Array.isArray(data.layers) ? data.layers : [], 
               imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, 
               isPublished: data.isPublished ?? (data.status === 'published'),
               status: data.status ?? 'draft',
@@ -160,34 +166,42 @@ export async function getArtworksByUserId(userId: string): Promise<ArtworkData[]
   }
 }
 
-export async function getArtworkById(artworkId: string): Promise<ArtworkData | null> {
+export async function getArtworkById(artworkId: string, requesterId?: string | null): Promise<ArtworkData | null> {
   if (!artworkId) {
-    const msg = '[getArtworkById] Missing artworkId.';
-    console.warn(msg);
+    // console.warn('[getArtworkById] Missing artworkId.');
     return null;
   }
-  // console.info(`[getArtworkById] Fetching artworkId: ${artworkId}`);
+  // console.info(`[getArtworkById] Fetching artworkId: ${artworkId}, requesterId: ${requesterId}`);
 
   try {
     const artworkDocRef = doc(db, 'artworks', artworkId);
     const docSnap = await getDoc(artworkDocRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
-      const layers = Array.isArray(data.layers) ? data.layers : [];
-      // console.info(`[getArtworkById] Found artworkId: ${artworkId}`);
-      return {
-        id: docSnap.id,
-        ...data,
-        layers,
-        imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, 
-        isPublished: data.isPublished ?? (data.status === 'published'),
-        status: data.status ?? 'draft',
-        scheduledPublishTime: data.scheduledPublishTime ?? null,
-        isAmplified: data.isAmplified ?? false,
-        amplifiedAt: data.amplifiedAt ?? null,
-        moderationStatus: data.moderationStatus ?? 'approved',
-        moderationInfo: data.moderationInfo ?? null,
-      } as ArtworkData;
+      
+      const isOwner = requesterId === data.userId;
+      const isPublicAndApproved = data.isPublished === true && data.moderationStatus === 'approved';
+
+      if (isOwner || isPublicAndApproved) {
+        const layers = Array.isArray(data.layers) ? data.layers : [];
+        // console.info(`[getArtworkById] Found artworkId: ${artworkId}`);
+        return {
+          id: docSnap.id,
+          ...data,
+          layers,
+          imageUrlOriginal: data.imageUrlOriginal || data.imageUrl, 
+          isPublished: data.isPublished ?? (data.status === 'published'),
+          status: data.status ?? 'draft',
+          scheduledPublishTime: data.scheduledPublishTime ?? null,
+          isAmplified: data.isAmplified ?? false,
+          amplifiedAt: data.amplifiedAt ?? null,
+          moderationStatus: data.moderationStatus ?? 'approved',
+          moderationInfo: data.moderationInfo ?? null,
+        } as ArtworkData;
+      } else {
+        console.warn(`[getArtworkById] Access denied or artwork not public/approved for artworkId: ${artworkId}. Owner: ${isOwner}, Public: ${isPublicAndApproved}`);
+        return null;
+      }
     } else {
       console.warn(`[getArtworkById] No artwork found with artworkId: ${artworkId}`);
       return null;
