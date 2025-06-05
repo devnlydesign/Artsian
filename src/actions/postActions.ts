@@ -2,14 +2,14 @@
 'use server';
 
 import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, deleteDoc, getDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { ref as storageRef, deleteObject } from 'firebase/storage';
+import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, deleteDoc, getDoc, query, where, getDocs, orderBy, limit, startAfter, type DocumentSnapshot, writeBatch } from 'firebase/firestore';
+import { ref as storageRefSdkFirebase, deleteObject as deleteStorageObjectFirebase } from 'firebase/storage';
 import type { PostData } from '@/models/contentTypes';
 import type { UserProfileData } from './userProfile';
 
 export async function createPost(
   userId: string,
-  postDetails: Omit<PostData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'likesCount' | 'commentsCount' | 'sharesCount' | 'moderationStatus' | 'author'>,
+  postDetails: Omit<PostData, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'likesCount' | 'commentsCount' | 'sharesCount' | 'moderationStatus'>,
   authorDetails: { name?: string; avatarUrl?: string | null; username?: string; dataAiHintAvatar?: string; }
 ): Promise<{ success: boolean; postId?: string; message?: string }> {
   if (!userId) {
@@ -25,7 +25,7 @@ export async function createPost(
     const newPostRef = await addDoc(postsCollectionRef, {
       ...postDetails,
       userId,
-      author: authorDetails,
+      author: authorDetails, // Save denormalized author details
       isPublic: postDetails.isPublic === undefined ? true : postDetails.isPublic,
       likesCount: 0,
       commentsCount: 0,
@@ -34,7 +34,8 @@ export async function createPost(
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    console.info(`[createPost] Successfully created postId: ${newPostRef.id} for userId: ${userId}. Moderation: pending.`);
+    console.info(`[createPost] Successfully created postId: ${newPostRef.id} for userId: ${userId}. Moderation status: pending.`);
+    // Cloud Function (onCreatePost) should update user's postsCount and notify followers.
     return { success: true, postId: newPostRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error.";
@@ -53,11 +54,8 @@ export async function getPostById(postId: string): Promise<PostData | null> {
     const postSnap = await getDoc(postRef);
     if (postSnap.exists()) {
       const data = postSnap.data() as PostData;
-      if (data.moderationStatus === 'approved' || data.isPublic) { 
-        return { id: postSnap.id, ...data };
-      }
-      console.warn(`[getPostById] Post ${postId} exists but not approved/public for general view.`);
-      return null; 
+      // Consider if moderationStatus check is needed here for direct fetch or if it's owner-only context
+      return { id: postSnap.id, ...data };
     }
     console.warn(`[getPostById] Post ${postId} not found.`);
     return null;
@@ -67,72 +65,105 @@ export async function getPostById(postId: string): Promise<PostData | null> {
   }
 }
 
-export async function getPostsByUserId(userId: string, count: number = 10): Promise<PostData[]> {
+export async function getPostsByUserId(
+  userId: string, 
+  postsLimit: number = 10,
+  lastVisibleDoc: DocumentSnapshot | null = null
+  ): Promise<{ posts: PostData[], lastDoc: DocumentSnapshot | null }> {
     if (!userId) {
         console.warn("[getPostsByUserId] Missing userId.");
-        return [];
+        return { posts: [], lastDoc: null};
     }
     try {
         const postsRef = collection(db, 'posts');
-        const q = query(
-            postsRef, 
+        let qConstraints = [
             where("userId", "==", userId), 
             orderBy("createdAt", "desc"), 
-            limit(count)
-        );
+            limit(postsLimit)
+        ];
+
+        if (lastVisibleDoc) {
+            qConstraints.push(startAfter(lastVisibleDoc));
+        }
+        
+        const q = query(postsRef, ...qConstraints);
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PostData));
+        const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PostData));
+        const newLastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+        return { posts, lastDoc: newLastDoc };
+
     } catch (error) {
         console.error("[getPostsByUserId] Error:", error);
-        return [];
+        return { posts: [], lastDoc: null};
     }
 }
 
-export async function getPublicPosts(count: number = 10): Promise<PostData[]> {
+export async function getPublicPosts(
+  postsLimit: number = 10,
+  lastVisibleDoc: DocumentSnapshot | null = null
+): Promise<{ posts: PostData[], lastDoc: DocumentSnapshot | null }> {
     try {
         const postsRef = collection(db, 'posts');
-        const q = query(
-            postsRef,
+        let qConstraints = [
             where("isPublic", "==", true),
             where("moderationStatus", "==", "approved"),
             orderBy("createdAt", "desc"),
-            limit(count)
-        );
+            limit(postsLimit)
+        ];
+        
+        if (lastVisibleDoc) {
+            qConstraints.push(startAfter(lastVisibleDoc));
+        }
+        
+        const q = query(postsRef, ...qConstraints);
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PostData));
+        const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PostData));
+        const newLastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+        return { posts, lastDoc: newLastDoc };
     } catch (error) {
         console.error("[getPublicPosts] Error fetching public posts:", error);
-        return [];
+        return { posts: [], lastDoc: null};
     }
 }
 
-export async function getPostsByUsers(userIds: string[], postsLimit: number = 10): Promise<PostData[]> {
+export async function getPostsByUsers(
+  userIds: string[], 
+  postsLimit: number = 10,
+  lastVisibleDoc: DocumentSnapshot | null = null
+): Promise<{ posts: PostData[], lastDoc: DocumentSnapshot | null }> {
   if (!userIds || userIds.length === 0) {
-    return [];
+    return { posts: [], lastDoc: null};
   }
-  // Firestore 'in' queries are limited to 30 items. If more, split into multiple queries.
-  // For this example, we'll assume userIds.length <= 30.
-  // For larger scale, a denormalized feed is better.
+  // Firestore 'in' queries are limited to 30 items per query.
+  // For larger scale, a denormalized feed or multiple queries would be needed.
+  const safeUserIds = userIds.slice(0, 30); 
   if (userIds.length > 30) {
-      console.warn("[getPostsByUsers] Querying for more than 30 users, this is inefficient. Consider feed denormalization.");
-      userIds = userIds.slice(0, 30); // Truncate for this basic example
+      console.warn("[getPostsByUsers] Querying for more than 30 users. Results truncated to first 30 users for this query batch.");
   }
 
   try {
     const postsRef = collection(db, 'posts');
-    const q = query(
-      postsRef,
-      where('userId', 'in', userIds),
-      where('isPublic', '==', true),
+    let qConstraints = [
+      where('userId', 'in', safeUserIds),
+      where('isPublic', '==', true), // Usually, feed shows public posts from followed users
       where('moderationStatus', '==', 'approved'),
       orderBy('createdAt', 'desc'),
       limit(postsLimit)
-    );
+    ];
+
+    if (lastVisibleDoc) {
+        qConstraints.push(startAfter(lastVisibleDoc));
+    }
+
+    const q = query(postsRef, ...qConstraints);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PostData));
+    const posts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PostData));
+    const newLastDoc = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
+    return { posts, lastDoc: newLastDoc };
+
   } catch (error) {
     console.error("[getPostsByUsers] Error fetching posts:", error);
-    return [];
+    return { posts: [], lastDoc: null};
   }
 }
 
@@ -151,24 +182,28 @@ export async function deletePost(postId: string, userId: string): Promise<{ succ
 
     const postData = postSnap.data() as PostData;
     if (postData.userId !== userId) {
+      // Add role-based deletion for admins/moderators if needed in future
       return { success: false, message: "You are not authorized to delete this post." };
     }
 
+    // Delete associated media from Firebase Storage if contentUrl exists
     if (postData.contentUrl && postData.contentUrl.includes('firebasestorage.googleapis.com')) {
       try {
-        const fileRef = storageRef(storage, postData.contentUrl);
-        await deleteObject(fileRef);
+        const fileRef = storageRefSdkFirebase(storage, postData.contentUrl);
+        await deleteStorageObjectFirebase(fileRef);
         console.info(`[deletePost] Successfully deleted media for post ${postId} from Storage.`);
       } catch (storageError: any) {
+        // Log error but don't block Firestore deletion if storage deletion fails (e.g. file already gone)
         if (storageError.code !== 'storage/object-not-found') {
           console.warn(`[deletePost] Error deleting media for post ${postId} from Storage: ${storageError.message}`);
         }
       }
     }
-
+    
+    // Delete the post document from Firestore
     await deleteDoc(postRef);
     console.info(`[deletePost] Successfully deleted post ${postId} from Firestore.`);
-    // Cloud Function (onDeletePost) will handle decrementing user's postsCount and deleting related comments/likes.
+    // Cloud Function (onDeletePost) should handle decrementing user's postsCount and deleting related comments/likes.
     return { success: true, message: "Post deleted successfully." };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error.";
