@@ -1,9 +1,9 @@
 
 'use server';
 
-import { db, storage } from '@/lib/firebase'; // Added storage
+import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, deleteDoc, getDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { ref as storageRef, deleteObject } from 'firebase/storage'; // Added for deletePost
+import { ref as storageRef, deleteObject } from 'firebase/storage';
 import type { PostData } from '@/models/contentTypes';
 import type { UserProfileData } from './userProfile';
 
@@ -25,18 +25,16 @@ export async function createPost(
     const newPostRef = await addDoc(postsCollectionRef, {
       ...postDetails,
       userId,
-      author: authorDetails, // Add denormalized author data
+      author: authorDetails,
       isPublic: postDetails.isPublic === undefined ? true : postDetails.isPublic,
       likesCount: 0,
       commentsCount: 0,
       sharesCount: 0,
-      moderationStatus: 'pending', // Default to pending moderation
+      moderationStatus: 'pending',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     console.info(`[createPost] Successfully created postId: ${newPostRef.id} for userId: ${userId}. Moderation: pending.`);
-    // Cloud Function (onCreatePost) will handle user's postsCount update.
-    // Cloud Function (onCreatePost) can trigger content moderation.
     return { success: true, postId: newPostRef.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error.";
@@ -55,7 +53,6 @@ export async function getPostById(postId: string): Promise<PostData | null> {
     const postSnap = await getDoc(postRef);
     if (postSnap.exists()) {
       const data = postSnap.data() as PostData;
-      // Basic visibility check, more robust checks in security rules
       if (data.moderationStatus === 'approved' || data.isPublic) { 
         return { id: postSnap.id, ...data };
       }
@@ -77,8 +74,6 @@ export async function getPostsByUserId(userId: string, count: number = 10): Prom
     }
     try {
         const postsRef = collection(db, 'posts');
-        // For fetching own posts for profile management or personal feed, no public filter needed here.
-        // Public filtering should happen when displaying other users' profiles or public feeds.
         const q = query(
             postsRef, 
             where("userId", "==", userId), 
@@ -94,7 +89,6 @@ export async function getPostsByUserId(userId: string, count: number = 10): Prom
 }
 
 export async function getPublicPosts(count: number = 10): Promise<PostData[]> {
-    // console.info("[getPublicPosts] Fetching public posts.");
     try {
         const postsRef = collection(db, 'posts');
         const q = query(
@@ -112,6 +106,36 @@ export async function getPublicPosts(count: number = 10): Promise<PostData[]> {
     }
 }
 
+export async function getPostsByUsers(userIds: string[], postsLimit: number = 10): Promise<PostData[]> {
+  if (!userIds || userIds.length === 0) {
+    return [];
+  }
+  // Firestore 'in' queries are limited to 30 items. If more, split into multiple queries.
+  // For this example, we'll assume userIds.length <= 30.
+  // For larger scale, a denormalized feed is better.
+  if (userIds.length > 30) {
+      console.warn("[getPostsByUsers] Querying for more than 30 users, this is inefficient. Consider feed denormalization.");
+      userIds = userIds.slice(0, 30); // Truncate for this basic example
+  }
+
+  try {
+    const postsRef = collection(db, 'posts');
+    const q = query(
+      postsRef,
+      where('userId', 'in', userIds),
+      where('isPublic', '==', true),
+      where('moderationStatus', '==', 'approved'),
+      orderBy('createdAt', 'desc'),
+      limit(postsLimit)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PostData));
+  } catch (error) {
+    console.error("[getPostsByUsers] Error fetching posts:", error);
+    return [];
+  }
+}
+
 export async function deletePost(postId: string, userId: string): Promise<{ success: boolean; message?: string }> {
   if (!postId || !userId) {
     return { success: false, message: "Post ID and User ID are required for deletion." };
@@ -127,19 +151,18 @@ export async function deletePost(postId: string, userId: string): Promise<{ succ
 
     const postData = postSnap.data() as PostData;
     if (postData.userId !== userId) {
-      // In a real app, you might also check for admin roles here
       return { success: false, message: "You are not authorized to delete this post." };
     }
 
-    // If the post has media in Firebase Storage, delete it
     if (postData.contentUrl && postData.contentUrl.includes('firebasestorage.googleapis.com')) {
       try {
         const fileRef = storageRef(storage, postData.contentUrl);
         await deleteObject(fileRef);
         console.info(`[deletePost] Successfully deleted media for post ${postId} from Storage.`);
       } catch (storageError: any) {
-        // Log error but don't fail deletion of Firestore doc if media deletion fails (e.g., already deleted)
-        console.warn(`[deletePost] Error deleting media for post ${postId} from Storage: ${storageError.message}`);
+        if (storageError.code !== 'storage/object-not-found') {
+          console.warn(`[deletePost] Error deleting media for post ${postId} from Storage: ${storageError.message}`);
+        }
       }
     }
 
@@ -153,5 +176,3 @@ export async function deletePost(postId: string, userId: string): Promise<{ succ
     return { success: false, message: `Failed to delete post: ${errorMessage}` };
   }
 }
-
-    

@@ -1,0 +1,147 @@
+
+import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions';
+
+const db = admin.firestore();
+
+// Example: When a new shop item is created and marked for moderation
+export const onShopItemCreated = functions.firestore
+  .document('shopItems/{itemId}')
+  .onCreate(async (snap, context) => {
+    const itemData = snap.data();
+    const itemId = context.params.itemId;
+
+    if (!itemData) {
+      console.log(`Shop item ${itemId} created but no data found.`);
+      return null;
+    }
+
+    console.log(`New shop item created: ${itemId} by artist ${itemData.artistId}. Name: ${itemData.name}`);
+
+    // If moderation is pending, you might trigger an admin notification or an automated check
+    if (itemData.moderationStatus === 'pending') {
+      console.log(`Shop item ${itemId} is pending moderation.`);
+      // Example: Send a notification to an admin group or use an AI content moderation service.
+      // This could involve creating a document in a 'moderationQueue' collection.
+    }
+
+    // Update artist's shop item count (if you track this on the user profile)
+    // const artistRef = db.collection('users').doc(itemData.artistId);
+    // try {
+    //   await artistRef.update({
+    //     shopItemsCount: admin.firestore.FieldValue.increment(1),
+    //     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    //   });
+    //   console.log(`Incremented shopItemsCount for artist ${itemData.artistId}`);
+    // } catch (error) {
+    //   console.error(`Error updating shopItemsCount for artist ${itemData.artistId}:`, error);
+    // }
+
+    return null;
+  });
+
+// Example: When a shop item is updated, especially if content changes
+export const onShopItemUpdated = functions.firestore
+  .document('shopItems/{itemId}')
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+    const itemId = context.params.itemId;
+
+    if (!beforeData || !afterData) {
+        console.log(`Shop item update trigger for ${itemId}, but data is missing.`);
+        return null;
+    }
+
+    // Check if key fields that require re-moderation have changed
+    const requiresModeration = 
+        (beforeData.name !== afterData.name) ||
+        (beforeData.description !== afterData.description) ||
+        (beforeData.imageUrl !== afterData.imageUrl); // Assuming imageUrl can change
+
+    if (requiresModeration && afterData.moderationStatus !== 'pending') {
+        console.log(`Shop item ${itemId} content updated. Resetting moderationStatus to 'pending'.`);
+        try {
+            await change.after.ref.update({
+                moderationStatus: 'pending',
+                moderationInfo: { reason: 'Content updated by artist.', autoModerated: false, checkedAt: null },
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            // Trigger re-moderation flow if applicable
+        } catch (error) {
+            console.error(`Error resetting moderationStatus for shop item ${itemId}:`, error);
+        }
+    }
+    return null;
+  });
+
+
+// Example: When an order is created (e.g., after successful payment confirmed by Stripe webhook)
+// This assumes your Stripe webhook function writes to the 'orders' collection.
+export const onOrderCreated = functions.firestore
+  .document('orders/{orderId}')
+  .onCreate(async (snap, context) => {
+    const orderData = snap.data();
+    const orderId = context.params.orderId;
+
+    if (!orderData || !orderData.userId || !orderData.items) {
+      console.error(`Order ${orderId} created but missing crucial data.`);
+      return null;
+    }
+
+    console.log(`New order ${orderId} created for user ${orderData.userId}.`);
+
+    // 1. Send order confirmation notification/email to the buyer
+    // await createNotification(
+    //   orderData.userId,
+    //   'order_confirmation',
+    //   `Your order #${orderId.substring(0,6)} has been confirmed! Total: $${(orderData.totalAmountInCents / 100).toFixed(2)}.`,
+    //   null, null, null, orderId, 'order', `/orders/${orderId}` // Placeholder link
+    // );
+
+    // 2. Notify artists whose items were sold
+    const artistNotifications = new Map<string, any[]>();
+    for (const item of orderData.items) {
+      const shopItemSnap = await db.collection('shopItems').doc(item.itemId).get();
+      if (shopItemSnap.exists()) {
+        const shopItemData = shopItemSnap.data();
+        if (shopItemData && shopItemData.artistId) {
+          if (!artistNotifications.has(shopItemData.artistId)) {
+            artistNotifications.set(shopItemData.artistId, []);
+          }
+          artistNotifications.get(shopItemData.artistId)?.push({ name: item.name, quantity: item.quantity });
+
+          // 3. Decrement stock for physical items
+          if (shopItemData.stock !== null && !shopItemData.isDigital) {
+            try {
+              await shopItemSnap.ref.update({
+                stock: admin.firestore.FieldValue.increment(-item.quantity),
+              });
+              console.log(`Decremented stock for item ${item.itemId} by ${item.quantity}.`);
+            } catch (error) {
+              console.error(`Error decrementing stock for item ${item.itemId}:`, error);
+              // TODO: Handle insufficient stock error (e.g., notify admin, refund)
+            }
+          }
+        }
+      }
+    }
+
+    // for (const [artistId, soldItems] of artistNotifications) {
+    //   const itemsSummary = soldItems.map(si => `${si.quantity}x "${si.name}"`).join(', ');
+    //   await createNotification(
+    //     artistId,
+    //     'item_sold',
+    //     `Congratulations! Your item(s) were sold in order #${orderId.substring(0,6)}: ${itemsSummary}.`,
+    //     orderData.userId, // Actor is the buyer
+    //     (await db.collection('users').doc(orderData.userId).get()).data()?.username || 'A buyer',
+    //     null,
+    //     orderId, 'order', `/artist-dashboard/orders/${orderId}` // Placeholder link for artist
+    //   );
+    // }
+
+    return null;
+  });
+
+// Remember to define 'createNotification' or import it if it's in another file.
+// These are examples and need to be tailored to your exact data model and business logic.

@@ -1,164 +1,204 @@
 
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
+import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions'; // For v1 Functions
+// For v2, import specific triggers like `onDocumentWritten` from 'firebase-functions/v2/firestore'
+// and `logger` from 'firebase-functions/v2'
 
-// Initialize admin if not already done (typically in functions/src/index.ts)
-// if (admin.apps.length === 0) {
-//   admin.initializeApp();
-// }
-// const db = admin.firestore();
-// const storage = admin.storage(); // For deleting files
+const db = admin.firestore();
+const storage = admin.storage();
 
-/**
- * Triggered on creation of a new document in /posts, /reels, /music, /otherArt.
- * - Increments the respective count on the user's profile.
- * - (Future) Send notifications to followers.
- */
-export const onCreateContent = functions.firestore
-  .document("{contentType}/{contentId}")
-  .onCreate(async (snap, context) => {
-    const { contentType, contentId } = context.params;
-    const data = snap.data();
-
-    if (!data || !data.userId) {
-      functions.logger.error("onCreateContent: Missing data or userId for", contentId);
-      return null;
-    }
-
-    const userId = data.userId;
-    const userRef = admin.firestore().doc(`users/${userId}`);
-
-    let countFieldToIncrement: string | null = null;
-    switch (contentType) {
-      case "posts":
-        countFieldToIncrement = "postsCount"; // Assuming postsCount on UserProfileData
-        break;
-      case "reels":
-        countFieldToIncrement = "reelsCount"; // Add reelsCount to UserProfileData
-        break;
-      case "music":
-        countFieldToIncrement = "musicCount"; // Add musicCount to UserProfileData
-        break;
-      case "otherArt":
-        countFieldToIncrement = "otherArtCount"; // Add otherArtCount to UserProfileData
-        break;
-      // Stories count might be handled differently due to expiry or on a subcollection
-      case "stories":
-        countFieldToIncrement = "storiesCount"; // Assuming storiesCount on UserProfileData
-        break;
-      default:
-        functions.logger.info("onCreateContent: Unhandled contentType", contentType);
-        return null;
-    }
-
-    if (countFieldToIncrement) {
-      try {
-        await userRef.update({
-          [countFieldToIncrement]: admin.firestore.FieldValue.increment(1),
-        });
-        functions.logger.info(`Incremented ${countFieldToIncrement} for user ${userId}`);
-      } catch (error) {
-        functions.logger.error(
-          `Failed to increment ${countFieldToIncrement} for user ${userId}:`,
-          error
-        );
-      }
-    }
-    
-    // TODO: Implement follower notifications
-    // 1. Get followers of userId
-    // 2. Create notification documents for each follower
-
+// --- Generic Content Creation Helper ---
+async function handleContentCreation(
+  snap: functions.firestore.DocumentSnapshot,
+  contentType: 'posts' | 'stories' | 'reels' | 'music' | 'otherArt' | 'artworks',
+  userFieldToIncrement: string // e.g., 'postsCount', 'artworksCount'
+) {
+  const contentData = snap.data();
+  if (!contentData || !contentData.userId) {
+    console.error(`[${contentType}Created] Missing data or userId for ${snap.id}`);
     return null;
-  });
+  }
 
-/**
- * Triggered on deletion of a document in /posts, /reels, /music, /otherArt.
- * - Decrements the respective count on the user's profile.
- * - Deletes associated media from Firebase Storage.
- * - Deletes all related comments and likes for this content.
- */
-export const onDeleteContent = functions.firestore
-  .document("{contentType}/{contentId}")
-  .onDelete(async (snap, context) => {
-    const { contentType, contentId } = context.params;
-    const deletedData = snap.data();
+  const userId = contentData.userId;
+  const userRef = db.collection('users').doc(userId);
 
-    if (!deletedData || !deletedData.userId) {
-      functions.logger.error("onDeleteContent: Missing deletedData or userId for", contentId);
-      return null;
-    }
+  try {
+    await userRef.update({
+      [userFieldToIncrement]: admin.firestore.FieldValue.increment(1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`[${contentType}Created] Incremented ${userFieldToIncrement} for user ${userId}`);
 
-    const userId = deletedData.userId;
-    const userRef = admin.firestore().doc(`users/${userId}`);
+    // TODO: Notify followers (complex, involves fetching followers, batching notifications)
+    // For now, just log.
+    console.log(`[${contentType}Created] Placeholder for notifying followers about new ${contentType} from ${userId}`);
 
-    // 1. Decrement user's content count
-    let countFieldToDecrement: string | null = null;
-    switch (contentType) {
-      case "posts": countFieldToDecrement = "postsCount"; break;
-      case "reels": countFieldToDecrement = "reelsCount"; break;
-      case "music": countFieldToDecrement = "musicCount"; break;
-      case "otherArt": countFieldToDecrement = "otherArtCount"; break;
-      case "stories": countFieldToDecrement = "storiesCount"; break;
-    }
-    if (countFieldToDecrement) {
+  } catch (error) {
+    console.error(`[${contentType}Created] Error updating user ${userFieldToIncrement} for ${userId}:`, error);
+  }
+  return null;
+}
+
+// --- Generic Content Deletion Helper ---
+async function handleContentDeletion(
+  snap: functions.firestore.DocumentSnapshot,
+  contentType: 'posts' | 'stories' | 'reels' | 'music' | 'otherArt' | 'artworks',
+  userFieldToDecrement: string
+) {
+  const contentData = snap.data();
+  const contentId = snap.id;
+
+  if (!contentData || !contentData.userId) {
+    console.warn(`[${contentType}Deleted] Missing data or userId for ${contentId}. Cleanup might be partial.`);
+    return null;
+  }
+  const userId = contentData.userId;
+
+  // 1. Decrement user's content count
+  const userRef = db.collection('users').doc(userId);
+  try {
+    await userRef.update({
+      [userFieldToDecrement]: admin.firestore.FieldValue.increment(-1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`[${contentType}Deleted] Decremented ${userFieldToDecrement} for user ${userId}`);
+  } catch (error) {
+    console.error(`[${contentType}Deleted] Error decrementing ${userFieldToDecrement} for user ${userId}:`, error);
+  }
+
+  // 2. Delete associated media from Firebase Storage
+  // This assumes contentUrl or similar fields store the GCS URL.
+  // You might need to adjust based on your exact storage paths.
+  const mediaUrls: (string | undefined)[] = [];
+  if (contentData.contentUrl) mediaUrls.push(contentData.contentUrl);
+  if (contentData.imageUrl) mediaUrls.push(contentData.imageUrl);
+  if (contentData.videoUrl) mediaUrls.push(contentData.videoUrl);
+  if (contentData.audioUrl) mediaUrls.push(contentData.audioUrl);
+  if (contentData.mediaUrl) mediaUrls.push(contentData.mediaUrl);
+  // For artworks with imageUrl and imageUrlOriginal
+  if (contentType === 'artworks' && contentData.imageUrlOriginal) mediaUrls.push(contentData.imageUrlOriginal);
+
+
+  for (const url of mediaUrls) {
+    if (url && url.startsWith('https://firebasestorage.googleapis.com/')) {
       try {
-        await userRef.update({
-          [countFieldToDecrement]: admin.firestore.FieldValue.increment(-1),
-        });
-        functions.logger.info(`Decremented ${countFieldToDecrement} for user ${userId}`);
-      } catch (error) {
-        functions.logger.error(
-          `Failed to decrement ${countFieldToDecrement} for user ${userId}:`,
-          error
-        );
-      }
-    }
-
-    // 2. Delete associated media from Firebase Storage
-    // This requires knowing the storage path. Assuming convention like:
-    // /{contentType}/{userId}/{contentId}/{fileName} or from mediaUrl/contentUrl field
-    const mediaUrl = deletedData.mediaUrl || deletedData.contentUrl || deletedData.videoUrl || deletedData.audioUrl;
-    if (mediaUrl && mediaUrl.startsWith("gs://")) { // Check if it's a GCS URL
-        try {
-            const bucket = admin.storage().bucket(); // Default bucket
-            const path = mediaUrl.substring(`gs://${bucket.name}/`.length);
-            await bucket.file(path).delete();
-            functions.logger.info("Deleted media from Storage:", mediaUrl);
-        } catch (error) {
-            functions.logger.error("Error deleting media from Storage:", mediaUrl, error);
+        const filePath = decodeURIComponent(new URL(url).pathname.split('/o/')[1].split('?')[0]);
+        if (filePath) {
+            await storage.bucket().file(filePath).delete();
+            console.log(`[${contentType}Deleted] Deleted media ${filePath} from Storage for ${contentId}`);
         }
-    } else if (mediaUrl) {
-        functions.logger.warn("Media URL not a GCS path, cannot delete from Storage:", mediaUrl);
+      } catch (error: any) {
+        if (error.code === 404) { // GCS error code for "Not Found"
+            console.warn(`[${contentType}Deleted] Storage media not found for ${contentId} at ${url}, skipping deletion.`);
+        } else {
+            console.error(`[${contentType}Deleted] Error deleting media from Storage for ${contentId} at ${url}:`, error);
+        }
+      }
     }
+  }
 
+  // 3. Delete related comments and likes
+  const batch = db.batch();
+  const interactionsCollections = ['comments', 'likes', 'bookmarks']; // Add other related collections if needed
 
-    // 3. Delete related comments
-    const commentsRef = admin.firestore().collection("comments");
-    const commentsQuery = commentsRef
-      .where("contentId", "==", contentId)
-      .where("contentType", "==", contentType.slice(0, -1)); // Assuming contentType in comments is singular form
-    
-    const commentsSnapshot = await commentsQuery.get();
-    const batch = admin.firestore().batch();
-    commentsSnapshot.docs.forEach((doc) => batch.delete(doc.ref));
-    
-    // 4. Delete related likes
-    const likesRef = admin.firestore().collection("likes");
-    const likesQuery = likesRef
-      .where("contentId", "==", contentId)
-      .where("contentType", "==", contentType.slice(0, -1));
-      
-    const likesSnapshot = await likesQuery.get();
-    likesSnapshot.docs.forEach((doc) => batch.delete(doc.ref));
-
+  for (const coll of interactionsCollections) {
     try {
-        await batch.commit();
-        functions.logger.info(`Deleted ${commentsSnapshot.size} comments and ${likesSnapshot.size} likes for ${contentType}/${contentId}`);
+      const snapshot = await db.collection(coll)
+        .where('contentId', '==', contentId)
+        .where('contentType', '==', contentType) // Ensure we only delete for the correct type
+        .get();
+      snapshot.forEach(doc => batch.delete(doc.ref));
+      console.log(`[${contentType}Deleted] Batched deletion of ${snapshot.size} items from ${coll} for ${contentId}`);
     } catch (error) {
-        functions.logger.error(`Error in batch delete for ${contentType}/${contentId}:`, error);
+      console.error(`[${contentType}Deleted] Error querying ${coll} for ${contentId}:`, error);
     }
+  }
 
-    return null;
-  });
-    
+  try {
+    await batch.commit();
+    console.log(`[${contentType}Deleted] Committed batch deletions for ${contentId}`);
+  } catch (error) {
+    console.error(`[${contentType}Deleted] Error committing batch deletions for ${contentId}:`, error);
+  }
+
+  return null;
+}
+
+
+// --- Specific Content Triggers (v1 style) ---
+
+// POSTS
+export const onPostCreated = functions.firestore
+  .document('posts/{postId}')
+  .onCreate((snap) => handleContentCreation(snap, 'posts', 'postsCount'));
+
+export const onPostDeleted = functions.firestore
+  .document('posts/{postId}')
+  .onDelete((snap) => handleContentDeletion(snap, 'posts', 'postsCount'));
+
+// STORIES
+export const onStoryCreated = functions.firestore
+  .document('stories/{storyId}')
+  .onCreate((snap) => handleContentCreation(snap, 'stories', 'storiesCount'));
+
+export const onStoryDeleted = functions.firestore
+  .document('stories/{storyId}')
+  .onDelete((snap) => handleContentDeletion(snap, 'stories', 'storiesCount'));
+
+// REELS
+export const onReelCreated = functions.firestore
+  .document('reels/{reelId}')
+  .onCreate((snap) => handleContentCreation(snap, 'reels', 'reelsCount')); // Assuming 'reelsCount' on UserProfile
+
+export const onReelDeleted = functions.firestore
+  .document('reels/{reelId}')
+  .onDelete((snap) => handleContentDeletion(snap, 'reels', 'reelsCount'));
+
+// MUSIC
+export const onMusicCreated = functions.firestore
+  .document('music/{musicId}')
+  .onCreate((snap) => handleContentCreation(snap, 'music', 'musicCount')); // Assuming 'musicCount'
+
+export const onMusicDeleted = functions.firestore
+  .document('music/{musicId}')
+  .onDelete((snap) => handleContentDeletion(snap, 'music', 'musicCount'));
+
+// OTHER ART
+export const onOtherArtCreated = functions.firestore
+  .document('otherArt/{artId}')
+  .onCreate((snap) => handleContentCreation(snap, 'otherArt', 'otherArtCount')); // Assuming 'otherArtCount'
+
+export const onOtherArtDeleted = functions.firestore
+  .document('otherArt/{artId}')
+  .onDelete((snap) => handleContentDeletion(snap, 'otherArt', 'otherArtCount'));
+
+// ARTWORKS (Crystalline Blooms)
+export const onArtworkCreated = functions.firestore
+  .document('artworks/{artworkId}')
+  .onCreate((snap) => handleContentCreation(snap, 'artworks', 'artworksCount')); // Assuming 'artworksCount'
+
+export const onArtworkDeleted = functions.firestore
+  .document('artworks/{artworkId}')
+  .onDelete((snap) => handleContentDeletion(snap, 'artworks', 'artworksCount'));
+
+
+// TODO: Add onUpdate triggers if moderationStatus changes to 'approved' to notify followers.
+// TODO: Add scheduled function to delete expired stories.
+// Example:
+// export const deleteExpiredStoriesScheduled = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
+//   const now = admin.firestore.Timestamp.now();
+//   const query = db.collection('stories').where('expiresAt', '<=', now);
+//   const snapshot = await query.get();
+//   if (snapshot.empty) {
+//     console.log('No expired stories to delete.');
+//     return null;
+//   }
+//   const batch = db.batch();
+//   snapshot.docs.forEach(doc => {
+//     // Deletion logic here will trigger onDeleteStory which handles storage media
+//     batch.delete(doc.ref);
+//   });
+//   await batch.commit();
+//   console.log(`Deleted ${snapshot.size} expired stories.`);
+//   return null;
+// });

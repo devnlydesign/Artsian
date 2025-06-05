@@ -15,7 +15,7 @@ import { type User as FirebaseUser } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { deletePost } from '@/actions/postActions'; // Import deletePost
+import { deletePost } from '@/actions/postActions';
 
 import {
   toggleLike,
@@ -26,19 +26,19 @@ import {
   getBookmarkStatus,
   type CommentData
 } from '@/actions/interactionActions';
+import { useAppState } from '@/context/AppStateContext'; // Added useAppState
 
-// Assuming PostData will be the primary type, but can be extended for reels etc.
 interface ContentData {
   id: string;
-  userId: string; // Author's UID
-  author?: { // Denormalized for easier display
+  userId: string; 
+  author?: { 
     name?: string;
     avatarUrl?: string | null;
     username?: string;
     dataAiHintAvatar?: string;
   };
   contentType?: 'text' | 'image' | 'video' | 'audio' | 'livestream_upcoming' | 'livestream_live' | 'livestream_ended' | 'post';
-  contentUrl?: string | null; // For image, video, audio
+  contentUrl?: string | null; 
   caption?: string | null;
   createdAt: Timestamp;
   likesCount: number;
@@ -47,18 +47,19 @@ interface ContentData {
   videoUrl?: string | null; 
   dataAiHintImage?: string;
   dataAiHintVideo?: string;
-  // Add sharesCount if it's part of your PostData or other content types
   sharesCount?: number; 
 }
 
-
 interface ContentCardProps {
   content: ContentData;
-  currentUser: FirebaseUser | null;
-  onPostDeleted?: (postId: string) => void; // Callback for when a post is deleted
+  currentUser: FirebaseUser | null; // This prop will now come from AppStateContext mostly
+  onPostDeleted?: (postId: string) => void;
 }
 
-export function ContentCard({ content, currentUser, onPostDeleted }: ContentCardProps) {
+export function ContentCard({ content, currentUser: propCurrentUser, onPostDeleted }: ContentCardProps) {
+  const { currentUser: contextCurrentUser, isAuthenticated } = useAppState(); // Get from context
+  const currentUser = propCurrentUser || contextCurrentUser; // Prefer prop if passed, else context
+
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -69,7 +70,6 @@ export function ContentCard({ content, currentUser, onPostDeleted }: ContentCard
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [optimisticComments, setOptimisticComments] = useState<CommentData[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
-
 
   const contentTypeForInteractions = content.contentType || 'post';
 
@@ -105,7 +105,6 @@ export function ContentCard({ content, currentUser, onPostDeleted }: ContentCard
     setCurrentLikes(content.likesCount || 0);
   }, [content.likesCount]);
 
-
   const handleLikeToggle = async () => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to like content.", variant: "default" });
@@ -125,6 +124,7 @@ export function ContentCard({ content, currentUser, onPostDeleted }: ContentCard
       setCurrentLikes(originalLikesCount);
       toast({ title: "Error", description: result.message || "Failed to update like.", variant: "destructive" });
     }
+    // Counts should update via Firestore listener on parent post if implemented, or on next fetch.
   };
 
   const handleBookmarkToggle = async () => {
@@ -171,7 +171,6 @@ export function ContentCard({ content, currentUser, onPostDeleted }: ContentCard
     const commentToSubmit = newComment;
     setNewComment("");
 
-
     const result = await addComment(
       currentUser.uid,
       content.id,
@@ -212,7 +211,7 @@ export function ContentCard({ content, currentUser, onPostDeleted }: ContentCard
     if (result.success) {
       toast({ title: "Post Deleted", description: result.message });
       if (onPostDeleted) {
-        onPostDeleted(content.id); // Callback to parent to update feed
+        onPostDeleted(content.id);
       }
     } else {
       toast({ title: "Error", description: result.message || "Failed to delete post.", variant: "destructive" });
@@ -291,17 +290,17 @@ export function ContentCard({ content, currentUser, onPostDeleted }: ContentCard
       <CardFooter className="flex flex-col items-start p-3 space-y-2">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button variant="ghost" size="icon" onClick={handleLikeToggle} className={cn("active:scale-90", isLiked && "text-red-500 hover:text-red-600")}>
+            <Button variant="ghost" size="icon" onClick={handleLikeToggle} className={cn("active:scale-90", isLiked && "text-red-500 hover:text-red-600")} disabled={!isAuthenticated}>
               <Heart className={cn("h-6 w-6", isLiked && "fill-current")}/>
             </Button>
-            <Button variant="ghost" size="icon" className="hover:text-primary active:scale-90" onClick={() => document.getElementById(`comment-input-${content.id}`)?.focus()}>
+            <Button variant="ghost" size="icon" className="hover:text-primary active:scale-90" onClick={() => document.getElementById(`comment-input-${content.id}`)?.focus()} disabled={!isAuthenticated}>
               <MessageCircle className="h-6 w-6" />
             </Button>
             <Button variant="ghost" size="icon" onClick={handleShare} className="hover:text-primary active:scale-90">
               <LinkIconLucide className="h-6 w-6" />
             </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleBookmarkToggle} className={cn("active:scale-90", isBookmarked && "text-primary hover:text-primary/90")}>
+          <Button variant="ghost" size="icon" onClick={handleBookmarkToggle} className={cn("active:scale-90", isBookmarked && "text-primary hover:text-primary/90")} disabled={!isAuthenticated}>
              <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-current")} />
           </Button>
         </div>
@@ -362,5 +361,3 @@ export function ContentCard({ content, currentUser, onPostDeleted }: ContentCard
     </Card>
   );
 }
-
-    

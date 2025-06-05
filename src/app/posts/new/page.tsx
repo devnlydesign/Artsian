@@ -17,7 +17,8 @@ import { createPost } from '@/actions/postActions';
 import { Edit, Loader2, PlusCircle, UploadCloud, Image as ImageIconLucide } from 'lucide-react'; 
 import NextImage from "next/image";
 import { storage } from '@/lib/firebase';
-import { ref as storageRefSdk, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRefSdk, uploadBytesResumable, getDownloadURL, type UploadTaskSnapshot } from 'firebase/storage'; // Added UploadTaskSnapshot
+import { Progress } from "@/components/ui/progress"; // Added Progress
 
 const postFormSchema = z.object({
   caption: z.string().min(1, "Caption cannot be empty unless an image is provided.").max(2000, "Caption is too long.").optional().or(z.literal('')),
@@ -34,6 +35,7 @@ export default function NewPostPage() {
 
   const [postImageFile, setPostImageFile] = useState<File | null>(null);
   const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const postFileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<PostFormValues>({
@@ -50,6 +52,7 @@ export default function NewPostPage() {
       if (file.type.startsWith('image/')) {
         setPostImageFile(file);
         setPostImagePreview(URL.createObjectURL(file));
+        setUploadProgress(0); // Reset progress
       } else {
         toast({ title: "Invalid File Type", description: "Please select an image file.", variant: "destructive" });
         setPostImageFile(null);
@@ -70,15 +73,33 @@ export default function NewPostPage() {
     }
 
     setIsSubmitting(true);
+    setUploadProgress(postImageFile ? 0 : null);
     let uploadedContentUrl: string | undefined = undefined;
 
     try {
       if (postImageFile) {
         const imageFilePath = `posts/${currentUser.uid}/images/${Date.now()}_${postImageFile.name}`;
         const imageFileRef = storageRefSdk(storage, imageFilePath);
-        await uploadBytes(imageFileRef, postImageFile);
-        uploadedContentUrl = await getDownloadURL(imageFileRef);
-        toast({ title: "Image Uploaded", description: "Post image successfully uploaded." });
+        
+        const uploadTask = uploadBytesResumable(imageFileRef, postImageFile);
+        await new Promise<void>((resolve, reject) => {
+            uploadTask.on('state_changed',
+            (snapshot: UploadTaskSnapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(progress);
+            },
+            (error) => {
+                console.error("Upload failed:", error);
+                setUploadProgress(null);
+                reject(error);
+            },
+            async () => {
+                uploadedContentUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                toast({ title: "Image Uploaded", description: "Post image successfully uploaded." });
+                resolve();
+            }
+            );
+        });
       }
 
       const authorDetails = {
@@ -93,31 +114,21 @@ export default function NewPostPage() {
         caption: data.caption?.trim() || null,
         contentUrl: uploadedContentUrl,
         dataAiHintImage: data.dataAiHintImage || (postImageFile ? "user uploaded post image" : undefined),
-        isPublic: true, // Default to public
+        isPublic: true, 
       }, authorDetails);
 
       if (result.success && result.postId) {
-        toast({
-          title: "Post Created!",
-          description: `Your post has been created successfully.`,
-        });
-        router.push('/'); // Redirect to home feed
+        toast({ title: "Post Created!", description: `Your post has been created successfully.` });
+        router.push('/'); 
       } else {
-        toast({
-          title: "Error Creating Post",
-          description: result.message || "Could not save your post. Please try again.",
-          variant: "destructive",
-        });
+        toast({ title: "Error Creating Post", description: result.message || "Could not save your post.", variant: "destructive" });
       }
     } catch (error) {
       console.error("Error submitting post:", error);
-      toast({
-        title: "Submission Error",
-        description: "An unexpected error occurred during upload or save. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Submission Error", description: "An unexpected error occurred during upload or save.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -183,6 +194,7 @@ export default function NewPostPage() {
                   </CardContent>
                 </Card>
                 <FormDescription>Add an image to your post.</FormDescription>
+                {uploadProgress !== null && <Progress value={uploadProgress} className="w-full h-2 mt-2" />}
               </FormItem>
 
               {postImageFile && (
@@ -200,9 +212,9 @@ export default function NewPostPage() {
                 />
               )}
               
-              <Button type="submit" variant="gradientPrimary" disabled={isSubmitting} className="w-full text-lg py-3">
+              <Button type="submit" variant="gradientPrimary" disabled={isSubmitting || (postImageFile !== null && uploadProgress !== null && uploadProgress < 100) } className="w-full text-lg py-3">
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-                {isSubmitting ? "Creating Post..." : "Create Post"}
+                {isSubmitting ? (uploadProgress !== null ? `Uploading ${Math.round(uploadProgress)}%...` : "Creating Post...") : "Create Post"}
               </Button>
             </form>
           </Form>

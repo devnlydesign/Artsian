@@ -16,10 +16,10 @@ import { createStory } from '@/actions/storyActions';
 import { Video, Loader2, PlusCircle, UploadCloud, Image as ImageIconLucide } from 'lucide-react'; 
 import NextImage from "next/image";
 import { storage } from '@/lib/firebase';
-import { ref as storageRefSdk, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRefSdk, uploadBytesResumable, getDownloadURL, type UploadTaskSnapshot } from 'firebase/storage'; // Added UploadTaskSnapshot
+import { Progress } from "@/components/ui/progress"; // Added Progress
 
 const storyFormSchema = z.object({
-  // caption: z.string().max(200, "Caption is too long.").optional(), // Stories usually don't have long captions
   mediaType: z.enum(["image", "video"]),
 });
 
@@ -34,6 +34,7 @@ export default function NewStoryPage() {
   const [storyMediaFile, setStoryMediaFile] = useState<File | null>(null);
   const [storyMediaPreview, setStoryMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<StoryFormValues>({
@@ -51,11 +52,13 @@ export default function NewStoryPage() {
         setMediaType('image');
         form.setValue('mediaType', 'image');
         setStoryMediaPreview(URL.createObjectURL(file));
+        setUploadProgress(0); // Reset progress
       } else if (file.type.startsWith('video/')) {
         setStoryMediaFile(file);
         setMediaType('video');
         form.setValue('mediaType', 'video');
         setStoryMediaPreview(URL.createObjectURL(file));
+        setUploadProgress(0); // Reset progress
       } else {
         toast({ title: "Invalid File Type", description: "Please select an image or video file.", variant: "destructive" });
         setStoryMediaFile(null);
@@ -77,45 +80,52 @@ export default function NewStoryPage() {
     }
 
     setIsSubmitting(true);
+    setUploadProgress(0);
     let uploadedMediaUrl = "";
 
     try {
       const mediaFilePath = `stories/${currentUser.uid}/${Date.now()}_${storyMediaFile.name}`;
       const mediaFileRef = storageRefSdk(storage, mediaFilePath);
-      await uploadBytes(mediaFileRef, storyMediaFile);
-      uploadedMediaUrl = await getDownloadURL(mediaFileRef);
-      toast({ title: "Media Uploaded", description: "Story media successfully uploaded." });
+      const uploadTask = uploadBytesResumable(mediaFileRef, storyMediaFile);
+
+      await new Promise<void>((resolve, reject) => {
+        uploadTask.on('state_changed',
+          (snapshot: UploadTaskSnapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          },
+          (error) => {
+            console.error("Upload failed:", error);
+            setUploadProgress(null);
+            reject(error);
+          },
+          async () => {
+            uploadedMediaUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            toast({ title: "Media Uploaded", description: "Story media successfully uploaded." });
+            resolve();
+          }
+        );
+      });
 
       const storyDetailsToSave = {
         mediaUrl: uploadedMediaUrl,
         mediaType: mediaType,
-        // Add other fields like linkUrl or textOverlays if needed in future
       };
 
       const result = await createStory(currentUser.uid, storyDetailsToSave);
 
       if (result.success && result.storyId) {
-        toast({
-          title: "Story Posted!",
-          description: `Your story is now live for 24 hours.`,
-        });
+        toast({ title: "Story Posted!", description: `Your story is now live for 24 hours.` });
         router.push('/'); 
       } else {
-        toast({
-          title: "Error Posting Story",
-          description: result.message || "Could not save your story. Please try again.",
-          variant: "destructive",
-        });
+        toast({ title: "Error Posting Story", description: result.message || "Could not save your story.", variant: "destructive" });
       }
     } catch (error) {
       console.error("Error submitting story:", error);
-      toast({
-        title: "Submission Error",
-        description: "An unexpected error occurred during upload or save. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Submission Error", description: "An unexpected error occurred during upload or save.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -171,11 +181,12 @@ export default function NewStoryPage() {
                 </Card>
                 <FormDescription>Upload your story content (image or short video).</FormDescription>
                 {!storyMediaFile && form.formState.isSubmitted && <p className="text-sm font-medium text-destructive">Story media is required.</p>}
+                {uploadProgress !== null && <Progress value={uploadProgress} className="w-full h-2 mt-2" />}
               </FormItem>
               
-              <Button type="submit" variant="gradientPrimary" disabled={isSubmitting || !storyMediaFile} className="w-full text-lg py-3">
+              <Button type="submit" variant="gradientPrimary" disabled={isSubmitting || !storyMediaFile || (uploadProgress !== null && uploadProgress < 100)} className="w-full text-lg py-3">
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-                {isSubmitting ? "Posting Story..." : "Post Story"}
+                {isSubmitting ? (uploadProgress !== null ? `Uploading ${Math.round(uploadProgress)}%...` : "Posting Story...") : "Post Story"}
               </Button>
             </form>
           </Form>

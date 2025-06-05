@@ -1,261 +1,252 @@
 
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
+import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions'; // For v1 Functions
+// For v2, import specific triggers from 'firebase-functions/v2/firestore' and 'logger'
 
-// Initialize admin if not already done
-// if (admin.apps.length === 0) {
-//   admin.initializeApp();
-// }
-// const db = admin.firestore();
+const db = admin.firestore();
 
-/**
- * Triggered on creation of a new like.
- * - Increments likesCount on the parent content document.
- * - Creates a notification for the content creator.
- */
-export const onCreateLike = functions.firestore
-  .document("likes/{likeId}")
-  .onCreate(async (snap, context) => {
+// --- Helper to create notifications ---
+async function createNotification(
+  recipientId: string,
+  type: string,
+  message: string,
+  actorId?: string | null,
+  actorName?: string | null,
+  actorAvatarUrl?: string | null,
+  entityId?: string | null,
+  entityType?: string | null,
+  linkTo?: string | null
+) {
+  if (recipientId === actorId) { // Don't notify user of their own actions
+    console.log(`Skipping notification for self-action by ${recipientId} on ${entityType} ${entityId}`);
+    return;
+  }
+
+  // Check recipient's notification preferences (if implemented on UserProfile)
+  // const userProfile = await db.collection('users').doc(recipientId).get();
+  // if (userProfile.exists && userProfile.data()?.notificationPreferences?.[type] === false) {
+  //   console.log(`User ${recipientId} has opted out of ${type} notifications.`);
+  //   return;
+  // }
+
+  try {
+    await db.collection('notifications').add({
+      recipientId,
+      type,
+      message,
+      actorId: actorId || null,
+      actorName: actorName || null,
+      actorAvatarUrl: actorAvatarUrl || null,
+      entityId: entityId || null,
+      entityType: entityType || null,
+      linkTo: linkTo || null,
+      read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`Notification created for ${recipientId}: type ${type}`);
+  } catch (error) {
+    console.error(`Error creating notification for ${recipientId}:`, error);
+  }
+}
+
+// --- Like Triggers ---
+export const onLikeCreated = functions.firestore
+  .document('likes/{likeId}')
+  .onCreate(async (snap) => {
     const likeData = snap.data();
     if (!likeData || !likeData.contentId || !likeData.contentType || !likeData.userId) {
-      functions.logger.error("onCreateLike: Invalid like data", likeData);
+      console.error('Like data is missing crucial fields.');
       return null;
     }
 
-    const contentRef = admin.firestore().doc(`${likeData.contentType}s/${likeData.contentId}`); // Assumes plural collection names
+    const contentRef = db.collection(likeData.contentType + 's').doc(likeData.contentId); // e.g., 'posts', 'artworks'
 
     try {
       await contentRef.update({
         likesCount: admin.firestore.FieldValue.increment(1),
       });
-      functions.logger.info(`Incremented likesCount for ${likeData.contentType}/${likeData.contentId}`);
+      console.log(`Incremented likesCount for ${likeData.contentType} ${likeData.contentId}`);
 
-      // Create notification for content owner
       const contentSnap = await contentRef.get();
       const contentOwnerId = contentSnap.data()?.userId;
-      const likerId = likeData.userId;
+      const likerProfileSnap = await db.collection('users').doc(likeData.userId).get();
+      const likerName = likerProfileSnap.data()?.fullName || likerProfileSnap.data()?.username || 'Someone';
+      const likerAvatar = likerProfileSnap.data()?.photoURL;
 
-      if (contentOwnerId && contentOwnerId !== likerId) {
-        const likerSnap = await admin.firestore().doc(`users/${likerId}`).get();
-        const likerUsername = likerSnap.data()?.username || "Someone";
-        
-        await admin.firestore().collection("notifications").add({
-          recipientId: contentOwnerId,
-          senderId: likerId,
-          senderName: likerUsername,
-          senderAvatarUrl: likerSnap.data()?.profileImageUrl || null,
-          type: "like",
-          contentId: likeData.contentId,
-          contentType: likeData.contentType,
-          message: `${likerUsername} liked your ${likeData.contentType}.`,
-          linkTo: `/${likeData.contentType}s/${likeData.contentId}`, // Example link
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        functions.logger.info(`Notification created for like on ${likeData.contentType}/${likeData.contentId} to user ${contentOwnerId}`);
+      if (contentOwnerId) {
+        await createNotification(
+          contentOwnerId,
+          `${likeData.contentType}_like`,
+          `${likerName} liked your ${likeData.contentType}.`,
+          likeData.userId,
+          likerName,
+          likerAvatar,
+          likeData.contentId,
+          likeData.contentType,
+          `/${likeData.contentType}s/${likeData.contentId}` // Example link
+        );
       }
     } catch (error) {
-      functions.logger.error(
-        `Error processing like for ${likeData.contentType}/${likeData.contentId}:`,
-        error
-      );
+      console.error(`Error processing like for ${likeData.contentType} ${likeData.contentId}:`, error);
     }
     return null;
   });
 
-/**
- * Triggered on deletion of a like.
- * - Decrements likesCount on the parent content document.
- * - (Future) Delete the corresponding notification.
- */
-export const onDeleteLike = functions.firestore
-  .document("likes/{likeId}")
-  .onDelete(async (snap, context) => {
+export const onLikeDeleted = functions.firestore
+  .document('likes/{likeId}')
+  .onDelete(async (snap) => {
     const likeData = snap.data();
     if (!likeData || !likeData.contentId || !likeData.contentType) {
-      functions.logger.error("onDeleteLike: Invalid like data", likeData);
+      console.error('Like data is missing crucial fields for deletion.');
       return null;
     }
 
-    const contentRef = admin.firestore().doc(`${likeData.contentType}s/${likeData.contentId}`);
+    const contentRef = db.collection(likeData.contentType + 's').doc(likeData.contentId);
+
     try {
       await contentRef.update({
         likesCount: admin.firestore.FieldValue.increment(-1),
       });
-      functions.logger.info(`Decremented likesCount for ${likeData.contentType}/${likeData.contentId}`);
-      
-      // TODO: Delete the specific 'like' notification if one exists.
-      // This requires querying notifications based on senderId, contentId, contentType, and type='like'.
+      console.log(`Decremented likesCount for ${likeData.contentType} ${likeData.contentId}`);
+
+      // Optionally delete the notification (more complex, requires querying notifications)
+      // For simplicity, notifications might remain but become stale or ignorable by client.
     } catch (error) {
-      functions.logger.error(
-        `Error processing unlike for ${likeData.contentType}/${likeData.contentId}:`,
-        error
-      );
+      console.error(`Error processing unlike for ${likeData.contentType} ${likeData.contentId}:`, error);
     }
     return null;
   });
 
-/**
- * Triggered on creation of a new comment.
- * - Increments commentsCount on the parent content document.
- * - Creates notifications for content creator and mentioned users.
- */
-export const onCreateComment = functions.firestore
-    .document("comments/{commentId}")
-    .onCreate(async (snap, context) => {
-        const commentData = snap.data();
-        if (!commentData || !commentData.contentId || !commentData.contentType || !commentData.userId) {
-            functions.logger.error("onCreateComment: Invalid comment data", commentData);
-            return null;
-        }
-
-        const contentRef = admin.firestore().doc(`${commentData.contentType}s/${commentData.contentId}`);
-
-        try {
-            await contentRef.update({
-                commentsCount: admin.firestore.FieldValue.increment(1)
-            });
-            functions.logger.info(`Incremented commentsCount for ${commentData.contentType}/${commentData.contentId}`);
-
-            // Create notification for content owner
-            const contentSnap = await contentRef.get();
-            const contentOwnerId = contentSnap.data()?.userId;
-            const commenterId = commentData.userId;
-
-            if (contentOwnerId && contentOwnerId !== commenterId) {
-                const commenterSnap = await admin.firestore().doc(`users/${commenterId}`).get();
-                const commenterUsername = commenterSnap.data()?.username || "Someone";
-                
-                await admin.firestore().collection("notifications").add({
-                    recipientId: contentOwnerId,
-                    senderId: commenterId,
-                    senderName: commenterUsername,
-                    senderAvatarUrl: commenterSnap.data()?.profileImageUrl || null,
-                    type: "comment",
-                    contentId: commentData.contentId,
-                    contentType: commentData.contentType,
-                    message: `${commenterUsername} commented on your ${commentData.contentType}.`,
-                    linkTo: `/${commentData.contentType}s/${commentData.contentId}#comment-${snap.id}`, // Example link
-                    read: false,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-            }
-
-            // TODO: Handle mentions in commentData.commentText and notify mentioned users
-            // const mentionedUserIds = extractMentions(commentData.commentText);
-            // for (const mentionedId of mentionedUserIds) { ... create notification ... }
-
-        } catch (error) {
-            functions.logger.error(`Error processing comment for ${commentData.contentType}/${commentData.contentId}:`, error);
-        }
-        return null;
-    });
-
-/**
- * Triggered on deletion of a comment.
- * - Decrements commentsCount on the parent content document.
- */
-export const onDeleteComment = functions.firestore
-    .document("comments/{commentId}")
-    .onDelete(async (snap, context) => {
-        const commentData = snap.data();
-        if (!commentData || !commentData.contentId || !commentData.contentType) {
-            functions.logger.error("onDeleteComment: Invalid comment data", commentData);
-            return null;
-        }
-        const contentRef = admin.firestore().doc(`${commentData.contentType}s/${commentData.contentId}`);
-        try {
-            await contentRef.update({
-                commentsCount: admin.firestore.FieldValue.increment(-1)
-            });
-            functions.logger.info(`Decremented commentsCount for ${commentData.contentType}/${commentData.contentId}`);
-        } catch (error) {
-             functions.logger.error(`Error decrementing commentsCount for ${commentData.contentType}/${commentData.contentId}:`, error);
-        }
-        return null;
-    });
-
-
-/**
- * Triggered on creation of a new follow relationship.
- * - Increments followersCount on the followed user.
- * - Increments followingCount on the follower.
- * - Creates a notification for the followed user.
- */
-export const onFollowUser = functions.firestore
-  .document("followers/{followId}")
-  .onCreate(async (snap, context) => {
-    const followData = snap.data();
-    if (!followData || !followData.followerId || !followData.followingId) {
-      functions.logger.error("onFollowUser: Invalid follow data", followData);
+// --- Comment Triggers ---
+export const onCommentCreated = functions.firestore
+  .document('comments/{commentId}')
+  .onCreate(async (snap) => {
+    const commentData = snap.data();
+    if (!commentData || !commentData.contentId || !commentData.contentType || !commentData.userId) {
+      console.error('Comment data is missing crucial fields.');
       return null;
     }
 
-    const followerRef = admin.firestore().doc(`users/${followData.followerId}`);
-    const followingRef = admin.firestore().doc(`users/${followData.followingId}`);
+    const contentRef = db.collection(commentData.contentType + 's').doc(commentData.contentId);
 
-    const batch = admin.firestore().batch();
+    try {
+      await contentRef.update({
+        commentsCount: admin.firestore.FieldValue.increment(1),
+      });
+      console.log(`Incremented commentsCount for ${commentData.contentType} ${commentData.contentId}`);
+
+      const contentSnap = await contentRef.get();
+      const contentOwnerId = contentSnap.data()?.userId;
+      const commenterProfileSnap = await db.collection('users').doc(commentData.userId).get();
+      const commenterName = commenterProfileSnap.data()?.fullName || commenterProfileSnap.data()?.username || 'Someone';
+      const commenterAvatar = commenterProfileSnap.data()?.photoURL;
+
+      if (contentOwnerId) {
+        await createNotification(
+          contentOwnerId,
+          `${commentData.contentType}_comment`,
+          `${commenterName} commented on your ${commentData.contentType}.`,
+          commentData.userId,
+          commenterName,
+          commenterAvatar,
+          commentData.contentId,
+          commentData.contentType,
+           `/${commentData.contentType}s/${commentData.contentId}#comment-${snap.id}` // Example link
+        );
+      }
+      // TODO: Parse commentData.commentText for mentions and notify mentioned users.
+    } catch (error) {
+      console.error(`Error processing comment for ${commentData.contentType} ${commentData.contentId}:`, error);
+    }
+    return null;
+  });
+
+export const onCommentDeleted = functions.firestore
+  .document('comments/{commentId}')
+  .onDelete(async (snap) => {
+    const commentData = snap.data();
+    if (!commentData || !commentData.contentId || !commentData.contentType) {
+      console.error('Comment data is missing crucial fields for deletion.');
+      return null;
+    }
+    const contentRef = db.collection(commentData.contentType + 's').doc(commentData.contentId);
+    try {
+      await contentRef.update({
+        commentsCount: admin.firestore.FieldValue.increment(-1),
+      });
+      console.log(`Decremented commentsCount for ${commentData.contentType} ${commentData.contentId}`);
+    } catch (error) {
+      console.error(`Error processing comment deletion for ${commentData.contentType} ${commentData.contentId}:`, error);
+    }
+    return null;
+  });
+
+// --- Follow Triggers ---
+// Assumes 'followers' collection stores docs with ID like '{followerId}_{followingId}'
+// and fields: followerId, followingId, createdAt
+export const onFollowCreated = functions.firestore
+  .document('followers/{followId}') // Using 'followers' collection as defined in interactionActions
+  .onCreate(async (snap) => {
+    const followData = snap.data();
+    if (!followData || !followData.followerId || !followData.followingId) {
+      console.error('Follow data is missing crucial fields.');
+      return null;
+    }
+
+    const followerRef = db.collection('users').doc(followData.followerId);
+    const followingRef = db.collection('users').doc(followData.followingId);
+
+    const batch = db.batch();
     batch.update(followerRef, { followingCount: admin.firestore.FieldValue.increment(1) });
     batch.update(followingRef, { followersCount: admin.firestore.FieldValue.increment(1) });
 
     try {
       await batch.commit();
-      functions.logger.info(`Updated follow counts for ${followData.followerId} and ${followData.followingId}`);
+      console.log(`Updated follow counts for ${followData.followerId} and ${followData.followingId}`);
 
-      // Create notification for the followed user
-      const followerSnap = await followerRef.get();
-      const followerUsername = followerSnap.data()?.username || "Someone";
-      
-      await admin.firestore().collection("notifications").add({
-        recipientId: followData.followingId,
-        senderId: followData.followerId,
-        senderName: followerUsername,
-        senderAvatarUrl: followerSnap.data()?.profileImageUrl || null,
-        type: "follow",
-        linkTo: `/profile/${followData.followerId}`, // Example link
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      functions.logger.info(`Follow notification created for ${followData.followingId}`);
+      const followerProfileSnap = await followerRef.get();
+      const followerName = followerProfileSnap.data()?.fullName || followerProfileSnap.data()?.username || 'Someone';
+      const followerAvatar = followerProfileSnap.data()?.photoURL;
 
-    } catch (error) {
-      functions.logger.error(
-        `Error processing follow from ${followData.followerId} to ${followData.followingId}:`,
-        error
+      await createNotification(
+        followData.followingId,
+        'new_follower',
+        `${followerName} started following you.`,
+        followData.followerId,
+        followerName,
+        followerAvatar,
+        followData.followerId, // Entity is the follower
+        'userProfile',
+        `/profile/${followData.followerId}`
       );
+    } catch (error) {
+      console.error(`Error processing follow between ${followData.followerId} and ${followData.followingId}:`, error);
     }
     return null;
   });
 
-/**
- * Triggered on deletion of a follow relationship (unfollow).
- * - Decrements followersCount and followingCount.
- */
-export const onUnfollowUser = functions.firestore
-  .document("followers/{followId}")
-  .onDelete(async (snap, context) => {
+export const onFollowDeleted = functions.firestore
+  .document('followers/{followId}')
+  .onDelete(async (snap) => {
     const followData = snap.data();
     if (!followData || !followData.followerId || !followData.followingId) {
-      functions.logger.error("onUnfollowUser: Invalid follow data", followData);
+      console.error('Follow data is missing crucial fields for unfollow.');
       return null;
     }
-    const followerRef = admin.firestore().doc(`users/${followData.followerId}`);
-    const followingRef = admin.firestore().doc(`users/${followData.followingId}`);
 
-    const batch = admin.firestore().batch();
+    const followerRef = db.collection('users').doc(followData.followerId);
+    const followingRef = db.collection('users').doc(followData.followingId);
+
+    const batch = db.batch();
     batch.update(followerRef, { followingCount: admin.firestore.FieldValue.increment(-1) });
     batch.update(followingRef, { followersCount: admin.firestore.FieldValue.increment(-1) });
-    
+
     try {
       await batch.commit();
-      functions.logger.info(`Updated unfollow counts for ${followData.followerId} and ${followData.followingId}`);
-       // TODO: Delete the specific 'follow' notification if one exists.
+      console.log(`Updated unfollow counts for ${followData.followerId} and ${followData.followingId}`);
+      // Optionally delete the "new_follower" notification (more complex)
     } catch (error) {
-      functions.logger.error(
-        `Error processing unfollow from ${followData.followerId} to ${followData.followingId}:`,
-        error
-      );
+      console.error(`Error processing unfollow between ${followData.followerId} and ${followData.followingId}:`, error);
     }
     return null;
   });
-    

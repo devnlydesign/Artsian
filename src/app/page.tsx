@@ -12,110 +12,132 @@ import Link from 'next/link';
 import { ContentCard } from '@/components/content/ContentCard';
 import { useAppState } from '@/context/AppStateContext';
 import type { PostData } from '@/models/contentTypes';
-import { getPublicPosts } from '@/actions/postActions'; 
+import { getPublicPosts, getPostsByUsers } from '@/actions/postActions'; 
+import { getFollowingIds } from '@/actions/connectionActions';
 import { db, storage } from '@/lib/firebase'; 
 import { collection, query, where, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-const placeholderPosts: PostData[] = [
-  {
-    id: "ph1",
-    userId: "userCosmic",
-    author: { name: "Cosmic Creator", username: "cosmicart", avatarUrl: "https://placehold.co/40x40.png?text=CC", dataAiHintAvatar: "female artist portrait" },
-    contentUrl: "https://placehold.co/600x750.png",
-    contentType: 'post',
-    caption: "Exploring new dimensions in my latest piece 'Nebula Dreams'. What do you see? ✨ #digitalart #space #abstract",
-    likesCount: 1203,
-    commentsCount: 88,
-    createdAt: Timestamp.fromMillis(Date.now() - 2 * 60 * 60 * 1000), 
-    dataAiHintImage: "nebula dreams abstract",
-    isPublic: true,
-  },
-  {
-    id: "ph2",
-    userId: "userStudio",
-    author: { name: "Studio Vibes", username: "studiolife", avatarUrl: "https://placehold.co/40x40.png?text=SV", dataAiHintAvatar: "male designer profile" },
-    contentUrl: "https://placehold.co/600x600.png",
-    contentType: 'post',
-    caption: "Weekend experiments with generative patterns. Sometimes the process is the art. #genart #creativecoding #wip",
-    likesCount: 756,
-    commentsCount: 42,
-    createdAt: Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000), 
-    dataAiHintImage: "generative patterns code",
-    isPublic: true,
-  },
-];
-
-const stories = [
-    { id: "s1", name: "Your Story", avatar: "https://placehold.co/64x64.png", dataAiHint: "user plus icon", isOwn: true },
-    { id: "s2", name: "Elena V.", avatar: "https://placehold.co/64x64.png", dataAiHint: "female artist avatar" },
-    { id: "s3", name: "Marcus R.", avatar: "https://placehold.co/64x64.png", dataAiHint: "male designer avatar" },
-];
-
-const suggestions = [
-    { id: "u1", name: "Future Artist", avatar: "https://placehold.co/40x40.png", dataAiHint: "futuristic person avatar", bio: "Exploring digital frontiers." },
-    { id: "u2", name: "PixelPerfect", avatar: "https://placehold.co/40x40.png", dataAiHint: "pixel character avatar", bio: "Lover of all things 8-bit." },
-];
-
-const StoriesBar = () => (
-  <Card className="overflow-hidden transition-shadow hover:shadow-md mb-6 md:mb-8">
-    <CardContent className="p-0">
-      <div className="flex space-x-3 p-4 overflow-x-auto">
-        {stories.map(story => (
-          <div key={story.id} className="flex flex-col items-center w-20 shrink-0 cursor-pointer group">
-            <div className={`relative rounded-full p-0.5 border-2 group-hover:scale-105 transition-transform ${story.isOwn ? 'border-transparent' : 'border-accent'}`}>
-              <Avatar className="h-16 w-16">
-                <NextImage src={story.avatar} alt={story.name} width={64} height={64} className="rounded-full" data-ai-hint={story.dataAiHint} />
-              </Avatar>
-              {story.isOwn && <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-0.5 border-2 border-card"><UserPlus className="h-3 w-3"/></div>}
-            </div>
-            <p className="text-xs mt-1 truncate w-full text-center group-hover:text-primary transition-colors">{story.name}</p>
+const StoriesBar = () => {
+    const stories = [
+        { id: "s1", name: "Your Story", avatar: "https://placehold.co/64x64.png", dataAiHint: "user plus icon", isOwn: true },
+        { id: "s2", name: "Elena V.", avatar: "https://placehold.co/64x64.png", dataAiHint: "female artist avatar" },
+        { id: "s3", name: "Marcus R.", avatar: "https://placehold.co/64x64.png", dataAiHint: "male designer avatar" },
+    ];
+    return (
+      <Card className="overflow-hidden transition-shadow hover:shadow-md mb-6 md:mb-8">
+        <CardContent className="p-0">
+          <div className="flex space-x-3 p-4 overflow-x-auto">
+            {stories.map(story => (
+              <div key={story.id} className="flex flex-col items-center w-20 shrink-0 cursor-pointer group">
+                <div className={`relative rounded-full p-0.5 border-2 group-hover:scale-105 transition-transform ${story.isOwn ? 'border-transparent' : 'border-accent'}`}>
+                  <Avatar className="h-16 w-16">
+                    <NextImage src={story.avatar} alt={story.name} width={64} height={64} className="rounded-full" data-ai-hint={story.dataAiHint} />
+                  </Avatar>
+                  {story.isOwn && <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-0.5 border-2 border-card"><UserPlus className="h-3 w-3"/></div>}
+                </div>
+                <p className="text-xs mt-1 truncate w-full text-center group-hover:text-primary transition-colors">{story.name}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    </CardContent>
-  </Card>
-);
+        </CardContent>
+      </Card>
+    );
+};
 
 
 export default function HomePage() {
   const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
-  const [feedPosts, setFeedPosts] = useState<PostData[]>(placeholderPosts);
+  const [feedPosts, setFeedPosts] = useState<PostData[]>([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     setIsLoadingFeed(true);
-    const postsRef = collection(db, 'posts');
-    const q = query(
-        postsRef,
-        where("isPublic", "==", true),
+    let unsubscribe: () => void = () => {};
+
+    if (isAuthenticated && currentUser?.uid) {
+      // Authenticated user: try to fetch posts from followed users + some public posts
+      const fetchFollowedAndPublicPosts = async () => {
+        try {
+          const followingIds = await getFollowingIds(currentUser.uid);
+          let postsQuery;
+          if (followingIds.length > 0) {
+            // Combine posts from followed users and general public posts
+            // This is a simplified approach. A more robust feed would use aggregated feeds.
+            const followedUsersAndSelf = [...new Set([...followingIds, currentUser.uid])];
+            postsQuery = query(
+              collection(db, 'posts'),
+              where('userId', 'in', followedUsersAndSelf.slice(0,10)), // Firestore 'in' query limit
+              where("moderationStatus", "==", "approved"),
+              orderBy('createdAt', 'desc'),
+              limit(20)
+            );
+          } else {
+            // If not following anyone, just get public posts
+            postsQuery = query(
+              collection(db, 'posts'),
+              where('isPublic', '==', true),
+              where("moderationStatus", "==", "approved"),
+              orderBy('createdAt', 'desc'),
+              limit(20)
+            );
+          }
+          
+          unsubscribe = onSnapshot(postsQuery, (querySnapshot) => {
+            const posts: PostData[] = [];
+            querySnapshot.forEach((doc) => {
+              posts.push({ id: doc.id, ...doc.data() } as PostData);
+            });
+            setFeedPosts(posts);
+            setIsLoadingFeed(false);
+          }, (error) => {
+            console.error("Error fetching posts for authenticated user:", error);
+            toast({title: "Feed Error", description: "Could not load personalized feed updates.", variant: "destructive"});
+            setIsLoadingFeed(false);
+          });
+
+        } catch (error) {
+            console.error("Error setting up authenticated feed:", error);
+            toast({title: "Feed Setup Error", description: "Could not initialize your feed.", variant: "destructive"});
+            setIsLoadingFeed(false);
+        }
+      };
+      fetchFollowedAndPublicPosts();
+
+    } else if (!isLoadingAuth) {
+      // Unauthenticated user or initial load: fetch public posts
+      const publicPostsQuery = query(
+        collection(db, 'posts'),
+        where('isPublic', '==', true),
         where("moderationStatus", "==", "approved"),
-        orderBy("createdAt", "desc"),
+        orderBy('createdAt', 'desc'),
         limit(20)
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const publicPosts: PostData[] = [];
+      );
+      unsubscribe = onSnapshot(publicPostsQuery, (querySnapshot) => {
+        const posts: PostData[] = [];
         querySnapshot.forEach((doc) => {
-            publicPosts.push({ id: doc.id, ...doc.data() } as PostData);
+          posts.push({ id: doc.id, ...doc.data() } as PostData);
         });
-        setFeedPosts(publicPosts.length > 0 ? publicPosts : []);
+        setFeedPosts(posts);
         setIsLoadingFeed(false);
-    }, (error) => {
-        console.error("Error fetching public posts in real-time: ", error);
-        toast({title: "Feed Error", description: "Could not load live feed updates.", variant: "destructive"});
-        setFeedPosts(placeholderPosts); 
+      }, (error) => {
+        console.error("Error fetching public posts:", error);
+        toast({title: "Feed Error", description: "Could not load public feed updates.", variant: "destructive"});
         setIsLoadingFeed(false);
-    });
-
-    return () => unsubscribe(); 
-  }, [toast]);
+      });
+    }
+    return () => unsubscribe();
+  }, [currentUser, isAuthenticated, isLoadingAuth, toast]);
 
   const handlePostDeleted = (deletedPostId: string) => {
     setFeedPosts(prevPosts => prevPosts.filter(post => post.id !== deletedPostId));
   };
 
+  const suggestions = [
+    { id: "u1", name: "Future Artist", avatar: "https://placehold.co/40x40.png", dataAiHint: "futuristic person avatar", bio: "Exploring digital frontiers." },
+    { id: "u2", name: "PixelPerfect", avatar: "https://placehold.co/40x40.png", dataAiHint: "pixel character avatar", bio: "Lover of all things 8-bit." },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 py-0 md:py-6"> 
@@ -127,7 +149,7 @@ export default function HomePage() {
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                 <Avatar className="h-9 w-9">
-                    <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "User"} />
+                    <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "User"} data-ai-hint="user avatar" />
                     <AvatarFallback>{currentUser?.displayName?.substring(0,1) || "U"}</AvatarFallback>
                 </Avatar>
                 What's on your mind, {currentUser?.displayName || 'artist'}?
@@ -143,7 +165,6 @@ export default function HomePage() {
           </Card>
         )}
 
-
         {isLoadingAuth || isLoadingFeed ? (
           <div className="flex justify-center items-center py-10">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -153,7 +174,7 @@ export default function HomePage() {
              <Card className="text-center py-10 card-interactive-hover">
                 <CardContent>
                     <Palette className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
-                    <p className="text-muted-foreground">No public posts found yet. Be the first to create one!</p>
+                    <p className="text-muted-foreground">No posts found yet. {isAuthenticated ? "Create one or follow others!" : "Explore or sign up to see more!"}</p>
                      {!isAuthenticated && (
                         <Button asChild variant="link" className="mt-2"><Link href="/auth/signup">Sign up to post</Link></Button>
                     )}
@@ -167,7 +188,7 @@ export default function HomePage() {
         {!isAuthenticated && !isLoadingFeed && feedPosts.length > 0 && (
             <Card className="mt-6 text-center p-4 bg-primary/10 border-primary/30">
                 <CardDescription>
-                    You are viewing public posts. <Link href="/auth/login" className="text-primary font-semibold hover:underline">Log in</Link> or <Link href="/auth/signup" className="text-primary font-semibold hover:underline">sign up</Link> to create posts and see a personalized feed!
+                    You are viewing public posts. <Link href="/auth/login" className="text-primary font-semibold hover:underline">Log in</Link> or <Link href="/auth/signup" className="text-primary font-semibold hover:underline">sign up</Link> for a personalized feed and to interact!
                 </CardDescription>
             </Card>
         )}

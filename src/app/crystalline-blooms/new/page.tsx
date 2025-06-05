@@ -18,7 +18,8 @@ import { createArtwork, type LayerData } from '@/actions/artworkActions';
 import { Gem, Loader2, PlusCircle, UploadCloud, FileText } from 'lucide-react'; 
 import NextImage from "next/image";
 import { storage } from '@/lib/firebase';
-import { ref as storageRefSdk, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRefSdk, uploadBytesResumable, getDownloadURL, type UploadTaskSnapshot } from 'firebase/storage'; // Added UploadTaskSnapshot and uploadBytesResumable
+import { Progress } from "@/components/ui/progress"; // Added Progress
 
 const artworkFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters.").max(100, "Title is too long."),
@@ -38,6 +39,7 @@ export default function NewCrystallineBloomPage() {
 
   const [artworkImageFile, setArtworkImageFile] = useState<File | null>(null);
   const [artworkImagePreview, setArtworkImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const artworkFileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ArtworkFormValues>({
@@ -56,6 +58,7 @@ export default function NewCrystallineBloomPage() {
     if (file) {
       setArtworkImageFile(file);
       setArtworkImagePreview(URL.createObjectURL(file));
+      setUploadProgress(0); // Reset progress
     }
   };
 
@@ -70,66 +73,70 @@ export default function NewCrystallineBloomPage() {
     }
 
     setIsSubmitting(true);
+    setUploadProgress(0);
     let uploadedOriginalImageUrl = "";
 
     try {
-      // Upload original image
       const artworkFilePath = `artworks/${currentUser.uid}/original_${Date.now()}_${artworkImageFile.name}`;
       const artworkFileRef = storageRefSdk(storage, artworkFilePath);
-      await uploadBytes(artworkFileRef, artworkImageFile);
-      uploadedOriginalImageUrl = await getDownloadURL(artworkFileRef);
-      toast({ title: "Cover Image Uploaded", description: "Artwork cover image successfully uploaded." });
       
-      // For now, the display URL will be the same as the original.
-      // The Resize Images extension would create other versions (e.g., thumbnails).
-      // The frontend would then construct URLs to these versions.
-      const displayImageUrl = uploadedOriginalImageUrl; 
+      const uploadTask = uploadBytesResumable(artworkFileRef, artworkImageFile);
 
-      const newLayers: LayerData[] = [];
-      if (data.primaryTextContent && data.primaryTextContent.trim() !== "") {
-        newLayers.push({
-          id: `text-${Date.now()}`, 
-          type: "text",
-          content: data.primaryTextContent,
-          order: 1,
-          title: "Main Content" 
-        });
-      }
+      uploadTask.on('state_changed',
+        (snapshot: UploadTaskSnapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error("Upload failed:", error);
+          setUploadProgress(null);
+          setIsSubmitting(false);
+          toast({ title: "Upload Error", description: "Failed to upload cover image.", variant: "destructive" });
+        },
+        async () => {
+          uploadedOriginalImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          toast({ title: "Cover Image Uploaded", description: "Artwork cover image successfully uploaded." });
+          
+          const displayImageUrl = uploadedOriginalImageUrl; 
 
-      const artworkDetailsToSave = {
-        title: data.title,
-        type: data.type,
-        description: data.description,
-        imageUrl: displayImageUrl, // This is the primary URL used for display
-        imageUrlOriginal: uploadedOriginalImageUrl, // Storing the original image URL
-        dataAiHint: data.dataAiHint || data.title.toLowerCase().split(" ").slice(0,2).join(" ") || "abstract art",
-        layers: newLayers,
-      };
+          const newLayers: LayerData[] = [];
+          if (data.primaryTextContent && data.primaryTextContent.trim() !== "") {
+            newLayers.push({
+              id: `text-${Date.now()}`, 
+              type: "text",
+              content: data.primaryTextContent,
+              order: 1,
+              title: "Main Content" 
+            });
+          }
 
-      const result = await createArtwork(currentUser.uid, artworkDetailsToSave);
+          const artworkDetailsToSave = {
+            title: data.title,
+            type: data.type,
+            description: data.description,
+            imageUrl: displayImageUrl,
+            imageUrlOriginal: uploadedOriginalImageUrl,
+            dataAiHint: data.dataAiHint || data.title.toLowerCase().split(" ").slice(0,2).join(" ") || "abstract art",
+            layers: newLayers,
+          };
 
-      if (result.success && result.artworkId) {
-        toast({
-          title: "Artwork Created!",
-          description: `'${data.title}' has been added to your collection.`,
-        });
-        router.push('/crystalline-blooms'); 
-      } else {
-        toast({
-          title: "Error Creating Artwork",
-          description: result.message || "Could not save your artwork. Please try again.",
-          variant: "destructive",
-        });
-      }
+          const result = await createArtwork(currentUser.uid, artworkDetailsToSave);
+
+          if (result.success && result.artworkId) {
+            toast({ title: "Artwork Created!", description: `'${data.title}' has been added to your collection.` });
+            router.push('/crystalline-blooms'); 
+          } else {
+            toast({ title: "Error Creating Artwork", description: result.message || "Could not save your artwork.", variant: "destructive" });
+          }
+          setIsSubmitting(false);
+          setUploadProgress(null);
+        }
+      );
     } catch (error) {
       console.error("Error submitting artwork:", error);
-      toast({
-        title: "Submission Error",
-        description: "An unexpected error occurred during upload or save. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      toast({ title: "Submission Error", description: "An unexpected error occurred.", variant: "destructive" });
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -196,6 +203,7 @@ export default function NewCrystallineBloomPage() {
                 </Card>
                  <FormDescription>This will be the main visual (thumbnail/cover) for your artwork.</FormDescription>
                 {!artworkImageFile && form.formState.isSubmitted && <p className="text-sm font-medium text-destructive">Cover image is required.</p>}
+                {uploadProgress !== null && <Progress value={uploadProgress} className="w-full h-2 mt-2" />}
               </FormItem>
 
               <FormField
@@ -256,9 +264,9 @@ export default function NewCrystallineBloomPage() {
                 )}
               />
               
-              <Button type="submit" variant="gradientPrimary" disabled={isSubmitting} className="w-full text-lg py-3">
+              <Button type="submit" variant="gradientPrimary" disabled={isSubmitting || uploadProgress !== null && uploadProgress < 100} className="w-full text-lg py-3">
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-                {isSubmitting ? "Creating Artwork..." : "Add Artwork to Collection"}
+                {isSubmitting ? (uploadProgress !== null ? `Uploading ${Math.round(uploadProgress)}%...` : "Creating...") : "Add Artwork to Collection"}
               </Button>
             </form>
           </Form>
@@ -267,5 +275,3 @@ export default function NewCrystallineBloomPage() {
     </div>
   );
 }
-
-    

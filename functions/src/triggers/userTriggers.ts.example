@@ -1,0 +1,110 @@
+
+import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions';
+
+const db = admin.firestore();
+
+// Triggered when a new user is created in Firebase Authentication
+export const onUserCreatedAuth = functions.auth.user().onCreate(async (user) => {
+  console.log(`New user signed up: ${user.uid}, Email: ${user.email}`);
+
+  const userProfileRef = db.collection('users').doc(user.uid);
+  const profileSnapshot = await userProfileRef.get();
+
+  if (profileSnapshot.exists()) {
+    console.log(`User profile for ${user.uid} already exists. Skipping default creation.`);
+    return null;
+  }
+
+  try {
+    await userProfileRef.set({
+      uid: user.uid,
+      email: user.email || null,
+      username: user.email ? user.email.split('@')[0] : `user_${user.uid.substring(0, 6)}`,
+      fullName: user.displayName || null,
+      photoURL: user.photoURL || null, // Firebase Auth photoURL
+      profileImageUrl: user.photoURL || null, // Initialize with Firebase Auth photoURL
+      bio: '',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+      followersCount: 0,
+      followingCount: 0,
+      postsCount: 0,
+      storiesCount: 0,
+      reelsCount: 0,
+      musicCount: 0,
+      otherArtCount: 0,
+      artworksCount: 0, // For Crystalline Blooms
+      isPremium: false,
+      emailOptIn: false, // Default to false
+      moderationStatus: 'pending', // New users might start as pending
+      // Initialize other default fields from your UserProfileData interface as needed
+    });
+    console.log(`Default user profile created in Firestore for ${user.uid}`);
+  } catch (error) {
+    console.error(`Error creating default user profile for ${user.uid}:`, error);
+  }
+  return null;
+});
+
+// Triggered when a user document is updated in Firestore
+// Example: If moderationStatus changes to 'approved' for a user, you might send a welcome email
+export const onUserProfileUpdated = functions.firestore
+  .document('users/{userId}')
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+    const userId = context.params.userId;
+
+    if (!beforeData || !afterData) {
+        console.log(`User profile update trigger for ${userId}, but data is missing.`);
+        return null;
+    }
+
+    // Check if moderationStatus changed from something else to 'approved'
+    if (beforeData.moderationStatus !== 'approved' && afterData.moderationStatus === 'approved') {
+      console.log(`User ${userId} profile approved. Placeholder for sending welcome email or notification.`);
+      // Example: Send a system notification
+      // await createNotification(userId, 'system_message', 'Your Charisarthub profile has been approved!');
+    }
+
+    // Add other logic for user profile updates here if needed
+
+    return null;
+  });
+
+// Consider adding onUserDeletedAuth to clean up user data from Firestore and Storage
+// if a user is deleted from Firebase Authentication.
+export const onUserDeletedAuth = functions.auth.user().onDelete(async (user) => {
+    console.log(`User account deleted: ${user.uid}. Cleaning up associated data.`);
+    const userId = user.uid;
+    const userRef = db.collection('users').doc(userId);
+
+    const batch = db.batch();
+    batch.delete(userRef); // Delete user profile from Firestore
+
+    // TODO: Query and delete all content created by this user (posts, artworks, etc.)
+    // This is a complex operation and needs careful implementation to avoid excessive reads/writes.
+    // Example for posts (repeat for other collections):
+    // const postsQuery = db.collection('posts').where('userId', '==', userId);
+    // const postsSnap = await postsQuery.get();
+    // postsSnap.forEach(doc => batch.delete(doc.ref)); // This will trigger onDeletePost for each, which handles media and interactions.
+
+    // TODO: Delete user's folder in Firebase Storage
+    // const userStoragePath = `users/${userId}/`;
+    // try {
+    //   await admin.storage().bucket().deleteFiles({ prefix: userStoragePath });
+    //   console.log(`Deleted files from Storage for user ${userId} at path ${userStoragePath}`);
+    // } catch (error) {
+    //   console.error(`Error deleting files from Storage for user ${userId}:`, error);
+    // }
+
+    try {
+        await batch.commit();
+        console.log(`Firestore data cleanup for user ${userId} committed.`);
+    } catch (error) {
+        console.error(`Error committing data cleanup for user ${userId}:`, error);
+    }
+    return null;
+});
