@@ -1,15 +1,18 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusSquare, UploadCloud, Sparkles, PenTool, Music, Film, Gem } from "lucide-react"; 
+import { PlusSquare, UploadCloud, Sparkles, PenTool, Music, Film, Gem, Mic2, Video } from "lucide-react"; // Added Mic2, Video
 import Link from "next/link";
 
 const creationOptions = [
   { title: "New Artwork", description: "Upload or create a new artwork, sketch, or multimedia piece.", icon: Gem, href: "/crystalline-blooms/new", dataAiHint: "gemstone sparkle" }, 
+  { title: "Write a Post", description: "Share an update, thought, or announcement to your feed.", icon: PlusSquare, href: "/posts/new", dataAiHint: "text document" },
+  { title: "Post a Reel", description: "Share a short video update or insight.", icon: Film, href: "/reels/new", dataAiHint: "video play button" },
+  { title: "Upload Story", description: "Share an ephemeral image or video update.", icon: Video, href: "/stories/new", dataAiHint: "mobile phone story" },
+  { title: "Upload Music Track", description: "Share your latest audio creation.", icon: Mic2, href: "/music/new", dataAiHint: "microphone audio" },
   { title: "Start Project Story", description: "Document the creation process of a new project.", icon: PenTool, href: "/genesis-trails/new", dataAiHint: "drawing hand" }, 
   { title: "Generate Creative Soundtrack", description: "Create ambient audio from your work session data.", icon: Music, href: "/process-symphony", dataAiHint: "sound wave abstract" }, 
-  { title: "Post a Reel", description: "Share a short video update or insight.", icon: Film, href: "/reels/new", dataAiHint: "video play button" },
-  { title: "Write a Post", description: "Share an update, thought, or announcement to your feed.", icon: PlusSquare, href: "/posts/new", dataAiHint: "text document" },
+  { title: "Start Live Stream", description: "Go live and interact with your audience.", icon: Clapperboard, href: "/livestream/new", dataAiHint: "live broadcast icon" },
 ];
 
 export default function CreatePage() {
@@ -37,7 +40,7 @@ export default function CreatePage() {
             <CardContent>
               <Button asChild variant="gradientPrimary" className="w-full transition-transform hover:scale-105">
                 <Link href={option.href || "#"}>
-                  {option.title.startsWith("Generate") ? "Generate" : "Start Creating"}
+                  {option.title.startsWith("Generate") || option.title.startsWith("Start Live") ? option.title.split(" ")[0] : "Start Creating"}
                 </Link>
               </Button>
             </CardContent>
@@ -47,7 +50,7 @@ export default function CreatePage() {
       
       <Card className="card-interactive-hover">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><UploadCloud className="h-6 w-6 text-accent"/> Quick Upload</CardTitle>
+          <CardTitle className="flex items-center gap-2"><UploadCloud className="h-6 w-6 text-accent"/> Quick Upload (Not Implemented)</CardTitle>
           <CardDescription>Drag and drop files here to quickly create new Artworks (Placeholder)</CardDescription>
         </CardHeader>
         <CardContent>

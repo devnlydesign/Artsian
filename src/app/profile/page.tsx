@@ -1,52 +1,74 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Settings, UserCircle, Mail, MapPin, Link as LinkIcon, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink, Loader2, Users } from "lucide-react";
+import { Settings, UserCircle, Mail, MapPin, Link as LinkIcon, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink, Loader2, Users, Edit } from "lucide-react";
 import NextImage from "next/image"; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppState } from '@/context/AppStateContext';
 import { getUserProfile, type UserProfileData } from '@/actions/userProfile';
+import { getArtworksByUserId, type ArtworkData } from '@/actions/artworkActions'; // Import artwork actions
+import { getPostsByUserId, type PostData } from '@/actions/postActions'; // Import post actions
+import { ContentCard } from '@/components/content/ContentCard'; // Import ContentCard
 import Link from 'next/link'; 
 
-const userBlooms = [
-  { id: "b1", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "abstract colorful artwork" },
-  { id: "b2", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "surreal digital painting" },
-  { id: "b3", type: "video", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "generative art video loop" },
-  { id: "b4", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "futuristic sculpture photo" },
-  { id: "b5", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "geometric pattern design" },
-  { id: "b6", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "detailed concept sketch" },
-];
-
 export default function ProfilePage() {
-  const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
+  const { currentUser, isAuthenticated, isLoadingAuth, refreshUserProfile } = useAppState(); // Added refreshUserProfile
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userArtworks, setUserArtworks] = useState<ArtworkData[]>([]);
+  const [userPosts, setUserPosts] = useState<PostData[]>([]); // State for user posts
   
   const profileLinks = [
-    { title: "My Shop", url: "/shop/alexchroma_art" }, 
-    { title: "Behance", url: "https://behance.net/alexchroma" },
-    { title: "Instagram", url: "https://instagram.com/alexchroma_art" },
+    // Example links, dynamically generate or fetch these in a real app
+    // { title: "My Shop", url: "/shop/alexchroma_art" }, 
+    // { title: "Behance", url: "https://behance.net/alexchroma" },
+    // { title: "Instagram", url: "https://instagram.com/alexchroma_art" },
   ];
 
-  useEffect(() => {
-    async function fetchProfile() {
-      if (isAuthenticated && currentUser?.uid) {
-        setIsLoading(true);
-        const data = await getUserProfile(currentUser.uid);
-        setProfileData(data);
-        setIsLoading(false);
-      } else if (!isLoadingAuth) {
-        setIsLoading(false); 
+  const fetchProfileAndContent = useCallback(async () => {
+    if (isAuthenticated && currentUser?.uid) {
+      setIsLoading(true);
+      const data = await getUserProfile(currentUser.uid);
+      setProfileData(data);
+      if (data) {
+        const artworks = await getArtworksByUserId(currentUser.uid, currentUser.uid); // Pass self as requester for all own artworks
+        setUserArtworks(artworks);
+        const posts = await getPostsByUserId(currentUser.uid); // Get own posts
+        setUserPosts(posts);
       }
-    }
-    if (!isLoadingAuth) {
-        fetchProfile();
+      setIsLoading(false);
+    } else if (!isLoadingAuth) {
+      setIsLoading(false); 
     }
   }, [currentUser, isAuthenticated, isLoadingAuth]);
+
+
+  useEffect(() => {
+    if (!isLoadingAuth) {
+        fetchProfileAndContent();
+    }
+  }, [fetchProfileAndContent, isLoadingAuth]);
+  
+  // Refresh profile if currentUserProfile changes in context (e.g., after settings update)
+  useEffect(() => {
+     if (currentUser && profileData && currentUser.uid === profileData.uid) {
+        // Check if a more up-to-date version of profile is in context
+        // This is a simplified check; more robust would involve comparing timestamps
+        // For now, just re-fetch if user is the same
+        fetchProfileAndContent();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshUserProfile]); // Re-run if refreshUserProfile function reference changes (it shouldn't, but as a trigger)
+
+
+  const handlePostDeleted = (deletedPostId: string) => {
+    setUserPosts(prevPosts => prevPosts.filter(post => post.id !== deletedPostId));
+  };
+
 
   if (isLoadingAuth || isLoading) {
     return (
@@ -89,7 +111,9 @@ export default function ProfilePage() {
   const bannerURL = profileData?.bannerURL || "https://placehold.co/1000x250.png"; 
   const followersCount = profileData?.followersCount || 0;
   const followingCount = profileData?.followingCount || 0;
-  const postsCount = userBlooms.length; // Placeholder for actual post count
+  const postsCountDisplay = userPosts.length;
+  const artworksCountDisplay = userArtworks.length;
+
 
   return (
     <div className="space-y-6">
@@ -120,7 +144,8 @@ export default function ProfilePage() {
               </div>
               <CardDescription className="text-lg text-muted-foreground">@{username}</CardDescription>
               <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-x-6 gap-y-2 text-sm">
-                <span><span className="font-semibold">{postsCount}</span> artworks</span>
+                <span><span className="font-semibold">{postsCountDisplay}</span> posts</span>
+                <span><span className="font-semibold">{artworksCountDisplay}</span> artworks</span>
                 <span className="flex items-center gap-1"><Users className="h-4 w-4 text-muted-foreground" /><span className="font-semibold">{followersCount.toLocaleString()}</span> followers</span>
                 <span className="flex items-center gap-1"><Users className="h-4 w-4 text-muted-foreground" /><span className="font-semibold">{followingCount.toLocaleString()}</span> following</span>
               </div>
@@ -166,30 +191,43 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
       
-      <Tabs defaultValue="artworks" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 md:max-w-md mx-auto">
+      <Tabs defaultValue="posts" className="w-full">
+        <TabsList className="grid w-full grid-cols-5 md:max-w-lg mx-auto">
+          <TabsTrigger value="posts" className="transition-colors"><Edit className="h-5 w-5 mr-0 md:mr-2" /><span className="hidden md:inline">Posts</span></TabsTrigger>
           <TabsTrigger value="artworks" className="transition-colors"><Grid3x3 className="h-5 w-5 mr-0 md:mr-2" /><span className="hidden md:inline">Artworks</span></TabsTrigger>
           <TabsTrigger value="reels" className="transition-colors"><Clapperboard className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Reels</span></TabsTrigger>
           <TabsTrigger value="saved" className="transition-colors"><Bookmark className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Saved</span></TabsTrigger>
           <TabsTrigger value="tagged" className="transition-colors"><Tag className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Tagged</span></TabsTrigger>
         </TabsList>
+
+        <TabsContent value="posts">
+          <div className="space-y-4 mt-4">
+            {userPosts.map(post => (
+              <ContentCard key={post.id} content={post} currentUser={currentUser} onPostDeleted={handlePostDeleted}/>
+            ))}
+            {userPosts.length === 0 && <p className="col-span-full text-center text-muted-foreground py-10">No posts yet.</p>}
+          </div>
+        </TabsContent>
+        
         <TabsContent value="artworks">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 sm:gap-2 mt-4">
-            {userBlooms.map(bloom => ( 
-              <div key={bloom.id} className="relative aspect-square bg-muted group overflow-hidden rounded-sm card-interactive-hover">
-                <NextImage 
-                    src={bloom.thumbnailUrl} 
-                    alt="User artwork" 
-                    layout="fill" 
-                    objectFit="cover" 
-                    data-ai-hint={bloom.dataAiHint}
-                    className="transition-transform duration-300 group-hover:scale-110 cursor-pointer"
-                />
-                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                 </div>
-              </div>
+            {userArtworks.map(artwork => ( 
+              <Link key={artwork.id} href={`/crystalline-blooms#item-${artwork.id}`} legacyBehavior>
+                <a className="relative aspect-square bg-muted group overflow-hidden rounded-sm card-interactive-hover block">
+                    <NextImage 
+                        src={artwork.imageUrl || "https://placehold.co/300x300.png"} 
+                        alt={artwork.title} 
+                        layout="fill" 
+                        objectFit="cover" 
+                        data-ai-hint={artwork.dataAiHint || "artwork image"}
+                        className="transition-transform duration-300 group-hover:scale-110 cursor-pointer"
+                    />
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    </div>
+                </a>
+              </Link>
             ))}
-             {userBlooms.length === 0 && <p className="col-span-full text-center text-muted-foreground py-10">No artworks yet.</p>}
+             {userArtworks.length === 0 && <p className="col-span-full text-center text-muted-foreground py-10">No artworks yet.</p>}
           </div>
         </TabsContent>
         <TabsContent value="reels">

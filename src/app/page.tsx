@@ -6,22 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import NextImage from "next/image";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, UserPlus, Users, Palette, Sparkles, Loader2, Image as ImageIcon, UploadCloud } from "lucide-react"; // Added ImageIcon
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, UserPlus, Users, Palette, Sparkles, Loader2, Image as ImageIcon, UploadCloud, PlusSquare } from "lucide-react"; 
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { ContentCard } from '@/components/content/ContentCard';
 import { useAppState } from '@/context/AppStateContext';
 import type { PostData } from '@/models/contentTypes';
-import { getPublicPosts, createPost } from '@/actions/postActions'; // Import createPost
-import { db, storage } from '@/lib/firebase'; // Import db for onSnapshot
+import { getPublicPosts } from '@/actions/postActions'; 
+import { db, storage } from '@/lib/firebase'; 
 import { collection, query, where, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Textarea } from '@/components/ui/textarea'; // Added Textarea
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; // For image upload
-
 
 const placeholderPosts: PostData[] = [
-  // ... (keeping existing placeholders for initial visual if needed, will be replaced by live data)
   {
     id: "ph1",
     userId: "userCosmic",
@@ -31,7 +27,7 @@ const placeholderPosts: PostData[] = [
     caption: "Exploring new dimensions in my latest piece 'Nebula Dreams'. What do you see? ✨ #digitalart #space #abstract",
     likesCount: 1203,
     commentsCount: 88,
-    createdAt: Timestamp.fromMillis(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    createdAt: Timestamp.fromMillis(Date.now() - 2 * 60 * 60 * 1000), 
     dataAiHintImage: "nebula dreams abstract",
     isPublic: true,
   },
@@ -44,7 +40,7 @@ const placeholderPosts: PostData[] = [
     caption: "Weekend experiments with generative patterns. Sometimes the process is the art. #genart #creativecoding #wip",
     likesCount: 756,
     commentsCount: 42,
-    createdAt: Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+    createdAt: Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000), 
     dataAiHintImage: "generative patterns code",
     isPublic: true,
   },
@@ -81,129 +77,10 @@ const StoriesBar = () => (
   </Card>
 );
 
-function CreatePostForm({ onPostCreated }: { onPostCreated: () => void }) {
-  const { currentUser } = useAppState();
-  const { toast } = useToast();
-  const [caption, setCaption] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    } else if (file) {
-      toast({ title: "Invalid File", description: "Please select an image file.", variant: "destructive" });
-      setImageFile(null);
-      setImagePreview(null);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to create a post.", variant: "default" });
-      return;
-    }
-    if (!caption.trim() && !imageFile) {
-      toast({ title: "Empty Post", description: "Please write something or add an image.", variant: "destructive" });
-      return;
-    }
-
-    setIsSubmitting(true);
-    let contentUrl: string | undefined = undefined;
-    let dataAiHintImage: string | undefined = undefined;
-
-    try {
-      if (imageFile) {
-        const imagePath = `posts/${currentUser.uid}/${Date.now()}_${imageFile.name}`;
-        const imageStorageRef = storageRef(storage, imagePath);
-        await uploadBytes(imageStorageRef, imageFile);
-        contentUrl = await getDownloadURL(imageStorageRef);
-        dataAiHintImage = "user uploaded post image"; // Generic hint
-      }
-
-      const authorDetails = {
-        name: currentUser.displayName || currentUser.email?.split('@')[0] || "Charis User",
-        avatarUrl: currentUser.photoURL,
-        username: currentUser.email?.split('@')[0] || currentUser.uid.substring(0,8), // Or fetch from user profile
-        dataAiHintAvatar: "user avatar",
-      };
-      
-      const result = await createPost(currentUser.uid, {
-        contentType: imageFile ? 'image' : 'text',
-        caption: caption.trim() || null,
-        contentUrl: contentUrl,
-        dataAiHintImage: dataAiHintImage,
-        isPublic: true, // Default to public
-      }, authorDetails);
-
-      if (result.success) {
-        toast({ title: "Post Created!", description: "Your post is now live." });
-        setCaption("");
-        setImageFile(null);
-        setImagePreview(null);
-        if(fileInputRef.current) fileInputRef.current.value = "";
-        onPostCreated(); // Callback to refresh feed or optimistic update
-      } else {
-        toast({ title: "Error", description: result.message || "Could not create post.", variant: "destructive" });
-      }
-    } catch (error) {
-      console.error("Error creating post:", error);
-      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <Card className="mb-6 md:mb-8 card-interactive-hover">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "User"} />
-            <AvatarFallback>{currentUser?.displayName?.substring(0,1) || "U"}</AvatarFallback>
-          </Avatar>
-          Create Post
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <Textarea
-            placeholder={`What's on your mind, ${currentUser?.displayName || 'artist'}?`}
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            rows={3}
-            disabled={isSubmitting}
-          />
-          {imagePreview && (
-            <div className="mt-2 relative w-full max-w-xs h-40 rounded border bg-muted">
-              <NextImage src={imagePreview} alt="Image preview" layout="fill" objectFit="contain" />
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>
-              <ImageIcon className="mr-2 h-4 w-4" /> {imageFile ? "Change Image" : "Add Image"}
-            </Button>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-            <Button type="submit" disabled={isSubmitting || (!caption.trim() && !imageFile)} variant="gradientPrimary">
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              {isSubmitting ? "Posting..." : "Post"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
-
 
 export default function HomePage() {
   const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
-  const [feedPosts, setFeedPosts] = useState<PostData[]>(placeholderPosts); // Start with placeholders
+  const [feedPosts, setFeedPosts] = useState<PostData[]>(placeholderPosts);
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
   const { toast } = useToast();
 
@@ -215,7 +92,7 @@ export default function HomePage() {
         where("isPublic", "==", true),
         where("moderationStatus", "==", "approved"),
         orderBy("createdAt", "desc"),
-        limit(20) // Fetch initial 20 public posts
+        limit(20)
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -223,23 +100,20 @@ export default function HomePage() {
         querySnapshot.forEach((doc) => {
             publicPosts.push({ id: doc.id, ...doc.data() } as PostData);
         });
-        setFeedPosts(publicPosts.length > 0 ? publicPosts : []); // Clear placeholders if live data comes
+        setFeedPosts(publicPosts.length > 0 ? publicPosts : []);
         setIsLoadingFeed(false);
     }, (error) => {
         console.error("Error fetching public posts in real-time: ", error);
         toast({title: "Feed Error", description: "Could not load live feed updates.", variant: "destructive"});
-        setFeedPosts(placeholderPosts); // Fallback to placeholders on error
+        setFeedPosts(placeholderPosts); 
         setIsLoadingFeed(false);
     });
 
-    return () => unsubscribe(); // Cleanup listener on component unmount
+    return () => unsubscribe(); 
   }, [toast]);
 
-
-  const handlePostCreated = () => {
-    // The onSnapshot listener should automatically update the feed.
-    // If more immediate optimistic update is needed, that logic would go here.
-    // For now, relying on the listener.
+  const handlePostDeleted = (deletedPostId: string) => {
+    setFeedPosts(prevPosts => prevPosts.filter(post => post.id !== deletedPostId));
   };
 
 
@@ -248,7 +122,27 @@ export default function HomePage() {
       <div className="lg:col-span-2 space-y-6 md:space-y-8">
         <StoriesBar />
 
-        {isAuthenticated && <CreatePostForm onPostCreated={handlePostCreated} />}
+        {isAuthenticated && (
+          <Card className="mb-6 md:mb-8 card-interactive-hover">
+            <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                <Avatar className="h-9 w-9">
+                    <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "User"} />
+                    <AvatarFallback>{currentUser?.displayName?.substring(0,1) || "U"}</AvatarFallback>
+                </Avatar>
+                What's on your mind, {currentUser?.displayName || 'artist'}?
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Button asChild variant="outline" className="w-full">
+                    <Link href="/posts/new">
+                        <PlusSquare className="mr-2 h-4 w-4"/> Create a New Post
+                    </Link>
+                </Button>
+            </CardContent>
+          </Card>
+        )}
+
 
         {isLoadingAuth || isLoadingFeed ? (
           <div className="flex justify-center items-center py-10">
@@ -260,14 +154,17 @@ export default function HomePage() {
                 <CardContent>
                     <Palette className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
                     <p className="text-muted-foreground">No public posts found yet. Be the first to create one!</p>
+                     {!isAuthenticated && (
+                        <Button asChild variant="link" className="mt-2"><Link href="/auth/signup">Sign up to post</Link></Button>
+                    )}
                 </CardContent>
             </Card>
         ) : (
           feedPosts.map((post) => (
-            <ContentCard key={post.id} content={post} currentUser={currentUser} />
+            <ContentCard key={post.id} content={post} currentUser={currentUser} onPostDeleted={handlePostDeleted}/>
           ))
         )}
-        {!isAuthenticated && !isLoadingFeed && (
+        {!isAuthenticated && !isLoadingFeed && feedPosts.length > 0 && (
             <Card className="mt-6 text-center p-4 bg-primary/10 border-primary/30">
                 <CardDescription>
                     You are viewing public posts. <Link href="/auth/login" className="text-primary font-semibold hover:underline">Log in</Link> or <Link href="/auth/signup" className="text-primary font-semibold hover:underline">sign up</Link> to create posts and see a personalized feed!
@@ -324,5 +221,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

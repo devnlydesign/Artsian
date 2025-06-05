@@ -5,26 +5,24 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Settings, UserCircle, Mail, MapPin, Link as LinkIconProp, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink, Loader2, Users, MessageSquare, UserPlus, UserCheck, ShieldQuestion } from "lucide-react";
+import { Settings, UserCircle, Mail, MapPin, Link as LinkIconProp, Grid3x3, Clapperboard, Bookmark, Tag, CheckCircle, ExternalLink, Loader2, Users, MessageSquare, UserPlus, UserCheck, ShieldQuestion, Edit } from "lucide-react";
 import NextImage from "next/image"; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppState } from '@/context/AppStateContext';
 import { getUserProfile, type UserProfileData } from '@/actions/userProfile';
-import { getArtworksByUserId, type ArtworkData } from '@/actions/artworkActions'; // Import artwork actions
+import { getArtworksByUserId, type ArtworkData } from '@/actions/artworkActions'; 
+import { getPostsByUserId, type PostData } from '@/actions/postActions'; // Import post actions
+import { ContentCard } from '@/components/content/ContentCard'; // Import ContentCard
 import Link from 'next/link'; 
-import { useParams, useRouter } from 'next/navigation'; // Import useRouter and useParams
+import { useParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { followUser, unfollowUser, isFollowing } from '@/actions/interactionActions'; // Import follow actions
-
-// Placeholder - replace with actual fetching of user's artworks
-// const userBlooms = [
-//   { id: "b1", type: "image", thumbnailUrl: "https://placehold.co/300x300.png", dataAiHint: "abstract colorful artwork" },
-// ];
+import { followUser, unfollowUser, isFollowing } from '@/actions/interactionActions';
 
 export default function UserProfilePageDynamic() {
   const { currentUser, isAuthenticated, isLoadingAuth } = useAppState();
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
-  const [userArtworks, setUserArtworks] = useState<ArtworkData[]>([]); // State for artworks
+  const [userArtworks, setUserArtworks] = useState<ArtworkData[]>([]);
+  const [userPosts, setUserPosts] = useState<PostData[]>([]); // State for user posts
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isFollowingUser, setIsFollowingUser] = useState(false);
   const [isFollowProcessing, setIsFollowProcessing] = useState(false);
@@ -32,20 +30,25 @@ export default function UserProfilePageDynamic() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const userId = params.userId as string; // Get userId from route params
+  const userId = params.userId as string; 
 
   const isOwnProfile = currentUser?.uid === userId;
 
-  const fetchProfileAndArtworks = useCallback(async () => {
+  const fetchProfileAndContent = useCallback(async () => {
     if (!userId) return;
     setIsLoadingProfile(true);
     try {
       const data = await getUserProfile(userId);
       setProfileData(data);
       if (data) {
-        // Fetch artworks, passing current user's ID to respect privacy for non-public items
         const artworks = await getArtworksByUserId(userId, currentUser?.uid);
         setUserArtworks(artworks);
+
+        // Fetch posts for the profile user
+        // Assuming getPostsByUserId handles public/private based on requester for future
+        const posts = await getPostsByUserId(userId); 
+        setUserPosts(posts.filter(post => isOwnProfile || (post.isPublic && post.moderationStatus === 'approved')));
+
 
         if (currentUser?.uid && !isOwnProfile) {
           const followingStatus = await isFollowing(currentUser.uid, userId);
@@ -53,22 +56,21 @@ export default function UserProfilePageDynamic() {
         }
       } else {
         toast({title: "Profile Not Found", description: "This user profile does not exist or could not be loaded.", variant: "destructive"});
-        // router.push('/'); // Optionally redirect if profile not found
       }
     } catch (error) {
-        console.error("Error fetching profile or artworks:", error);
-        toast({title: "Error", description: "Could not load profile details.", variant: "destructive"});
+        console.error("Error fetching profile or content:", error);
+        toast({title: "Error", description: "Could not load profile details or content.", variant: "destructive"});
     } finally {
         setIsLoadingProfile(false);
     }
-  }, [userId, currentUser, isOwnProfile, toast, router]);
+  }, [userId, currentUser, isOwnProfile, toast]);
 
 
   useEffect(() => {
-    if (!isLoadingAuth) { // Only fetch if auth state is resolved
-        fetchProfileAndArtworks();
+    if (!isLoadingAuth) { 
+        fetchProfileAndContent();
     }
-  }, [fetchProfileAndArtworks, isLoadingAuth]);
+  }, [fetchProfileAndContent, isLoadingAuth]);
 
   const handleFollowToggle = async () => {
     if (!currentUser || !isAuthenticated) {
@@ -90,18 +92,16 @@ export default function UserProfilePageDynamic() {
     
     if (result.success) {
         toast({ title: isFollowingUser ? "Unfollowed" : "Followed!", description: `You are ${isFollowingUser ? 'no longer following' : 'now following'} ${profileData?.username || 'this user'}.`});
-        // Re-fetch profile to update follower counts (or rely on Cloud Functions and listeners for real-time)
         const updatedProfile = await getUserProfile(userId);
         setProfileData(updatedProfile);
-        if(currentUser?.uid) { // Also refresh current user's following count potentially
-             const currentProfileData = await getUserProfile(currentUser.uid);
-             // You might update AppStateContext's currentUserProfile here if it stores followingCount
-        }
-
     } else {
       toast({ title: "Error", description: result.message || "Could not update follow status.", variant: "destructive" });
     }
     setIsFollowProcessing(false);
+  };
+
+  const handlePostDeleted = (deletedPostId: string) => {
+    setUserPosts(prevPosts => prevPosts.filter(post => post.id !== deletedPostId));
   };
 
 
@@ -146,8 +146,9 @@ export default function UserProfilePageDynamic() {
   const bannerURL = profileData.bannerURL || profileData.bannerURLOriginal || "https://placehold.co/1000x250.png"; 
   const followersCount = profileData.followersCount || 0;
   const followingCount = profileData.followingCount || 0;
-  const postsCount = userArtworks.length; 
-  const profileLinks = profileData.socialMedia ? [{title: "Social Media", url: profileData.socialMedia}] : []; // Simplified for now
+  const postsCountDisplay = userPosts.length; 
+  const artworksCountDisplay = userArtworks.length;
+  const profileLinks = profileData.socialMedia ? [{title: "Social Media", url: profileData.socialMedia}] : [];
 
   const canInteract = isAuthenticated && !isOwnProfile;
 
@@ -183,7 +184,8 @@ export default function UserProfilePageDynamic() {
               </div>
               <CardDescription className="text-lg text-muted-foreground">@{usernameDisplay}</CardDescription>
               <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-x-6 gap-y-2 text-sm">
-                <span><span className="font-semibold">{postsCount}</span> artworks</span>
+                <span><span className="font-semibold">{postsCountDisplay}</span> posts</span>
+                <span><span className="font-semibold">{artworksCountDisplay}</span> artworks</span>
                 <span className="flex items-center gap-1"><Users className="h-4 w-4 text-muted-foreground" /><span className="font-semibold">{followersCount.toLocaleString()}</span> followers</span>
                 <span className="flex items-center gap-1"><Users className="h-4 w-4 text-muted-foreground" /><span className="font-semibold">{followingCount.toLocaleString()}</span> following</span>
               </div>
@@ -252,13 +254,24 @@ export default function UserProfilePageDynamic() {
         </CardContent>
       </Card>
       
-      <Tabs defaultValue="artworks" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 md:max-w-md mx-auto">
+      <Tabs defaultValue="posts" className="w-full">
+        <TabsList className="grid w-full grid-cols-5 md:max-w-lg mx-auto">
+          <TabsTrigger value="posts" className="transition-colors"><Edit className="h-5 w-5 mr-0 md:mr-2" /><span className="hidden md:inline">Posts</span></TabsTrigger>
           <TabsTrigger value="artworks" className="transition-colors"><Grid3x3 className="h-5 w-5 mr-0 md:mr-2" /><span className="hidden md:inline">Artworks</span></TabsTrigger>
           <TabsTrigger value="reels" className="transition-colors"><Clapperboard className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Reels</span></TabsTrigger>
           {isOwnProfile && <TabsTrigger value="saved" className="transition-colors"><Bookmark className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Saved</span></TabsTrigger>}
           <TabsTrigger value="tagged" className="transition-colors"><Tag className="h-5 w-5 mr-0 md:mr-2"/><span className="hidden md:inline">Tagged</span></TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="posts">
+          <div className="space-y-4 mt-4">
+            {userPosts.map(post => (
+              <ContentCard key={post.id} content={post} currentUser={currentUser} onPostDeleted={handlePostDeleted} />
+            ))}
+            {userPosts.length === 0 && <p className="col-span-full text-center text-muted-foreground py-10">No posts yet.</p>}
+          </div>
+        </TabsContent>
+
         <TabsContent value="artworks">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 sm:gap-2 mt-4">
             {userArtworks.map(artwork => ( 
